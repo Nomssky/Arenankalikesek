@@ -1,0 +1,90 @@
+backend:
+  name: git-gateway
+  branch: main
+
+media_folder: public/images
+public_folder: /images
+
+collections:
+  - name: blog
+    label: "Blog"
+    label_singular: "Artikel"
+    folder: src/content/posts
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "Judul", name: "title", widget: "string" }
+      - { label: "Tanggal", name: "date", widget: "datetime" }
+      - { label: "Penulis", name: "author", widget: "string", required: false }
+      - { label: "Kategori", name: "category", widget: "string", required: false }
+      - { label: "Ringkasan", name: "excerpt", widget: "text" }
+      - { label: "Gambar", name: "image", widget: "image", required: false }
+      - { label: "Konten", name: "body", widget: "markdown" }
+      - { label: "Publikasikan", name: "published", widget: "boolean", default: true }
+
+  - name: products
+    label: "Produk Toko"
+    label_singular: "Produk"
+    folder: src/content/products
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "ID Produk", name: "id", widget: "string" }
+      - { label: "Nama", name: "name", widget: "string" }
+      - { label: "Deskripsi", name: "description", widget: "text" }
+      - { label: "Harga (Rp)", name: "price", widget: "number", value_type: "int" }
+      - { label: "Kategori", name: "category", widget: "string" }
+      - { label: "Stok", name: "stock", widget: "number", value_type: "int", default: 10 }
+      - { label: "Gambar", name: "image", widget: "image", required: false }
+
+  - name: tours
+    label: "Paket Wisata"
+    label_singular: "Paket Wisata"
+    folder: src/content/tours
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "ID", name: "id", widget: "string" }
+      - { label: "Nama Paket", name: "name", widget: "string" }
+      - { label: "Deskripsi", name: "description", widget: "text" }
+      - { label: "Harga (Rp)", name: "price", widget: "number", value_type: "int" }
+      - { label: "Harga Maks (Rp)", name: "maxPrice", widget: "number", value_type: "int", required: false }
+      - {
+          label: "Tipe Harga",
+          name: "priceType",
+          widget: "select",
+          options: ["per_person", "flat", "range"],
+          default: "per_person"
+        }
+      - {
+          label: "Kategori",
+          name: "category",
+          widget: "select",
+          options: ["aktivitas", "ruangan", "homestay", "camping", "fishing", "gratis"]
+        }
+      - { label: "Gambar", name: "image", widget: "image", required: false }
+      - { label: "Tersedia", name: "available", widget: "boolean", default: true }
+
+  - name: parking
+    label: "Parkir"
+    label_singular: "Jenis Parkir"
+    folder: src/content/parking
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "Kode", name: "code", widget: "string" }
+      - { label: "Nama", name: "name", widget: "string" }
+      - { label: "Harga per Jam (Rp)", name: "pricePerHour", widget: "number", value_type: "int" }
+      - { label: "Harga per Hari (Rp)", name: "pricePerDay", widget: "number", value_type: "int", required: false }
+      - { label: "Tersedia", name: "available", widget: "boolean", default: true }
+
+  - name: pages
+    label: "Halaman"
+    label_singular: "Halaman"
+    folder: src/content/pages
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "Judul", name: "title", widget: "string" }
+      - { label: "Konten", name: "body", widget: "markdown" }
+      - { label: "Gambar", name: "image", widget: "image", required: false }
