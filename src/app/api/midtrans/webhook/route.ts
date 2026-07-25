@@ -1,5 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import type { BookingStatus, PaymentStatus } from '@/lib/types'
+
+function mapMidtransStatus(transactionStatus: string): {
+  status: BookingStatus
+  payment_status: PaymentStatus
+} {
+  if (
+    transactionStatus === 'settlement' ||
+    transactionStatus === 'capture'
+  ) {
+    return { status: 'paid', payment_status: 'paid' }
+  } else if (
+    transactionStatus === 'deny' ||
+    transactionStatus === 'expire' ||
+    transactionStatus === 'cancel'
+  ) {
+    return { status: 'cancelled', payment_status: 'unpaid' }
+  }
+  return { status: 'pending', payment_status: 'unpaid' }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,22 +30,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'order_id required' }, { status: 400 })
     }
 
-    let bookingStatus = 'pending'
-    if (transaction_status === 'settlement' || transaction_status === 'capture') {
-      bookingStatus = 'paid'
-    } else if (
-      transaction_status === 'deny' ||
-      transaction_status === 'expire' ||
-      transaction_status === 'cancel'
-    ) {
-      bookingStatus = 'cancelled'
-    }
+    const { status: bookingStatus, payment_status } = mapMidtransStatus(
+      transaction_status
+    )
 
-    const supabase = getSupabaseAdmin() as any
+    const supabase = getSupabaseAdmin()
     const { error } = await supabase
       .from('bookings')
       .update({
         status: bookingStatus,
+        payment_status,
         payment_method: payment_type || null,
         updated_at: new Date().toISOString(),
       })

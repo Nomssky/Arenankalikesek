@@ -1,3 +1,7 @@
+export type BookingStatus = 'pending' | 'paid' | 'confirmed' | 'cancelled'
+export type PaymentStatus = 'unpaid' | 'paid' | 'refunded'
+export type BookingType = 'wisata' | 'toko' | 'parkir' | 'sewa'
+
 export interface SiteContent {
   title: string
   content: string
@@ -48,25 +52,34 @@ export interface ParkingType {
   available: boolean
 }
 
-export interface Booking {
+export interface BookingRow {
   id: string
-  type: 'wisata' | 'toko' | 'sewa'
-  customerName: string
-  customerPhone: string
-  customerEmail?: string
+  type: BookingType
+  booking_code: string | null
+  customer_name: string
+  customer_phone: string
+  customer_email: string | null
+  customer_address: string | null
+  event_name: string | null
+  booking_date: string | null
+  time_start: string | null
+  time_end: string | null
   items: BookingItem[]
-  totalAmount: number
-  status: 'pending' | 'paid' | 'confirmed' | 'cancelled'
-  paymentMethod?: string
-  paymentUrl?: string
-  notes?: string
-  createdAt: string
-  updatedAt: string
+  total_amount: number
+  status: BookingStatus
+  payment_status: PaymentStatus
+  payment_method: string | null
+  payment_url: string | null
+  assigned_pic: string | null
+  notes: string | null
+  expires_at: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface BookingItem {
-  itemId: string
-  itemName: string
+  id: string
+  name: string
   quantity: number
   price: number
   date?: string

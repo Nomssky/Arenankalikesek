@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkTransactionStatus } from '@/lib/midtrans'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
+import type { BookingStatus, PaymentStatus } from '@/lib/types'
+
+function mapMidtransStatus(transactionStatus: string): {
+  status: BookingStatus
+  payment_status: PaymentStatus
+} {
+  if (
+    transactionStatus === 'settlement' ||
+    transactionStatus === 'capture'
+  ) {
+    return { status: 'paid', payment_status: 'paid' }
+  } else if (
+    transactionStatus === 'deny' ||
+    transactionStatus === 'expire' ||
+    transactionStatus === 'cancel'
+  ) {
+    return { status: 'cancelled', payment_status: 'unpaid' }
+  }
+  return { status: 'pending', payment_status: 'unpaid' }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,34 +43,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const transactionStatus = status.transaction_status
-    let bookingStatus = 'pending'
+    const { status: bookingStatus, payment_status } = mapMidtransStatus(
+      status.transaction_status
+    )
 
-    if (
-      transactionStatus === 'settlement' ||
-      transactionStatus === 'capture'
-    ) {
-      bookingStatus = 'paid'
-    } else if (transactionStatus === 'deny' || transactionStatus === 'expire' || transactionStatus === 'cancel') {
-      bookingStatus = 'cancelled'
-    } else if (transactionStatus === 'pending') {
-      bookingStatus = 'pending'
-    }
-
-    const supabase = getSupabaseAdmin() as any
+    const supabase = getSupabaseAdmin()
     await supabase
       .from('bookings')
       .update({
         status: bookingStatus,
-        payment_method: status.payment_type,
+        payment_status,
+        payment_method: status.payment_type || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', orderId)
 
     return NextResponse.json({
       orderId,
-      transactionStatus,
+      transactionStatus: status.transaction_status,
       bookingStatus,
+      paymentStatus: payment_status,
       paymentType: status.payment_type,
       grossAmount: status.gross_amount,
     })
@@ -65,33 +77,23 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const body = await request.json()
-
-  const { transaction_status, order_id, payment_type, gross_amount } = body
+  const { transaction_status, order_id, payment_type } = body
 
   if (!order_id) {
     return NextResponse.json({ error: 'order_id required' }, { status: 400 })
   }
 
-  let bookingStatus = 'pending'
-  if (
-    transaction_status === 'settlement' ||
-    transaction_status === 'capture'
-  ) {
-    bookingStatus = 'paid'
-  } else if (
-    transaction_status === 'deny' ||
-    transaction_status === 'expire' ||
-    transaction_status === 'cancel'
-  ) {
-    bookingStatus = 'cancelled'
-  }
+  const { status: bookingStatus, payment_status } = mapMidtransStatus(
+    transaction_status
+  )
 
-  const supabase = getSupabaseAdmin() as any
+  const supabase = getSupabaseAdmin()
   await supabase
     .from('bookings')
     .update({
       status: bookingStatus,
-      payment_method: payment_type,
+      payment_status,
+      payment_method: payment_type || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', order_id)
@@ -100,5 +102,6 @@ export async function PUT(request: NextRequest) {
     status: 'ok',
     booking_id: order_id,
     booking_status: bookingStatus,
+    payment_status,
   })
 }
