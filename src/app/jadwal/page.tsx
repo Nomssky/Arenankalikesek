@@ -3,6 +3,13 @@
 import { useState } from 'react'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
+import CategoryVisualHeader from '@/components/CategoryVisualHeader'
+import { getServiceCategory, serviceCategories } from '@/lib/service-categories'
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline'
 
 const timeSlots = Array.from({ length: 12 }, (_, i) => `${(i + 7).toString().padStart(2, '0')}:00`)
 
@@ -37,15 +44,17 @@ const scheduleItems = [
   { id: 'alat-pancing', name: 'Sewa Alat Pancing', category: 'fishing', type: 'rental' },
 ]
 
-const categories = [
-  { id: 'semua', name: 'Semua' },
-  { id: 'tiket', name: '🎫 Tiket' },
-  { id: 'aktivitas', name: '🎯 Aktivitas' },
-  { id: 'sewa-tempat', name: '🏠 Sewa Tempat' },
-  { id: 'homestay', name: '🏡 Homestay' },
-  { id: 'camping', name: '🏕️ Camping' },
-  { id: 'fishing', name: '🎣 Fishing' },
-]
+const scheduleCategoryIds = new Set([
+  'semua',
+  'tiket',
+  'aktivitas',
+  'sewa-tempat',
+  'homestay',
+  'camping',
+  'fishing',
+])
+
+const categories = serviceCategories.filter((category) => scheduleCategoryIds.has(category.id))
 
 const bookedSlots: Record<string, string[]> = {
   '2026-07-22': ['aula-dalam-08:00', 'aula-dalam-09:00', 'joglo-13:00', 'joglo-14:00', 'homestay-1'],
@@ -62,6 +71,7 @@ export default function JadwalPage() {
   const filteredItems = selectedCategory === 'semua'
     ? scheduleItems
     : scheduleItems.filter((item) => item.category === selectedCategory)
+  const activeCategoryInfo = getServiceCategory(selectedCategory)
 
   const getBookingKey = (itemId: string, time?: string) =>
     time ? `${itemId}-${time}` : itemId
@@ -73,7 +83,7 @@ export default function JadwalPage() {
 
   return (
     <>
-      <Hero title="Jadwal & Ketersediaan" subtitle="Lihat jadwal booking dan slot yang tersedia" height="sm" />
+      <Hero title="Jadwal & Ketersediaan" subtitle="Lihat jadwal booking dan slot yang tersedia" image="/images/village-landscape.jpg" height="sm" />
 
       <Section>
         <div className="max-w-6xl mx-auto">
@@ -110,26 +120,29 @@ export default function JadwalPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 mb-6">
-            {categories.map((cat) => (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {categories.map((category) => (
               <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategory === cat.id
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                aria-pressed={selectedCategory === category.id}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  selectedCategory === category.id
                     ? 'bg-emerald-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {cat.name}
+                {category.name}
               </button>
             ))}
           </div>
 
+          <CategoryVisualHeader category={activeCategoryInfo} compact />
+
           {viewMode === 'hari' ? (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto overscroll-x-contain">
+                <table className="min-w-[1120px] text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b">
                       <th className="text-left p-3 font-semibold text-gray-700 min-w-[180px]">Item</th>
@@ -163,7 +176,11 @@ export default function JadwalPage() {
                                     ? 'bg-red-100 text-red-700'
                                     : 'bg-emerald-100 text-emerald-700'
                                 }`}>
-                                  {booked ? '✕' : '✓'}
+                                  {booked ? (
+                                    <XMarkIcon className="mx-auto h-4 w-4" />
+                                  ) : (
+                                    <CheckIcon className="mx-auto h-4 w-4" />
+                                  )}
                                 </span>
                               ) : (
                                 <span className="text-gray-300">-</span>
@@ -202,8 +219,13 @@ export default function JadwalPage() {
                         {item.type === 'ticket' ? 'Tiket' : 'Sewa'}
                       </span>
                     </div>
-                    <p className={`text-sm font-medium ${booked ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {booked ? '✕ Sudah dibooking' : '✓ Tersedia'}
+                    <p className={`flex items-center gap-1.5 text-sm font-medium ${booked ? 'text-red-600' : 'text-emerald-600'}`}>
+                      {booked ? (
+                        <XMarkIcon className="h-4 w-4" />
+                      ) : (
+                        <CheckIcon className="h-4 w-4" />
+                      )}
+                      {booked ? 'Sudah dibooking' : 'Tersedia'}
                     </p>
                     {booked && item.type === 'rental' && (
                       <p className="text-xs text-gray-500 mt-1">
@@ -212,11 +234,16 @@ export default function JadwalPage() {
                     )}
                     <a
                       href={`/booking/${item.type === 'ticket' ? 'wisata' : 'wisata'}?item=${item.id}`}
-                      className={`mt-3 inline-block text-sm font-medium ${
+                      className={`mt-3 inline-flex items-center gap-1.5 text-sm font-medium ${
                         booked ? 'text-gray-400 cursor-not-allowed' : 'text-emerald-600 hover:text-emerald-700'
                       }`}
                     >
-                      {booked ? 'Tidak tersedia' : 'Booking &rarr;'}
+                      {booked ? 'Tidak tersedia' : (
+                        <>
+                          Booking
+                          <ArrowRightIcon className="h-4 w-4" />
+                        </>
+                      )}
                     </a>
                   </div>
                 )
@@ -224,7 +251,7 @@ export default function JadwalPage() {
             </div>
           )}
 
-          <div className="mt-6 flex items-center gap-6 text-sm text-gray-500">
+          <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-gray-500 sm:gap-6">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-emerald-500" />
               <span>Tersedia</span>

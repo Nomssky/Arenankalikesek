@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import { formatDate } from '@/lib/utils'
+import { ArrowRightIcon, NewspaperIcon } from '@heroicons/react/24/outline'
 
 export default function BlogPage() {
   const posts = getAllPosts().filter((p) => p.published !== false)
@@ -12,6 +13,7 @@ export default function BlogPage() {
       <Hero
         title="Blog & Berita"
         subtitle="Artikel dan berita terbaru dari Arenan Kalikesek"
+        image="/images/village-landscape.jpg"
         height="sm"
       />
 
@@ -31,8 +33,8 @@ export default function BlogPage() {
                       style={{ backgroundImage: `url(${post.image})` }}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-emerald-300 text-4xl">
-                      📝
+                    <div className="flex h-full w-full items-center justify-center text-emerald-300">
+                      <NewspaperIcon className="h-12 w-12" />
                     </div>
                   )}
                 </div>
@@ -50,7 +52,10 @@ export default function BlogPage() {
                   </p>
                   <div className="flex items-center justify-between text-xs text-gray-400">
                     <span>{formatDate(post.date)}</span>
-                    <span className="text-emerald-600 group-hover:underline">Baca &rarr;</span>
+                    <span className="inline-flex items-center gap-1 text-emerald-600 group-hover:underline">
+                      Baca
+                      <ArrowRightIcon className="h-3.5 w-3.5" />
+                    </span>
                   </div>
                 </div>
               </Link>

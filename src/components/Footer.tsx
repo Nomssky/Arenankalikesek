@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 
 const quickLinks = [
   { label: 'Wisata', href: '/wisata' },
@@ -19,24 +20,24 @@ const bookingLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-300">
-      <div className="container-page py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
+    <footer className="relative overflow-hidden bg-[#173822] text-white/70">
+      <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 15% 20%, white 0 1px, transparent 2px)', backgroundSize: '28px 28px' }} />
+      <div className="relative container-page py-14 md:py-18">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-[1.35fr_0.8fr_1fr] md:gap-10">
+          <div className="sm:col-span-2 md:col-span-1">
             <div className="flex items-center gap-3 mb-4">
-              <img
+              <Image
                 src="/images/logo-arenan-kalikesek.png"
                 alt="Arenan Kalikesek"
-                className="h-10 w-auto brightness-0 invert"
+                width={320}
+                height={320}
+                className="h-16 w-auto"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none'
                 }}
               />
-              <span className="text-lg font-bold text-white">
-                Arenan Kalikesek
-              </span>
             </div>
-            <p className="text-sm leading-relaxed">
+            <p className="text-sm leading-7 max-w-sm">
               Desa Wisata Arenan Kalikesek Sriwulan menawarkan keindahan alam
               pegunungan, persawahan hijau, dan berbagai aktivitas wisata
               menarik.
@@ -44,13 +45,13 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-white font-semibold mb-4">Tautan</h3>
+            <h3 className="font-script text-3xl text-orange-400 mb-4">Jelajahi</h3>
             <ul className="space-y-2">
               {quickLinks.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm hover:text-emerald-400 transition-colors"
+                    className="text-sm hover:text-orange-300 transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -60,27 +61,27 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-white font-semibold mb-4">Booking</h3>
+            <h3 className="font-script text-3xl text-orange-400 mb-4">Reservasi</h3>
             <ul className="space-y-2">
               {bookingLinks.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm hover:text-emerald-400 transition-colors"
+                    className="text-sm hover:text-orange-300 transition-colors"
                   >
                     {link.label}
                   </Link>
                 </li>
               ))}
             </ul>
-            <h3 className="text-white font-semibold mt-6 mb-3">Kontak</h3>
+            <h3 className="text-white font-semibold mt-6 mb-3">Kontak Kami</h3>
             <ul className="space-y-2 text-sm">
               <li>Kalikesek, Sriwulan, Kec. Limbangan</li>
               <li>Kabupaten Kendal, Jawa Tengah 51383</li>
               <li>
                 <a
                   href="https://wa.me/6285741171957"
-                  className="hover:text-emerald-400 transition-colors"
+                  className="hover:text-orange-300 transition-colors"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -90,7 +91,7 @@ export default function Footer() {
               <li>
                 <a
                   href="mailto:arenankalikesek@gmail.com"
-                  className="hover:text-emerald-400 transition-colors"
+                  className="hover:text-orange-300 transition-colors"
                 >
                   arenankalikesek@gmail.com
                 </a>
@@ -100,9 +101,9 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-gray-800">
-        <div className="container-page py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-gray-500">
+      <div className="relative border-t border-white/10">
+        <div className="container-page py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-white/40">
             &copy; {new Date().getFullYear()} Arenan Kalikesek. All rights
             reserved.
           </p>

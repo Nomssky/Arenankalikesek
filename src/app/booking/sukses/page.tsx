@@ -1,15 +1,16 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { DocumentTextIcon } from '@heroicons/react/24/outline'
 
 function SuksesContent() {
   const searchParams = useSearchParams()
   const bookingId = searchParams.get('id')
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center">
+    <div className="min-h-[70vh] flex items-center justify-center pt-24">
       <div className="text-center max-w-md mx-auto px-4">
         <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <svg className="w-10 h-10 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -24,7 +25,7 @@ function SuksesContent() {
         </p>
         {bookingId && (
           <p className="text-sm text-gray-500 mb-2">
-            ID Booking: <span className="font-mono font-bold">{bookingId}</span>
+            ID Booking: <span className="break-anywhere font-mono font-bold">{bookingId}</span>
           </p>
         )}
         <p className="text-sm text-gray-500 mb-8">
@@ -34,7 +35,8 @@ function SuksesContent() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {bookingId && (
             <Link href={`/invoice/${bookingId}`} className="btn-primary">
-              🧾 Lihat Invoice
+              <DocumentTextIcon className="h-4 w-4" />
+              Lihat Invoice
             </Link>
           )}
           <a

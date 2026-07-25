@@ -8,6 +8,7 @@ export default function EduwisataPage() {
       <Hero
         title="Eduwisata Gula Aren"
         subtitle="Belajar dan merasakan langsung proses pembuatan gula aren tradisional"
+        image="/images/wisata-jelajah.jpg"
         height="md"
       />
 

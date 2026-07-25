@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
+import CategoryVisualHeader from '@/components/CategoryVisualHeader'
 import { formatPrice } from '@/lib/utils'
+import { getServiceCategory, serviceCategories } from '@/lib/service-categories'
 
 interface BookingItem {
   id: string
@@ -17,7 +19,7 @@ interface BookingItem {
 }
 
 const items = [
-  // 🎫 Tiket Masuk & Wahana
+  // Tiket Masuk & Wahana
   { id: 'htm', name: 'HTM (Harga Tiket Masuk)', category: 'tiket', price: 5000 },
   { id: 'kolam-anak', name: 'Kolam Anak', category: 'tiket', price: 5000 },
   { id: 'wahana-anak', name: 'Wahana Permainan Anak', category: 'tiket', price: 10000, note: '/wahana' },
@@ -31,14 +33,14 @@ const items = [
   { id: 'fun-game-2h', name: 'Fun Game (2 jam)', category: 'aktivitas', price: 15000 },
   { id: 'edukasi-gula-aren', name: 'Edukasi Pembuatan Gula Aren', category: 'aktivitas', price: 20000 },
 
-  // 🎣 Fishing
+  // Fishing
   { id: 'sewa-alat-pancing', name: 'Sewa Alat Pancing', category: 'fishing', price: 5000 },
   { id: 'pelet-umpan', name: 'Pelet Umpan', category: 'fishing', price: 5000 },
   { id: 'ikan-nila', name: 'Ikan Nila', category: 'fishing', price: 38000, note: '/kg' },
   { id: 'ikan-bawal', name: 'Ikan Bawal', category: 'fishing', price: 32000, note: '/kg' },
   { id: 'ikan-kalper', name: 'Ikan Kalper', category: 'fishing', price: 38000, note: '/kg' },
 
-  // 🏠 Sewa Tempat & Aula
+  // Sewa Tempat & Aula
   { id: 'pendopo', name: 'Pendopo (kap. 90-100 org)', category: 'sewa-tempat', price: 100000, note: '/jam' },
   { id: 'pendopo-besar', name: 'Pendopo Besar (kap. 40-50 org)', category: 'sewa-tempat', price: 75000, note: '/jam' },
   { id: 'gazebo-bawah', name: 'Gazebo Bawah (kap. 20-25 org)', category: 'sewa-tempat', price: 30000, note: '/jam' },
@@ -50,13 +52,13 @@ const items = [
   { id: 'outbound', name: 'Outbound', category: 'sewa-tempat', price: 25000, note: '/jam' },
   { id: 'senam', name: 'Senam', category: 'sewa-tempat', price: 25000, note: '/acara' },
 
-  // 🏕️ Camping
+  // Camping
   { id: 'htm-camp', name: 'HTM Camp', category: 'camping', price: 5000, note: '/orang' },
   { id: 'spot-tenda', name: 'Spot Tenda', category: 'camping', price: 25000 },
   { id: 'spot-tenda-besar', name: 'Spot Tenda Besar', category: 'camping', price: 40000 },
   { id: 'tenda-4', name: 'Tenda Kapasitas 4 Orang', category: 'camping', price: 75000 },
 
-  // 🏡 Homestay
+  // Homestay
   { id: 'homestay-1', name: 'Aren 1 (2-5 org)', category: 'homestay', price: 200000, maxPrice: 300000 },
   { id: 'homestay-2', name: 'Aren 2 (2-5 org)', category: 'homestay', price: 200000, maxPrice: 300000 },
   { id: 'homestay-3', name: 'Aren 3 (6-8 org)', category: 'homestay', price: 375000, maxPrice: 500000 },
@@ -64,7 +66,7 @@ const items = [
   { id: 'extra-bed', name: 'Extra Bed (100x220)', category: 'homestay', price: 25000 },
   { id: 'over-kapasitas', name: 'Over Kapasitas', category: 'homestay', price: 10000, note: '/orang' },
 
-  // 🎒 Paket Edukasi
+  // Paket Edukasi
   { id: 'edutrip-1', name: 'Edu Trip Kesek 1', category: 'paket-edukasi', price: 35000, note: '/pax' },
   { id: 'edutrip-2', name: 'Edu Trip Kesek 2', category: 'paket-edukasi', price: 35000, note: '/pax' },
   { id: 'edutrip-3', name: 'Edu Trip Kesek 3', category: 'paket-edukasi', price: 50000, note: '/pax' },
@@ -73,18 +75,6 @@ const items = [
   { id: 'package-1', name: 'Package Edukasi 1', category: 'paket-edukasi', price: 90000, note: '/pax - HTM + Keceh Kali + Terapi Ikan + Edukasi Gula Aren + Lunch + Welcome drink' },
   { id: 'package-2', name: 'Package Edukasi 2', category: 'paket-edukasi', price: 100000, note: '/pax - HTM + Keceh Kali + Terapi Ikan + Fun Game + Lunch + Welcome drink' },
   { id: 'package-3', name: 'Package Edukasi 3', category: 'paket-edukasi', price: 120000, note: '/pax - HTM + Keceh Kali + Terapi Ikan + Edukasi Gula Aren + Fun Game + Lunch + Welcome drink' },
-]
-
-const categories = [
-  { id: 'semua', name: 'Semua' },
-  { id: 'tiket', name: '🎫 Tiket & Wahana' },
-  { id: 'aktivitas', name: '🎯 Aktivitas' },
-  { id: 'gratis', name: '🎉 Gratis' },
-  { id: 'sewa-tempat', name: '🏠 Sewa Tempat' },
-  { id: 'paket-edukasi', name: '🎒 Paket Edukasi' },
-  { id: 'homestay', name: '🏡 Homestay' },
-  { id: 'camping', name: '🏕️ Camping' },
-  { id: 'fishing', name: '🎣 Fishing' },
 ]
 
 export default function BookingWisataPage() {
@@ -101,6 +91,7 @@ export default function BookingWisataPage() {
   const filteredItems = activeCategory === 'semua'
     ? items
     : items.filter((item) => item.category === activeCategory)
+  const activeCategoryInfo = getServiceCategory(activeCategory)
 
   const addItem = (item: typeof items[0]) => {
     setCart((prev) => {
@@ -174,62 +165,76 @@ export default function BookingWisataPage() {
       <Hero
         title="Booking Wisata"
         subtitle="Pilih aktivitas, paket edukasi, sewa tempat, atau homestay"
+        image="/images/village-hero.jpg"
         height="sm"
       />
 
-      <Section>
+      <Section className="relative overflow-hidden">
+        <CategoryVisualHeader category={activeCategoryInfo} />
+
         <div className="flex flex-wrap gap-2 mb-6">
-          {categories.map((cat) => (
+          {serviceCategories.map((category) => (
             <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeCategory === cat.id
+              key={category.id}
+              onClick={() => setActiveCategory(category.id)}
+              aria-pressed={activeCategory === category.id}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                activeCategory === category.id
                   ? 'bg-emerald-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {cat.name}
+              {category.name}
             </button>
           ))}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-12">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="card p-4 flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-gray-900 text-sm truncate">{item.name}</h3>
-                <p className="text-emerald-600 font-medium text-sm">
-                  {item.price === 0 ? 'Gratis' : formatPrice(item.price)}
-                  {item.maxPrice && ` - ${formatPrice(item.maxPrice)}`}
-                  {item.note && <span className="text-gray-400 text-xs ml-0.5">{item.note}</span>}
-                </p>
-
-              </div>
-              <button
-                onClick={() => addItem(item)}
-                className="w-8 h-8 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 flex items-center justify-center font-bold text-lg flex-shrink-0"
+          {filteredItems.map((item) => {
+            const itemCategory = getServiceCategory(item.category)
+            return (
+              <div
+                key={item.id}
+                className="card flex items-center justify-between gap-2 bg-cover bg-center p-4"
+                style={{
+                  backgroundImage: `linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.94)), url(${itemCategory.image})`,
+                  backgroundPosition: itemCategory.position || 'center',
+                }}
               >
-                +
-              </button>
-            </div>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-semibold text-gray-900">{item.name}</h3>
+                  <p className="text-sm font-medium text-emerald-700">
+                    {item.price === 0 ? 'Gratis' : formatPrice(item.price)}
+                    {item.maxPrice && ` - ${formatPrice(item.maxPrice)}`}
+                    {item.note && <span className="ml-0.5 text-xs text-gray-500">{item.note}</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={() => addItem(item)}
+                  aria-label={`Tambahkan ${item.name}`}
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-white transition hover:bg-emerald-700"
+                >
+                  +
+                </button>
+              </div>
+            )
+          })}
         </div>
 
         {cart.length > 0 && (
-          <div className="card p-6 max-w-2xl mx-auto">
+          <div className="card mx-auto max-w-2xl p-4 sm:p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
               Pesanan Anda ({cart.length} item)
             </h3>
 
             <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
               {cart.map((item) => (
-                <div key={item.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                <div key={item.id} className="flex flex-col gap-3 rounded-lg bg-gray-50 p-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
                     <p className="text-xs text-gray-500">{formatPrice(item.price)}</p>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <div className="flex flex-shrink-0 items-center gap-2 self-end min-[380px]:ml-2 min-[380px]:self-auto">
                     <button
                       onClick={() => updateCartItem(item.id, item.quantity - 1)}
                       className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 text-sm"

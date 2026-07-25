@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
+import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 
 export async function generateStaticParams() {
   const slugs = getAllSlugs('posts')
@@ -18,13 +19,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   }
 
   return (
-    <article className="py-12">
+    <article className="pb-12 pt-28">
       <div className="container-page max-w-4xl">
         <Link
           href="/blog"
-          className="text-emerald-600 hover:text-emerald-700 font-medium text-sm mb-6 inline-block"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700"
         >
-          &larr; Kembali ke Blog
+          <ArrowLeftIcon className="h-4 w-4" />
+          Kembali ke Blog
         </Link>
 
         {post.image && (
@@ -36,11 +38,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </div>
         )}
 
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="break-anywhere mb-4 text-2xl font-bold leading-tight text-gray-900 sm:text-3xl md:text-4xl">
           {post.title}
         </h1>
 
-        <div className="flex items-center gap-4 text-sm text-gray-500 mb-8 pb-8 border-b">
+        <div className="mb-8 flex flex-wrap items-center gap-3 border-b pb-8 text-sm text-gray-500 sm:gap-4">
           <span>{formatDate(post.date)}</span>
           {post.author && <span>Oleh: {post.author}</span>}
           {post.category && (

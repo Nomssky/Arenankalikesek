@@ -62,7 +62,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-20">
       <div className="bg-white shadow-sm border-b">
         <div className="container-page py-6">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard Admin</h1>
@@ -92,9 +92,9 @@ export default function DashboardPage() {
             <p className="text-lg">Belum ada booking</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+            <div className="overflow-x-auto overscroll-x-contain">
+              <table className="min-w-[980px] text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-gray-600">
                     <th className="text-left p-4 font-semibold">ID</th>

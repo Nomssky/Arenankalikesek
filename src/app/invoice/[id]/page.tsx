@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { formatPrice, formatDate, formatDateTime } from '@/lib/utils'
+import { PrinterIcon } from '@heroicons/react/24/outline'
 
 interface InvoiceData {
   id: string
@@ -74,32 +76,30 @@ export default function InvoicePage() {
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 text-lg">Invoice tidak ditemukan</p>
-          <a href="/" className="btn-primary mt-4 inline-block">Kembali</a>
+          <Link href="/" className="btn-primary mt-4 inline-block">Kembali</Link>
         </div>
       </div>
     )
   }
 
   const items = parseItems(data.items)
-  const subTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-
   return (
-    <div className="min-h-screen bg-gray-100 py-8 print:bg-white print:py-0">
+    <div className="min-h-screen bg-gray-100 pb-8 pt-28 print:bg-white print:py-0">
       <div className="max-w-3xl mx-auto px-4">
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden print:shadow-none print:rounded-none">
-          <div className="p-8 print:p-4">
-            <div className="flex items-start justify-between mb-8 print:mb-4">
+          <div className="p-4 sm:p-8 print:p-4">
+            <div className="mb-8 flex flex-col gap-4 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between print:mb-4 print:flex-row">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">INVOICE</h1>
                 <p className="text-gray-500 text-sm mt-1">Arenan Kalikesek</p>
               </div>
-              <div className="text-right">
+              <div className="min-w-0 min-[420px]:text-right print:text-right">
                 <p className="text-sm text-gray-500">Invoice #</p>
-                <p className="font-mono font-bold text-gray-900">{data.id}</p>
+                <p className="break-anywhere font-mono font-bold text-gray-900">{data.id}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-8 mb-8 print:mb-4 print:gap-4">
+            <div className="mb-8 grid grid-cols-1 gap-6 min-[420px]:grid-cols-2 min-[420px]:gap-8 print:mb-4 print:grid-cols-2 print:gap-4">
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Dari</h3>
                 <p className="font-semibold text-gray-900">Arenan Kalikesek</p>
@@ -107,16 +107,16 @@ export default function InvoicePage() {
                 <p className="text-sm text-gray-600">Kec. Limbangan, Kab. Kendal</p>
                 <p className="text-sm text-gray-600">0857-4117-1957</p>
               </div>
-              <div className="text-right">
+              <div className="min-w-0 min-[420px]:text-right print:text-right">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Kepada</h3>
                 <p className="font-semibold text-gray-900">{data.customer_name}</p>
                 <p className="text-sm text-gray-600">{data.customer_phone}</p>
-                {data.customer_email && <p className="text-sm text-gray-600">{data.customer_email}</p>}
+                {data.customer_email && <p className="break-anywhere text-sm text-gray-600">{data.customer_email}</p>}
               </div>
             </div>
 
             <div className="border-t pt-6 mb-6 print:pt-4 print:mb-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 text-sm min-[360px]:grid-cols-2 sm:grid-cols-4">
                 <div>
                   <p className="text-gray-500">Tanggal</p>
                   <p className="font-medium text-gray-900">{formatDateTime(data.created_at)}</p>
@@ -140,7 +140,8 @@ export default function InvoicePage() {
               </div>
             </div>
 
-            <table className="w-full mb-6 print:mb-4">
+            <div className="-mx-4 mb-6 overflow-x-auto px-4 sm:mx-0 sm:px-0 print:mx-0 print:mb-4 print:px-0">
+            <table className="min-w-[560px] w-full">
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="text-left py-3 text-xs font-semibold text-gray-500 uppercase">Item</th>
@@ -162,9 +163,10 @@ export default function InvoicePage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             <div className="border-t-2 pt-4">
-              <div className="flex justify-between items-center text-lg">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-lg">
                 <span className="font-bold text-gray-900">Total</span>
                 <span className="font-bold text-2xl text-emerald-600">{formatPrice(data.total_amount)}</span>
               </div>
@@ -183,13 +185,14 @@ export default function InvoicePage() {
             )}
           </div>
 
-          <div className="border-t px-8 py-4 flex justify-between items-center print:hidden">
+          <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8 print:hidden">
             <button onClick={handlePrint} className="btn-primary text-sm">
-              🖨️ Cetak Invoice
+              <PrinterIcon className="h-4 w-4" />
+              Cetak Invoice
             </button>
-            <a href="/" className="text-sm text-gray-500 hover:text-gray-700">
+            <Link href="/" className="text-center text-sm text-gray-500 hover:text-gray-700">
               Kembali ke Home
-            </a>
+            </Link>
           </div>
         </div>
 

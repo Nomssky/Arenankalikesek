@@ -4,11 +4,11 @@ import Section from '@/components/Section'
 export default function KontakPage() {
   return (
     <>
-      <Hero title="Kontak Kami" subtitle="Hubungi kami untuk informasi dan reservasi" height="sm" />
+      <Hero title="Kontak Kami" subtitle="Hubungi kami untuk informasi dan reservasi" image="/images/village-sign.jpg" height="sm" />
 
       <Section>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          <div className="card p-8">
+          <div className="card p-5 sm:p-8">
             <h3 className="text-xl font-semibold mb-6">Informasi Kontak</h3>
             <div className="space-y-6">
               <div className="flex items-start gap-4">
@@ -18,7 +18,7 @@ export default function KontakPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold text-gray-900">Alamat</p>
                   <p className="text-gray-600 text-sm mt-1">
                     Kalikesek, Sriwulan, Kec. Limbangan
@@ -34,7 +34,7 @@ export default function KontakPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold text-gray-900">WhatsApp</p>
                   <a
                     href="https://wa.me/6285741171957"
@@ -53,11 +53,11 @@ export default function KontakPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="font-semibold text-gray-900">Email</p>
                   <a
                     href="mailto:arenankalikesek@gmail.com"
-                    className="text-emerald-600 hover:text-emerald-700 text-sm mt-1 inline-block"
+                    className="break-anywhere mt-1 inline-block text-sm text-emerald-600 hover:text-emerald-700"
                   >
                     arenankalikesek@gmail.com
                   </a>
@@ -71,7 +71,7 @@ export default function KontakPage() {
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3963.0!2d110.0!3d-7.0!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zN8KwMDAnMDAuMCJTIDExMMKwMDAnMDAuMCJF!5e0!3m2!1sid!2sid!4v1"
               width="100%"
               height="100%"
-              className="min-h-[400px]"
+              className="min-h-[320px] sm:min-h-[400px]"
               style={{ border: 0 }}
               allowFullScreen
               loading="lazy"
@@ -88,12 +88,12 @@ export default function KontakPage() {
         subtitle="Ikuti kami di media sosial"
         className="bg-gray-50"
       >
-        <div className="flex justify-center gap-6">
+        <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 sm:mx-auto sm:max-w-xl sm:gap-6">
           <a
             href="https://www.instagram.com/arenankalikesek/"
             target="_blank"
             rel="noopener noreferrer"
-            className="card p-8 text-center hover:-translate-y-1 transition-transform"
+            className="card p-6 text-center transition-transform hover:-translate-y-1 sm:p-8"
           >
             <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-pink-500 via-purple-500 to-orange-400 rounded-2xl flex items-center justify-center">
               <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -108,7 +108,7 @@ export default function KontakPage() {
             href="https://www.tiktok.com/@arenankalikesek"
             target="_blank"
             rel="noopener noreferrer"
-            className="card p-8 text-center hover:-translate-y-1 transition-transform"
+            className="card p-6 text-center transition-transform hover:-translate-y-1 sm:p-8"
           >
             <div className="w-16 h-16 mx-auto mb-3 bg-gray-900 rounded-2xl flex items-center justify-center">
               <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import { formatPrice } from '@/lib/utils'
+import { ShoppingCartIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
 interface CartItem {
   id: string
@@ -24,35 +25,35 @@ interface Product {
 
 const categories = [
   { id: 'semua', name: 'Semua' },
-  { id: 'paket-makanan', name: '🍽️ Paket Makanan' },
-  { id: 'pupuk', name: '🌱 Pupuk & Pertanian' },
-  { id: 'fishing', name: '🎣 Fishing' },
-  { id: 'oleh-oleh', name: '🎁 Oleh-oleh' },
+  { id: 'paket-makanan', name: 'Paket Makanan' },
+  { id: 'pupuk', name: 'Pupuk & Pertanian' },
+  { id: 'fishing', name: 'Fishing' },
+  { id: 'oleh-oleh', name: 'Oleh-oleh' },
 ]
 
 const products: Product[] = [
-  // 🍽️ Paket Makanan
-  { id: 'paket-makan-1', name: 'Paket Makan 1', price: 8000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Gudeg + Gorengan', unit: 'paket' },
-  { id: 'paket-makan-2', name: 'Paket Makan 2', price: 9000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Soto + Gorengan', unit: 'paket' },
-  { id: 'paket-makan-3', name: 'Paket Makan 3', price: 12000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Nasi + Gudeg + Telur + Ayam Kampung + Kerupuk', unit: 'paket' },
-  { id: 'paket-makan-4', name: 'Paket Makan 4', price: 15000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Nasi + Ayam Goreng + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-5', name: 'Paket Makan 5', price: 15000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Nasi + Ayam Geprek', unit: 'paket' },
-  { id: 'paket-makan-6', name: 'Paket Makan 6', price: 17000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Nasi + Ayam Goreng + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-7', name: 'Paket Makan 7', price: 22000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Nasi + Ayam Kampung + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-8', name: 'Paket Makan 8', price: 25000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Nasi + Ikan Bakar + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-9', name: 'Paket Makan 9', price: 25000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Nasi + Ayam Bakar + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-10', name: 'Paket Makan 10', price: 30000, category: 'paket-makanan', image: '/images/paket-makan.jpg', desc: 'Nasi + Iga Bakar + Sambal + Lalapan', unit: 'paket' },
-  // 🌱 Pupuk & Pertanian
-  { id: 'pupuk-kompos', name: 'Pupuk Kompos', price: 25000, category: 'pupuk', image: '/images/pupuk-kompos.jpg', desc: 'Pupuk kompos organik', unit: 'karung' },
-  { id: 'pupuk-cair', name: 'Pupuk Cair Organik', price: 15000, category: 'pupuk', image: '/images/pupuk-cair.jpg', desc: 'Pupuk cair untuk tanaman', unit: 'botol' },
-  // 🎣 Fishing
-  { id: 'sewa-alat-pancing', name: 'Sewa Alat Pancing', price: 5000, category: 'fishing', image: '/images/sewa-pancing.jpg', desc: 'Sewa alat pancing lengkap', unit: 'set' },
-  { id: 'pelet-umpan', name: 'Pelet Umpan', price: 5000, category: 'fishing', image: '/images/pelet.jpg', desc: 'Pelet umpan ikan berkualitas', unit: 'bungkus' },
-  { id: 'ikan-nila', name: 'Ikan Nila Segar', price: 38000, category: 'fishing', image: '/images/ikan-nila.jpg', desc: 'Ikan nila segar', unit: 'kg' },
-  { id: 'ikan-bawal', name: 'Ikan Bawal Segar', price: 32000, category: 'fishing', image: '/images/ikan-bawal.jpg', desc: 'Ikan bawal segar', unit: 'kg' },
-  { id: 'ikan-kalper', name: 'Ikan Kalper Segar', price: 38000, category: 'fishing', image: '/images/ikan-kalper.jpg', desc: 'Ikan kalper segar', unit: 'kg' },
-  // 🎁 Oleh-oleh
-  { id: 'gula-aren', name: 'Gula Aren Murni', price: 35000, category: 'oleh-oleh', image: '/images/gula-aren.jpg', desc: 'Gula aren asli 100% alami', unit: 'kg' },
+  // Paket Makanan
+  { id: 'paket-makan-1', name: 'Paket Makan 1', price: 8000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Gudeg + Gorengan', unit: 'paket' },
+  { id: 'paket-makan-2', name: 'Paket Makan 2', price: 9000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Soto + Gorengan', unit: 'paket' },
+  { id: 'paket-makan-3', name: 'Paket Makan 3', price: 12000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Nasi + Gudeg + Telur + Ayam Kampung + Kerupuk', unit: 'paket' },
+  { id: 'paket-makan-4', name: 'Paket Makan 4', price: 15000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Nasi + Ayam Goreng + Sambal + Lalapan', unit: 'paket' },
+  { id: 'paket-makan-5', name: 'Paket Makan 5', price: 15000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Nasi + Ayam Geprek', unit: 'paket' },
+  { id: 'paket-makan-6', name: 'Paket Makan 6', price: 17000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Nasi + Ayam Goreng + Sambal + Lalapan', unit: 'paket' },
+  { id: 'paket-makan-7', name: 'Paket Makan 7', price: 22000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Nasi + Ayam Kampung + Sambal + Lalapan', unit: 'paket' },
+  { id: 'paket-makan-8', name: 'Paket Makan 8', price: 25000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Nasi + Ikan Bakar + Sambal + Lalapan', unit: 'paket' },
+  { id: 'paket-makan-9', name: 'Paket Makan 9', price: 25000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Nasi + Ayam Bakar + Sambal + Lalapan', unit: 'paket' },
+  { id: 'paket-makan-10', name: 'Paket Makan 10', price: 30000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Nasi + Iga Bakar + Sambal + Lalapan', unit: 'paket' },
+  // Pupuk & Pertanian
+  { id: 'pupuk-kompos', name: 'Pupuk Kompos', price: 25000, category: 'pupuk', image: '/images/village-panen.jpg', desc: 'Pupuk kompos organik', unit: 'karung' },
+  { id: 'pupuk-cair', name: 'Pupuk Cair Organik', price: 15000, category: 'pupuk', image: '/images/village-landscape.jpg', desc: 'Pupuk cair untuk tanaman', unit: 'botol' },
+  // Fishing
+  { id: 'sewa-alat-pancing', name: 'Sewa Alat Pancing', price: 5000, category: 'fishing', image: '/images/wisata-sungai.jpg', desc: 'Sewa alat pancing lengkap', unit: 'set' },
+  { id: 'pelet-umpan', name: 'Pelet Umpan', price: 5000, category: 'fishing', image: '/images/wisata-keceh-air.jpg', desc: 'Pelet umpan ikan berkualitas', unit: 'bungkus' },
+  { id: 'ikan-nila', name: 'Ikan Nila Segar', price: 38000, category: 'fishing', image: '/images/wisata-sungai.jpg', desc: 'Ikan nila segar', unit: 'kg' },
+  { id: 'ikan-bawal', name: 'Ikan Bawal Segar', price: 32000, category: 'fishing', image: '/images/wisata-keceh-air.jpg', desc: 'Ikan bawal segar', unit: 'kg' },
+  { id: 'ikan-kalper', name: 'Ikan Kalper Segar', price: 38000, category: 'fishing', image: '/images/wisata-sungai.jpg', desc: 'Ikan kalper segar', unit: 'kg' },
+  // Oleh-oleh
+  { id: 'gula-aren', name: 'Gula Aren Murni', price: 35000, category: 'oleh-oleh', image: '/images/wisata-jelajah.jpg', desc: 'Gula aren asli 100% alami', unit: 'kg' },
 ]
 
 export default function TokoPage() {
@@ -92,39 +93,32 @@ export default function TokoPage() {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
   const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
-  const categoryIcons: Record<string, string> = {
-    'paket-makanan': '🍽️',
-    pupuk: '🌱',
-    fishing: '🎣',
-    'oleh-oleh': '🎁',
-  }
-
   return (
     <>
-      <Hero title="Toko Arenan Kalikesek" subtitle="Belanja produk khas Kalikesek" height="sm" />
+      <Hero title="Toko Arenan Kalikesek" subtitle="Belanja produk khas Kalikesek" image="/images/village-tradition.jpg" height="sm" />
 
       <Section>
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-8">
+        <div className="mb-8 flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex flex-wrap gap-2">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   activeCategory === cat.id
                     ? 'bg-emerald-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {cat.id !== 'semua' && categoryIcons[cat.id]} {cat.name}
+                {cat.name}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto">
             <input
               type="text"
               placeholder="Cari produk..."
-              className="form-input text-sm flex-1 sm:w-48"
+              className="form-input min-w-0 flex-1 text-base sm:w-48 sm:text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -132,7 +126,8 @@ export default function TokoPage() {
               onClick={() => setShowCart(!showCart)}
               className="btn-primary text-sm relative"
             >
-              🛒 {totalItems}
+              <ShoppingCartIcon className="h-5 w-5" />
+              {totalItems}
               {totalItems > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
                   {totalItems}
@@ -156,11 +151,7 @@ export default function TokoPage() {
                     className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-300"
                     style={{ backgroundImage: `url(${product.image})` }}
                   >
-                    <div className="w-full h-full bg-white/40 flex items-center justify-center">
-                      <span className="text-5xl opacity-60">
-                        {product.category === 'paket-makanan' ? '🍽️' : product.category === 'pupuk' ? '🌱' : product.category === 'fishing' ? '🎣' : '🎁'}
-                      </span>
-                    </div>
+                    <div className="h-full w-full bg-gradient-to-t from-black/20 to-transparent" />
                   </div>
                   <span className="absolute top-2 right-2 text-xs bg-white/90 px-2 py-1 rounded-full font-medium text-gray-600">
                     {product.unit}
@@ -189,11 +180,14 @@ export default function TokoPage() {
 
       {showCart && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
-          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[80vh] overflow-auto">
+          <div className="max-h-[calc(100dvh-1rem)] w-full overflow-auto rounded-t-2xl bg-white p-4 sm:max-h-[80vh] sm:max-w-lg sm:rounded-2xl sm:p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900">🛒 Keranjang</h3>
+              <h3 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+                <ShoppingCartIcon className="h-6 w-6 text-emerald-700" />
+                Keranjang
+              </h3>
               <button onClick={() => setShowCart(false)} className="text-gray-400 hover:text-gray-600 text-xl">
-                ✕
+                <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
 
@@ -203,12 +197,12 @@ export default function TokoPage() {
               <>
                 <div className="space-y-3 mb-6">
                   {cart.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={item.id} className="flex flex-col gap-3 rounded-lg bg-gray-50 p-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                       <div className="flex-1">
                         <p className="font-medium text-gray-900 text-sm">{item.name}</p>
                         <p className="text-xs text-gray-500">{formatPrice(item.price)}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 self-end min-[380px]:self-auto">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
                           className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 text-sm"

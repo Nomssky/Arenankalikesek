@@ -4,7 +4,7 @@ date: 2025-07-27
 author: "Admin"
 category: "Artikel"
 excerpt: "Desa Wisata Arenan Kalikesek Sriwulan menawarkan keindahan alam yang memukau dengan berbagai aktivitas wisata menarik."
-image: /images/blog-wisata.jpg
+image: /images/village-landscape.jpg
 published: true
 ---
 

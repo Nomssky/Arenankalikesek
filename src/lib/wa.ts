@@ -19,7 +19,7 @@ export async function sendBookingNotification(params: {
     .map((item) => `- ${item.name} x${item.quantity} = Rp${item.price.toLocaleString()}`)
     .join('\n')
 
-  const message = `📋 *BOOKING BARU - Arenan Kalikesek*
+  const message = `*BOOKING BARU - Arenan Kalikesek*
 ━━━━━━━━━━━━━━━━
 *Tipe:* ${params.type}
 *Nama:* ${params.customerName}

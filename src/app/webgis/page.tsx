@@ -7,6 +7,7 @@ export default function WebGISPage() {
       <Hero
         title="WebGIS"
         subtitle="Peta interaktif kawasan Arenan Kalikesek"
+        image="/images/village-sign.jpg"
         height="sm"
       />
 
@@ -16,7 +17,7 @@ export default function WebGISPage() {
             <div className="p-4 bg-gray-50 border-b">
               <h3 className="font-semibold text-gray-900">Peta Penduduk</h3>
             </div>
-            <div className="aspect-video">
+            <div className="h-[360px] sm:h-[480px] lg:h-[620px]">
               <iframe
                 width="100%"
                 height="100%"
@@ -32,7 +33,7 @@ export default function WebGISPage() {
             <div className="p-4 bg-gray-50 border-b">
               <h3 className="font-semibold text-gray-900">Peta UMKM</h3>
             </div>
-            <div className="aspect-video">
+            <div className="h-[360px] sm:h-[480px] lg:h-[620px]">
               <iframe
                 width="100%"
                 height="100%"

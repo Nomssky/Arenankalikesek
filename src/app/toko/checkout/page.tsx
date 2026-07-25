@@ -85,25 +85,25 @@ function CheckoutForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-2xl mx-auto px-4">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">Checkout</h1>
+    <div className="min-h-screen bg-[#f3f0e6] pb-12 pt-28">
+      <div className="mx-auto max-w-2xl px-4">
+        <h1 className="mb-6 text-2xl font-bold text-gray-900 sm:mb-8">Checkout</h1>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm sm:p-6">
           <h2 className="font-semibold text-gray-900 mb-4">Pesanan Anda</h2>
           <div className="space-y-3">
             {cart.map((item) => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span className="text-gray-600">
+              <div key={item.id} className="flex items-start justify-between gap-4 text-sm">
+                <span className="min-w-0 break-words text-gray-600">
                   {item.name} x{item.quantity}
                 </span>
-                <span className="font-medium">
+                <span className="shrink-0 font-medium">
                   {formatPrice(item.price * item.quantity)}
                 </span>
               </div>
             ))}
           </div>
-          <div className="border-t mt-4 pt-4 flex justify-between">
+          <div className="mt-4 flex flex-wrap justify-between gap-3 border-t pt-4">
             <span className="font-semibold text-gray-900">Total</span>
             <span className="font-bold text-lg text-emerald-600">
               {formatPrice(totalPrice)}
@@ -111,7 +111,7 @@ function CheckoutForm() {
           </div>
         </div>
 
-        <form onSubmit={handleCheckout} className="bg-white rounded-xl shadow-sm p-6 space-y-4">
+        <form onSubmit={handleCheckout} className="space-y-4 rounded-xl bg-white p-4 shadow-sm sm:p-6">
           <h2 className="font-semibold text-gray-900 mb-4">Data Diri</h2>
 
           <div>
