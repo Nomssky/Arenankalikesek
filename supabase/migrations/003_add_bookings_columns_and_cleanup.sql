@@ -10,8 +10,7 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS event_name TEXT;
 CREATE INDEX IF NOT EXISTS idx_bookings_payment_status ON bookings(payment_status);
 CREATE INDEX IF NOT EXISTS idx_bookings_booking_code ON bookings(booking_code);
 
--- Cleanup parking_bookings references (table was never created)
+-- Cleanup parking_bookings indexes (table was never created)
 DROP INDEX IF EXISTS idx_parking_bookings_status;
 DROP INDEX IF EXISTS idx_parking_bookings_date;
 DROP INDEX IF EXISTS idx_parking_bookings_created;
-DROP TRIGGER IF EXISTS trigger_parking_bookings_updated_at ON parking_bookings;

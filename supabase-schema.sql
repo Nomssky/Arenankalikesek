@@ -70,11 +70,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_bookings_updated_at ON bookings;
 CREATE TRIGGER trigger_bookings_updated_at
   BEFORE UPDATE ON bookings
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_inventory_rentals_updated_at ON inventory_rentals;
 CREATE TRIGGER trigger_inventory_rentals_updated_at
   BEFORE UPDATE ON inventory_rentals
   FOR EACH ROW
@@ -85,10 +87,15 @@ ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inventory_rentals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rental_bookings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS anon_insert_bookings ON bookings;
 CREATE POLICY anon_insert_bookings ON bookings FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS anon_select_bookings ON bookings;
 CREATE POLICY anon_select_bookings ON bookings FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS anon_select_inventory ON inventory_rentals;
 CREATE POLICY anon_select_inventory ON inventory_rentals FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS anon_select_rentals ON rental_bookings;
 CREATE POLICY anon_select_rentals ON rental_bookings FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS anon_insert_rentals ON rental_bookings;
 CREATE POLICY anon_insert_rentals ON rental_bookings FOR INSERT TO anon WITH CHECK (true);
 
 -- Seed data untuk inventory_rentals
