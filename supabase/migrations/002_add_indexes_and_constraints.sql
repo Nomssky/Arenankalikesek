@@ -39,6 +39,9 @@ CREATE TRIGGER trigger_tour_packages_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- 4. CHECK constraints
+ALTER TABLE products DROP CONSTRAINT IF EXISTS products_price_check;
 ALTER TABLE products ADD CONSTRAINT products_price_check CHECK (price >= 0);
+ALTER TABLE tour_packages DROP CONSTRAINT IF EXISTS tour_packages_price_check;
 ALTER TABLE tour_packages ADD CONSTRAINT tour_packages_price_check CHECK (price >= 0);
+ALTER TABLE tour_packages DROP CONSTRAINT IF EXISTS tour_packages_max_price_check;
 ALTER TABLE tour_packages ADD CONSTRAINT tour_packages_max_price_check CHECK (max_price >= price OR max_price IS NULL);

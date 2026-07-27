@@ -39,11 +39,15 @@ ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tour_packages ENABLE ROW LEVEL SECURITY;
 
 -- Allow all operations via service_role / anon (public read)
+DROP POLICY IF EXISTS "Public read products" ON products;
 CREATE POLICY "Public read products" ON products FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public read tour_packages" ON tour_packages;
 CREATE POLICY "Public read tour_packages" ON tour_packages FOR SELECT USING (true);
 
 -- Allow insert/update/delete only for service_role (handled by API)
+DROP POLICY IF EXISTS "Service write products" ON products;
 CREATE POLICY "Service write products" ON products FOR ALL USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS "Service write tour_packages" ON tour_packages;
 CREATE POLICY "Service write tour_packages" ON tour_packages FOR ALL USING (false) WITH CHECK (false);
 
 -- ============================================================
