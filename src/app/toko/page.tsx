@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import { formatPrice } from '@/lib/utils'
@@ -19,7 +19,7 @@ interface Product {
   price: number
   category: string
   image: string
-  desc: string
+  description: string
   unit: string
 }
 
@@ -31,36 +31,34 @@ const categories = [
   { id: 'oleh-oleh', name: 'Oleh-oleh' },
 ]
 
-const products: Product[] = [
-  // Paket Makanan
-  { id: 'paket-makan-1', name: 'Paket Makan 1', price: 8000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Gudeg + Gorengan', unit: 'paket' },
-  { id: 'paket-makan-2', name: 'Paket Makan 2', price: 9000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Soto + Gorengan', unit: 'paket' },
-  { id: 'paket-makan-3', name: 'Paket Makan 3', price: 12000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Nasi + Gudeg + Telur + Ayam Kampung + Kerupuk', unit: 'paket' },
-  { id: 'paket-makan-4', name: 'Paket Makan 4', price: 15000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Nasi + Ayam Goreng + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-5', name: 'Paket Makan 5', price: 15000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Nasi + Ayam Geprek', unit: 'paket' },
-  { id: 'paket-makan-6', name: 'Paket Makan 6', price: 17000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Nasi + Ayam Goreng + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-7', name: 'Paket Makan 7', price: 22000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Nasi + Ayam Kampung + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-8', name: 'Paket Makan 8', price: 25000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Nasi + Ikan Bakar + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-9', name: 'Paket Makan 9', price: 25000, category: 'paket-makanan', image: '/images/playlist-poster.jpg', desc: 'Nasi + Ayam Bakar + Sambal + Lalapan', unit: 'paket' },
-  { id: 'paket-makan-10', name: 'Paket Makan 10', price: 30000, category: 'paket-makanan', image: '/images/village-tradition.jpg', desc: 'Nasi + Iga Bakar + Sambal + Lalapan', unit: 'paket' },
-  // Pupuk & Pertanian
-  { id: 'pupuk-kompos', name: 'Pupuk Kompos', price: 25000, category: 'pupuk', image: '/images/village-panen.jpg', desc: 'Pupuk kompos organik', unit: 'karung' },
-  { id: 'pupuk-cair', name: 'Pupuk Cair Organik', price: 15000, category: 'pupuk', image: '/images/village-landscape.jpg', desc: 'Pupuk cair untuk tanaman', unit: 'botol' },
-  // Fishing
-  { id: 'sewa-alat-pancing', name: 'Sewa Alat Pancing', price: 5000, category: 'fishing', image: '/images/wisata-sungai.jpg', desc: 'Sewa alat pancing lengkap', unit: 'set' },
-  { id: 'pelet-umpan', name: 'Pelet Umpan', price: 5000, category: 'fishing', image: '/images/wisata-keceh-air.jpg', desc: 'Pelet umpan ikan berkualitas', unit: 'bungkus' },
-  { id: 'ikan-nila', name: 'Ikan Nila Segar', price: 38000, category: 'fishing', image: '/images/wisata-sungai.jpg', desc: 'Ikan nila segar', unit: 'kg' },
-  { id: 'ikan-bawal', name: 'Ikan Bawal Segar', price: 32000, category: 'fishing', image: '/images/wisata-keceh-air.jpg', desc: 'Ikan bawal segar', unit: 'kg' },
-  { id: 'ikan-kalper', name: 'Ikan Kalper Segar', price: 38000, category: 'fishing', image: '/images/wisata-sungai.jpg', desc: 'Ikan kalper segar', unit: 'kg' },
-  // Oleh-oleh
-  { id: 'gula-aren', name: 'Gula Aren Murni', price: 35000, category: 'oleh-oleh', image: '/images/wisata-jelajah.jpg', desc: 'Gula aren asli 100% alami', unit: 'kg' },
-]
-
 export default function TokoPage() {
+  const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [showCart, setShowCart] = useState(false)
   const [activeCategory, setActiveCategory] = useState('semua')
   const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const res = await fetch('/api/products')
+        if (res.ok) {
+          const data = await res.json()
+          setProducts(data)
+        } else {
+          setError('Gagal memuat produk')
+        }
+      } catch (e) {
+        console.error('Failed to load products:', e)
+        setError('Gagal memuat produk')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
 
   const filteredProducts = products.filter((p) => {
     const matchCategory = activeCategory === 'semua' || p.category === activeCategory
@@ -137,7 +135,18 @@ export default function TokoPage() {
           </div>
         </div>
 
-        {filteredProducts.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full" />
+          </div>
+        ) : error ? (
+          <div className="rounded-xl bg-red-50 p-6 text-center text-red-700">
+            <p className="text-lg font-medium mb-1">{error}</p>
+            <button onClick={() => window.location.reload()} className="text-sm text-red-600 underline">
+              Coba lagi
+            </button>
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <p className="text-lg mb-2">Produk tidak ditemukan</p>
             <p className="text-sm">Coba ubah kata kunci atau kategori</p>
@@ -161,7 +170,7 @@ export default function TokoPage() {
                   <div className="flex items-start justify-between mb-1">
                     <h3 className="font-semibold text-gray-900 text-sm">{product.name}</h3>
                   </div>
-                  <p className="text-xs text-gray-500 mb-2">{product.desc}</p>
+                    <p className="text-xs text-gray-500 mb-2">{product.description}</p>
                   <div className="flex items-center justify-between">
                     <p className="text-emerald-600 font-bold">{formatPrice(product.price)}</p>
                     <button
@@ -228,8 +237,9 @@ export default function TokoPage() {
                   </div>
                   <button
                     onClick={() => {
+                      sessionStorage.setItem('toko-cart', JSON.stringify(cart))
                       setShowCart(false)
-                      window.location.href = `/toko/checkout?items=${encodeURIComponent(JSON.stringify(cart))}`
+                      window.location.href = '/toko/checkout'
                     }}
                     className="btn-primary w-full"
                   >

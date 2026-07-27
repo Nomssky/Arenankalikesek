@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
-import { createMidtransTransaction } from '@/lib/midtrans'
+import { createXenditInvoice, isXenditConfigured } from '@/lib/xendit'
 import { sendBookingNotification } from '@/lib/wa'
 import { generateId } from '@/lib/utils'
+import { requireAdmin } from '@/lib/admin-guard'
+import type { BookingType } from '@/lib/types'
 
 function generateBookingCode(): string {
   const now = new Date()
@@ -36,12 +38,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const validTypes: BookingType[] = ['wisata', 'toko', 'parkir', 'sewa']
+    const bookingType: BookingType = validTypes.includes(type) ? type : 'wisata'
+
+    const parsedTotal = Math.max(0, Number(totalAmount) || 0)
+    if (!isFinite(parsedTotal)) {
+      return NextResponse.json(
+        { error: 'Total amount tidak valid' },
+        { status: 400 }
+      )
+    }
+
+    if (items !== undefined && !Array.isArray(items)) {
+      return NextResponse.json(
+        { error: 'Items harus berupa array' },
+        { status: 400 }
+      )
+    }
+
     const bookingId = generateId()
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
 
     const bookingData = {
       id: bookingId,
-      type,
+      type: bookingType,
       booking_code: generateBookingCode(),
       customer_name: customerName,
       customer_phone: customerPhone,
@@ -52,7 +72,7 @@ export async function POST(request: NextRequest) {
       time_start: timeStart || null,
       time_end: timeEnd || null,
       items: items || [],
-      total_amount: totalAmount || 0,
+      total_amount: parsedTotal,
       status: 'pending',
       payment_status: 'unpaid',
       notes: notes || null,
@@ -70,45 +90,73 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (totalAmount > 0) {
-      const transaction = await createMidtransTransaction({
-        transactionId: bookingId,
-        grossAmount: totalAmount,
-        customerName,
-        customerEmail: customerEmail || `${customerPhone}@email.com`,
-        customerPhone,
-        items: items.map((item: { id: string; name: string; price: number; quantity: number }) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-        })),
+    const safeItems: { name: string; quantity: number; price: number }[] = (items || []).map(
+      (item: { name: string; quantity?: number; price: number }) => ({
+        name: item.name,
+        quantity: item.quantity || 1,
+        price: item.price,
       })
+    )
 
-      await supabase
-        .from('bookings')
-        .update({ payment_url: transaction.redirect_url })
-        .eq('id', bookingId)
+    if (parsedTotal > 0) {
+      if (!isXenditConfigured()) {
+        await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', bookingId)
 
-      await sendBookingNotification({
-        customerName,
-        customerPhone,
-        type,
-        items: items.map((item: { name: string; quantity: number; price: number }) => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        totalAmount,
-        bookingDate,
-      })
+        return NextResponse.json({
+          bookingId,
+          bookingCode: bookingData.booking_code,
+          paymentUrl: null,
+          info: 'Payment gateway tidak dikonfigurasi, booking langsung dikonfirmasi',
+        })
+      }
 
-      return NextResponse.json({
-        bookingId,
-        bookingCode: bookingData.booking_code,
-        paymentUrl: transaction.redirect_url,
-        token: transaction.token,
-      })
+      try {
+        const invoice = await createXenditInvoice({
+          externalId: bookingId,
+          amount: parsedTotal,
+          customerName,
+          customerEmail: customerEmail || undefined,
+          customerPhone,
+          items: safeItems,
+        })
+
+        await supabase
+          .from('bookings')
+          .update({ payment_url: invoice.invoice_url })
+          .eq('id', bookingId)
+
+        await sendBookingNotification({
+          customerName,
+          customerPhone,
+          type: bookingType,
+          items: safeItems,
+          totalAmount: parsedTotal,
+          bookingDate,
+        })
+
+        return NextResponse.json({
+          bookingId,
+          bookingCode: bookingData.booking_code,
+          paymentUrl: invoice.invoice_url,
+          invoiceId: invoice.id,
+        })
+      } catch (paymentError) {
+        console.error('Payment error:', paymentError)
+        await supabase
+          .from('bookings')
+          .update({ status: 'confirmed', notes: 'Payment failed, manually confirmed' })
+          .eq('id', bookingId)
+
+        return NextResponse.json({
+          bookingId,
+          bookingCode: bookingData.booking_code,
+          paymentUrl: null,
+          info: 'Booking berhasil tapi pembayaran bermasalah, hubungi admin',
+        })
+      }
     }
 
     await supabase
@@ -131,6 +179,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdmin(request)
+  if (auth) return auth
+
   const { searchParams } = new URL(request.url)
   const type = searchParams.get('type')
   const status = searchParams.get('status')
@@ -164,7 +215,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Gagal memuat data booking' }, { status: 500 })
     }
 
     return NextResponse.json(data)

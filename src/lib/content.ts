@@ -4,7 +4,7 @@ import matter from 'gray-matter'
 
 const contentDir = path.join(process.cwd(), 'src', 'content')
 
-export function getContentByType(type: string) {
+export function getContentByType<T>(type: string): T[] {
   const dir = path.join(contentDir, type)
   if (!fs.existsSync(dir)) return []
 
@@ -13,15 +13,11 @@ export function getContentByType(type: string) {
   return files.map((file) => {
     const raw = fs.readFileSync(path.join(dir, file), 'utf-8')
     const { data, content } = matter(raw)
-    return {
-      ...data,
-      content,
-      slug: file.replace(/\.mdx?$/, ''),
-    }
+    return { ...data, content, slug: file.replace(/\.mdx?$/, '') } as T
   })
 }
 
-export function getContentBySlug(type: string, slug: string) {
+export function getContentBySlug<T>(type: string, slug: string): T | null {
   const dir = path.join(contentDir, type)
   const files = ['.md', '.mdx'].map((ext) => path.join(dir, `${slug}${ext}`))
 
@@ -29,7 +25,7 @@ export function getContentBySlug(type: string, slug: string) {
     if (fs.existsSync(file)) {
       const raw = fs.readFileSync(file, 'utf-8')
       const { data, content } = matter(raw)
-      return { ...data, content, slug }
+      return { ...data, content, slug } as T
     }
   }
 
@@ -46,67 +42,22 @@ export function getAllSlugs(type: string) {
     .map((f) => f.replace(/\.mdx?$/, ''))
 }
 
+interface Post {
+  slug: string
+  title: string
+  date: string
+  author?: string
+  category?: string
+  excerpt: string
+  content: string
+  image?: string
+  published: boolean
+}
+
 export function getAllPosts() {
-  return getContentByType('posts') as unknown as {
-    slug: string
-    title: string
-    date: string
-    author?: string
-    category?: string
-    excerpt: string
-    content: string
-    image?: string
-    published: boolean
-  }[]
+  return getContentByType<Post>('posts')
 }
 
 export function getPostBySlug(slug: string) {
-  return getContentBySlug('posts', slug) as unknown as {
-    slug: string
-    title: string
-    date: string
-    author?: string
-    category?: string
-    excerpt: string
-    content: string
-    image?: string
-    published: boolean
-  } | null
-}
-
-export function getAllProducts() {
-  return getContentByType('products') as unknown as {
-    slug: string
-    id: string
-    name: string
-    description: string
-    price: number
-    image?: string
-    category: string
-    stock: number
-  }[]
-}
-
-export function getAllTourPackages() {
-  return getContentByType('tours') as unknown as {
-    slug: string
-    id: string
-    name: string
-    description: string
-    price: number
-    priceType: string
-    maxPrice?: number
-    image?: string
-    category: string
-    available: boolean
-  }[]
-}
-
-export function getPageBySlug(slug: string) {
-  return getContentBySlug('pages', slug) as unknown as {
-    slug: string
-    title: string
-    content: string
-    image?: string
-  } | null
+  return getContentBySlug<Post>('posts', slug)
 }

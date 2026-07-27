@@ -4,10 +4,22 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 export const metadata: Metadata = {
-  title: 'Arenan Kalikesek | Desa Wisata Sriwulan',
+  title: {
+    default: 'Arenan Kalikesek | Desa Wisata Sriwulan',
+    template: '%s | Arenan Kalikesek',
+  },
   description:
     'Desa Wisata Arenan Kalikesek Sriwulan, Kecamatan Limbangan, Kabupaten Kendal, Jawa Tengah. Nikmati keindahan alam dan berbagai aktivitas wisata menarik.',
   keywords: ['wisata', 'kalikesek', 'sriwulan', 'kendal', 'desa wisata', 'arenan'],
+  openGraph: {
+    title: 'Arenan Kalikesek | Desa Wisata Sriwulan',
+    description:
+      'Desa Wisata Arenan Kalikesek Sriwulan, Kecamatan Limbangan, Kabupaten Kendal, Jawa Tengah.',
+    url: process.env.NEXT_PUBLIC_SITE_URL,
+    siteName: 'Arenan Kalikesek',
+    locale: 'id_ID',
+    type: 'website',
+  },
 }
 
 export const viewport: Viewport = {

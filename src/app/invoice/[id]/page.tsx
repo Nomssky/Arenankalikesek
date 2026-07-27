@@ -8,17 +8,33 @@ import { PrinterIcon } from '@heroicons/react/24/outline'
 
 interface InvoiceData {
   id: string
+  booking_code: string | null
   customer_name: string
   customer_phone: string
   customer_email?: string
+  customer_address?: string
   type: string
   status: string
-  total_amount: number
+  payment_status: string
   payment_method?: string
+  total_amount: number
   items: string
   booking_date?: string
   created_at: string
   notes?: string
+}
+
+const statusLabel: Record<string, { text: string; color: string }> = {
+  pending: { text: 'Menunggu Pembayaran', color: 'text-amber-600 bg-amber-50' },
+  paid: { text: 'Lunas', color: 'text-emerald-600 bg-emerald-50' },
+  confirmed: { text: 'Dikonfirmasi', color: 'text-blue-600 bg-blue-50' },
+  cancelled: { text: 'Dibatalkan', color: 'text-red-600 bg-red-50' },
+}
+
+const paymentLabel: Record<string, { text: string; color: string }> = {
+  unpaid: { text: 'Belum Bayar', color: 'text-amber-600 bg-amber-50' },
+  paid: { text: 'Sudah Bayar', color: 'text-emerald-600 bg-emerald-50' },
+  refunded: { text: 'Dikembalikan', color: 'text-gray-600 bg-gray-100' },
 }
 
 export default function InvoicePage() {
@@ -44,14 +60,8 @@ export default function InvoicePage() {
     fetchInvoice()
   }, [id])
 
-  const statusLabel: Record<string, { text: string; color: string }> = {
-    pending: { text: 'Menunggu Pembayaran', color: 'text-amber-600 bg-amber-50' },
-    paid: { text: 'Lunas', color: 'text-emerald-600 bg-emerald-50' },
-    confirmed: { text: 'Dikonfirmasi', color: 'text-blue-600 bg-blue-50' },
-    cancelled: { text: 'Dibatalkan', color: 'text-red-600 bg-red-50' },
-  }
-
   const statusInfo = data ? statusLabel[data.status] || statusLabel.pending : statusLabel.pending
+  const paymentInfo = data ? paymentLabel[data.payment_status] || paymentLabel.unpaid : paymentLabel.unpaid
 
   const parseItems = (itemsStr: string) => {
     try {
@@ -94,8 +104,15 @@ export default function InvoicePage() {
                 <p className="text-gray-500 text-sm mt-1">Arenan Kalikesek</p>
               </div>
               <div className="min-w-0 min-[420px]:text-right print:text-right">
-                <p className="text-sm text-gray-500">Invoice #</p>
-                <p className="break-anywhere font-mono font-bold text-gray-900">{data.id}</p>
+                <p className="text-sm text-gray-500">
+                  {data.booking_code ? 'Kode Booking' : 'Invoice #'}
+                </p>
+                <p className="break-anywhere font-mono font-bold text-gray-900">
+                  {data.booking_code || data.id}
+                </p>
+                {data.booking_code && (
+                  <p className="text-xs text-gray-400 mt-0.5">ID: {data.id}</p>
+                )}
               </div>
             </div>
 
@@ -112,6 +129,7 @@ export default function InvoicePage() {
                 <p className="font-semibold text-gray-900">{data.customer_name}</p>
                 <p className="text-sm text-gray-600">{data.customer_phone}</p>
                 {data.customer_email && <p className="break-anywhere text-sm text-gray-600">{data.customer_email}</p>}
+                {data.customer_address && <p className="text-sm text-gray-600">{data.customer_address}</p>}
               </div>
             </div>
 
@@ -135,6 +153,9 @@ export default function InvoicePage() {
                   <p className="text-gray-500">Status</p>
                   <p className={`font-medium ${statusInfo.color} inline-block px-2 py-0.5 rounded text-xs`}>
                     {statusInfo.text}
+                  </p>
+                  <p className={`font-medium ${paymentInfo.color} inline-block px-2 py-0.5 rounded text-xs mt-1`}>
+                    {paymentInfo.text}
                   </p>
                 </div>
               </div>

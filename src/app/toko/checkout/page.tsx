@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { formatPrice } from '@/lib/utils'
 
 interface CartItem {
@@ -19,16 +19,40 @@ function CheckoutForm() {
   const [customerEmail, setCustomerEmail] = useState('')
   const [address, setAddress] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (redirectUrl) {
+      window.location.href = redirectUrl
+    }
+  }, [redirectUrl])
 
   let cart: CartItem[] = []
-  try {
-    const itemsParam = searchParams.get('items')
-    if (itemsParam) {
+  const itemsParam = searchParams.get('items')
+
+  if (itemsParam) {
+    try {
       cart = JSON.parse(decodeURIComponent(itemsParam))
+    } catch {
+      cart = []
     }
-  } catch {
-    cart = []
+  } else {
+    try {
+      const stored = sessionStorage.getItem('toko-cart')
+      if (stored) {
+        cart = JSON.parse(stored)
+      }
+    } catch {
+      cart = []
+    }
   }
+
+  useEffect(() => {
+    return () => {
+      try { sessionStorage.removeItem('toko-cart') } catch {}
+    }
+  }, [])
 
   const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
@@ -36,6 +60,7 @@ function CheckoutForm() {
     e.preventDefault()
     if (!customerName || !customerPhone) return
 
+    setSubmitError('')
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/bookings', {
@@ -46,7 +71,7 @@ function CheckoutForm() {
           customerName,
           customerPhone,
           customerEmail,
-          notes: `Alamat: ${address}`,
+          customerAddress: address || undefined,
           items: cart.map((ci) => ({
             id: ci.id,
             name: ci.name,
@@ -59,13 +84,20 @@ function CheckoutForm() {
 
       const data = await res.json()
 
+      if (!res.ok) {
+        setSubmitError(data.error || 'Gagal memproses pesanan')
+        return
+      }
+
+      try { sessionStorage.removeItem('toko-cart') } catch {}
+
       if (data.paymentUrl) {
-        window.location.href = data.paymentUrl
+        setRedirectUrl(data.paymentUrl)
       } else {
         router.push(`/booking/sukses?id=${data.bookingId}`)
       }
     } catch {
-      alert('Gagal memproses pesanan. Silakan coba lagi.')
+      setSubmitError('Gagal memproses pesanan. Silakan coba lagi.')
     } finally {
       setIsSubmitting(false)
     }
@@ -155,6 +187,11 @@ function CheckoutForm() {
             />
           </div>
 
+          {submitError && (
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
           <button
             type="submit"
             disabled={isSubmitting}

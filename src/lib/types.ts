@@ -43,15 +43,6 @@ export interface TourPackage {
   category: 'aktivitas' | 'ruangan' | 'homestay' | 'camping' | 'fishing' | 'gratis'
   available: boolean
 }
-
-export interface ParkingType {
-  code: string
-  name: string
-  pricePerHour: number
-  pricePerDay?: number
-  available: boolean
-}
-
 export interface BookingRow {
   id: string
   type: BookingType
@@ -87,10 +78,3 @@ export interface BookingItem {
   timeEnd?: string
 }
 
-export interface MidtransTransaction {
-  transactionId: string
-  bookingId: string
-  grossAmount: number
-  status: string
-  paymentUrl?: string
-}

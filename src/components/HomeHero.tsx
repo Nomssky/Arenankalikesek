@@ -31,14 +31,16 @@ const slides = [
 
 export default function HomeHero() {
   const [activeSlide, setActiveSlide] = useState(0)
+  const [paused, setPaused] = useState(false)
 
   useEffect(() => {
+    if (paused) return
     const timer = window.setInterval(() => {
       setActiveSlide((current) => (current + 1) % slides.length)
     }, 6500)
 
     return () => window.clearInterval(timer)
-  }, [])
+  }, [paused])
 
   const goToPrevious = () => {
     setActiveSlide((current) => (current - 1 + slides.length) % slides.length)
@@ -49,7 +51,10 @@ export default function HomeHero() {
   }
 
   return (
-    <section className="relative flex min-h-[max(640px,100svh)] items-center overflow-hidden bg-emerald-950 md:min-h-[820px] lg:min-h-[max(760px,100svh)]">
+    <section
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="relative flex min-h-[max(640px,100svh)] items-center overflow-hidden bg-emerald-950 md:min-h-[820px] lg:min-h-[max(760px,100svh)]">
       {slides.map((slide, index) => (
         <div
           key={slide.image}

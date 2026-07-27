@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import CategoryVisualHeader from '@/components/CategoryVisualHeader'
@@ -13,72 +13,139 @@ import {
 
 const timeSlots = Array.from({ length: 12 }, (_, i) => `${(i + 7).toString().padStart(2, '0')}:00`)
 
-const scheduleItems = [
-  { id: 'htm', name: 'HTM (Tiket Masuk)', category: 'tiket', type: 'ticket' },
-  { id: 'kolam-anak', name: 'Kolam Anak', category: 'tiket', type: 'ticket' },
-  { id: 'wahana-anak', name: 'Wahana Anak', category: 'tiket', type: 'ticket' },
-  { id: 'berenang', name: 'Berenang', category: 'tiket', type: 'ticket' },
-  { id: 'terapi-ikan', name: 'Terapi Ikan', category: 'aktivitas', type: 'ticket' },
-  { id: 'keceh-kali', name: 'Keceh Kali', category: 'aktivitas', type: 'ticket' },
-  { id: 'tangkap-ikan', name: 'Tangkap Ikan', category: 'aktivitas', type: 'ticket' },
-  { id: 'tanam-padi', name: 'Tanam Padi', category: 'aktivitas', type: 'ticket' },
-  { id: 'tanam-sayur', name: 'Tanam Sayur', category: 'aktivitas', type: 'ticket' },
-  { id: 'cooking-class', name: 'Cooking Class', category: 'aktivitas', type: 'ticket' },
-  { id: 'fun-game', name: 'Fun Game', category: 'aktivitas', type: 'ticket' },
-  { id: 'pendopo', name: 'Pendopo', category: 'sewa-tempat', type: 'rental' },
-  { id: 'pendopo-besar', name: 'Pendopo Besar', category: 'sewa-tempat', type: 'rental' },
-  { id: 'gazebo', name: 'Gazebo', category: 'sewa-tempat', type: 'rental' },
-  { id: 'gazebo-bawah', name: 'Gazebo Bawah', category: 'sewa-tempat', type: 'rental' },
-  { id: 'aula-dalam', name: 'Aula Dalam', category: 'sewa-tempat', type: 'rental' },
-  { id: 'aula-teras', name: 'Aula Teras', category: 'sewa-tempat', type: 'rental' },
-  { id: 'aula-full', name: 'Aula Full', category: 'sewa-tempat', type: 'rental' },
-  { id: 'aula-sungai', name: 'Aula Sungai', category: 'sewa-tempat', type: 'rental' },
-  { id: 'outbound', name: 'Outbound', category: 'sewa-tempat', type: 'rental' },
-  { id: 'homestay-1', name: 'Aren 1', category: 'homestay', type: 'rental' },
-  { id: 'homestay-2', name: 'Aren 2', category: 'homestay', type: 'rental' },
-  { id: 'homestay-3', name: 'Aren 3', category: 'homestay', type: 'rental' },
-  { id: 'homestay-4', name: 'Aren 4', category: 'homestay', type: 'rental' },
-  { id: 'spot-tenda', name: 'Spot Tenda', category: 'camping', type: 'rental' },
-  { id: 'spot-tenda-besar', name: 'Spot Tenda Besar', category: 'camping', type: 'rental' },
-  { id: 'tenda-4', name: 'Tenda 4 Orang', category: 'camping', type: 'rental' },
-  { id: 'alat-pancing', name: 'Sewa Alat Pancing', category: 'fishing', type: 'rental' },
-]
+interface InventoryItem {
+  id: string
+  name: string
+  category: string
+  available: boolean
+}
+
+interface RentalBooking {
+  item_id: string
+  time_start: string
+  time_end: string
+  booking_date: string
+  status: string
+}
 
 const scheduleCategoryIds = new Set([
-  'semua',
-  'tiket',
-  'aktivitas',
-  'sewa-tempat',
-  'homestay',
-  'camping',
-  'fishing',
+  'semua', 'tiket', 'aktivitas', 'sewa-tempat', 'homestay', 'camping', 'fishing',
 ])
 
-const categories = serviceCategories.filter((category) => scheduleCategoryIds.has(category.id))
+const categories = serviceCategories.filter((c) => scheduleCategoryIds.has(c.id))
 
-const bookedSlots: Record<string, string[]> = {
-  '2026-07-22': ['aula-dalam-08:00', 'aula-dalam-09:00', 'joglo-13:00', 'joglo-14:00', 'homestay-1'],
-  '2026-07-23': ['aula-full-10:00', 'aula-full-11:00', 'aula-full-12:00'],
+const rentalCategories = new Set(['ruangan', 'homestay', 'camping', 'fishing'])
+
+function isRentalCategory(cat: string): boolean {
+  return rentalCategories.has(cat)
 }
 
 type ViewMode = 'hari' | 'item'
 
 export default function JadwalPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [mounted, setMounted] = useState(false)
+  const [selectedDate, setSelectedDate] = useState('')
+
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0]
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedDate(today)
+    setMounted(true)
+  }, [])
   const [selectedCategory, setSelectedCategory] = useState('semua')
   const [viewMode, setViewMode] = useState<ViewMode>('hari')
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
+  const [rentalBookings, setRentalBookings] = useState<RentalBooking[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true)
+      setError('')
+      try {
+        const [invRes, bookingRes] = await Promise.all([
+          fetch('/api/inventory-rentals'),
+          fetch(`/api/bookings?start_date=${selectedDate}&end_date=${selectedDate}`),
+        ])
+        if (invRes.ok) {
+          const items = await invRes.json()
+          setInventoryItems(items)
+        }
+        if (bookingRes.ok) {
+          const bookings = await bookingRes.json()
+          const rentalEntries: RentalBooking[] = []
+          for (const b of bookings) {
+            if (b.items && Array.isArray(b.items)) {
+              for (const item of b.items) {
+                rentalEntries.push({
+                  item_id: item.id || item.itemId,
+                  time_start: b.time_start || '',
+                  time_end: b.time_end || '',
+                  booking_date: b.booking_date || selectedDate,
+                  status: b.status,
+                })
+              }
+            }
+          }
+          setRentalBookings(rentalEntries)
+        }
+        if (!invRes.ok || !bookingRes.ok) {
+          setError('Gagal memuat jadwal')
+        }
+      } catch (e) {
+        console.error('Failed to load schedule:', e)
+        setError('Gagal memuat jadwal')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [selectedDate])
+
+  const scheduleItems = inventoryItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    type: (isRentalCategory(item.category) ? 'rental' : 'ticket') as 'rental' | 'ticket',
+  }))
 
   const filteredItems = selectedCategory === 'semua'
     ? scheduleItems
     : scheduleItems.filter((item) => item.category === selectedCategory)
   const activeCategoryInfo = getServiceCategory(selectedCategory)
 
-  const getBookingKey = (itemId: string, time?: string) =>
-    time ? `${itemId}-${time}` : itemId
-
   const isBooked = (itemId: string, time?: string) => {
-    const key = getBookingKey(itemId, time)
-    return bookedSlots[selectedDate]?.includes(key) || false
+    return rentalBookings.some((rb) => {
+      if (rb.item_id !== itemId) return false
+      if (rb.status === 'cancelled') return false
+      if (time) {
+        if (!rb.time_start) return true
+        const rbStart = rb.time_start.substring(0, 5)
+        const rbEnd = rb.time_end ? rb.time_end.substring(0, 5) : rbStart
+        return time >= rbStart && time < rbEnd
+      }
+      return true
+    })
+  }
+
+  const isItemBooked = (itemId: string) => {
+    return rentalBookings.some(
+      (rb) => rb.item_id === itemId && rb.status !== 'cancelled'
+    )
+  }
+
+  if (!mounted || loading) {
+    return (
+      <>
+        <Hero title="Jadwal & Ketersediaan" subtitle="Memuat data..." image="/images/village-landscape.jpg" height="sm" />
+        <Section>
+          <div className="flex justify-center py-20">
+            <div className="animate-spin w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full" />
+          </div>
+        </Section>
+      </>
+    )
   }
 
   return (
@@ -87,6 +154,14 @@ export default function JadwalPage() {
 
       <Section>
         <div className="max-w-6xl mx-auto">
+          {error && (
+            <div className="rounded-xl bg-red-50 p-6 text-center text-red-700 mb-6">
+              <p className="text-lg font-medium mb-1">{error}</p>
+              <button onClick={() => window.location.reload()} className="text-sm text-red-600 underline">
+                Coba lagi
+              </button>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-4 mb-8">
             <div className="flex-1">
               <label className="form-label">Pilih Tanggal</label>
@@ -159,9 +234,7 @@ export default function JadwalPage() {
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="p-3 font-medium text-gray-900">
                           <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${
-                              item.type === 'ticket' ? 'bg-blue-500' : 'bg-amber-500'
-                            }`} />
+                            <span className={`w-2 h-2 rounded-full ${item.type === 'ticket' ? 'bg-blue-500' : 'bg-amber-500'}`} />
                             {item.name}
                           </div>
                         </td>
@@ -190,11 +263,11 @@ export default function JadwalPage() {
                         })}
                         <td className="p-2 text-center">
                           <span className={`inline-block w-full py-1.5 rounded text-xs font-medium ${
-                            isBooked(item.id)
+                            isItemBooked(item.id)
                               ? 'bg-red-100 text-red-700'
                               : 'bg-emerald-100 text-emerald-700'
                           }`}>
-                            {isBooked(item.id) ? 'Full' : 'Tersedia'}
+                            {isItemBooked(item.id) ? 'Full' : 'Tersedia'}
                           </span>
                         </td>
                       </tr>
@@ -206,7 +279,7 @@ export default function JadwalPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredItems.map((item) => {
-                const booked = isBooked(item.id)
+                const booked = isItemBooked(item.id)
                 return (
                   <div key={item.id} className={`card p-5 border-l-4 ${
                     booked ? 'border-l-red-500' : 'border-l-emerald-500'
@@ -233,7 +306,7 @@ export default function JadwalPage() {
                       </p>
                     )}
                     <a
-                      href={`/booking/${item.type === 'ticket' ? 'wisata' : 'wisata'}?item=${item.id}`}
+                      href={`/booking/wisata?item=${item.id}`}
                       className={`mt-3 inline-flex items-center gap-1.5 text-sm font-medium ${
                         booked ? 'text-gray-400 cursor-not-allowed' : 'text-emerald-600 hover:text-emerald-700'
                       }`}
@@ -249,6 +322,10 @@ export default function JadwalPage() {
                 )
               })}
             </div>
+          )}
+
+          {filteredItems.length === 0 && (
+            <p className="py-12 text-center text-gray-500">Tidak ada item untuk kategori ini</p>
           )}
 
           <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-gray-500 sm:gap-6">

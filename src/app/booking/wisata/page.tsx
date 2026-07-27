@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import CategoryVisualHeader from '@/components/CategoryVisualHeader'
@@ -12,88 +13,75 @@ interface BookingItem {
   name: string
   category: string
   price: number
-  maxPrice?: number
-  capacity?: string
+  max_price: number | null
+  capacity: string | null
   quantity: number
-  note?: string
+  note: string | null
 }
 
-const items = [
-  // Tiket Masuk & Wahana
-  { id: 'htm', name: 'HTM (Harga Tiket Masuk)', category: 'tiket', price: 5000 },
-  { id: 'kolam-anak', name: 'Kolam Anak', category: 'tiket', price: 5000 },
-  { id: 'wahana-anak', name: 'Wahana Permainan Anak', category: 'tiket', price: 10000, note: '/wahana' },
-  { id: 'terapi-ikan', name: 'Terapi Ikan', category: 'gratis', price: 0 },
-  { id: 'keceh-kali', name: 'Keceh Kali (Bermain Sungai)', category: 'gratis', price: 0 },
-  { id: 'berenang', name: 'Berenang', category: 'tiket', price: 5000 },
-  { id: 'tangkap-ikan', name: 'Tangkap Ikan', category: 'aktivitas', price: 10000 },
-  { id: 'tanam-padi', name: 'Tanam Padi', category: 'aktivitas', price: 15000 },
-  { id: 'tanam-sayur', name: 'Tanam Sayur', category: 'aktivitas', price: 10000 },
-  { id: 'cooking-class', name: 'Cooking Class', category: 'aktivitas', price: 25000 },
-  { id: 'fun-game-2h', name: 'Fun Game (2 jam)', category: 'aktivitas', price: 15000 },
-  { id: 'edukasi-gula-aren', name: 'Edukasi Pembuatan Gula Aren', category: 'aktivitas', price: 20000 },
-
-  // Fishing
-  { id: 'sewa-alat-pancing', name: 'Sewa Alat Pancing', category: 'fishing', price: 5000 },
-  { id: 'pelet-umpan', name: 'Pelet Umpan', category: 'fishing', price: 5000 },
-  { id: 'ikan-nila', name: 'Ikan Nila', category: 'fishing', price: 38000, note: '/kg' },
-  { id: 'ikan-bawal', name: 'Ikan Bawal', category: 'fishing', price: 32000, note: '/kg' },
-  { id: 'ikan-kalper', name: 'Ikan Kalper', category: 'fishing', price: 38000, note: '/kg' },
-
-  // Sewa Tempat & Aula
-  { id: 'pendopo', name: 'Pendopo (kap. 90-100 org)', category: 'sewa-tempat', price: 100000, note: '/jam' },
-  { id: 'pendopo-besar', name: 'Pendopo Besar (kap. 40-50 org)', category: 'sewa-tempat', price: 75000, note: '/jam' },
-  { id: 'gazebo-bawah', name: 'Gazebo Bawah (kap. 20-25 org)', category: 'sewa-tempat', price: 30000, note: '/jam' },
-  { id: 'gazebo', name: 'Gazebo (kap. 30-40 org)', category: 'sewa-tempat', price: 50000, note: '/jam' },
-  { id: 'aula-dalam', name: 'Aula Dalam (kap. 35-40 org)', category: 'sewa-tempat', price: 75000, note: '/jam' },
-  { id: 'aula-teras', name: 'Aula Teras (kap. 35-40 org)', category: 'sewa-tempat', price: 75000, note: '/jam' },
-  { id: 'aula-full', name: 'Aula Full (kap. 60-80 org)', category: 'sewa-tempat', price: 200000, note: '/jam' },
-  { id: 'aula-sungai', name: 'Aula Sungai (kap. 70-90 org)', category: 'sewa-tempat', price: 100000, note: '/jam' },
-  { id: 'outbound', name: 'Outbound', category: 'sewa-tempat', price: 25000, note: '/jam' },
-  { id: 'senam', name: 'Senam', category: 'sewa-tempat', price: 25000, note: '/acara' },
-
-  // Camping
-  { id: 'htm-camp', name: 'HTM Camp', category: 'camping', price: 5000, note: '/orang' },
-  { id: 'spot-tenda', name: 'Spot Tenda', category: 'camping', price: 25000 },
-  { id: 'spot-tenda-besar', name: 'Spot Tenda Besar', category: 'camping', price: 40000 },
-  { id: 'tenda-4', name: 'Tenda Kapasitas 4 Orang', category: 'camping', price: 75000 },
-
-  // Homestay
-  { id: 'homestay-1', name: 'Aren 1 (2-5 org)', category: 'homestay', price: 200000, maxPrice: 300000 },
-  { id: 'homestay-2', name: 'Aren 2 (2-5 org)', category: 'homestay', price: 200000, maxPrice: 300000 },
-  { id: 'homestay-3', name: 'Aren 3 (6-8 org)', category: 'homestay', price: 375000, maxPrice: 500000 },
-  { id: 'homestay-4', name: 'Aren 4 (8-10 org)', category: 'homestay', price: 450000, maxPrice: 575000 },
-  { id: 'extra-bed', name: 'Extra Bed (100x220)', category: 'homestay', price: 25000 },
-  { id: 'over-kapasitas', name: 'Over Kapasitas', category: 'homestay', price: 10000, note: '/orang' },
-
-  // Paket Edukasi
-  { id: 'edutrip-1', name: 'Edu Trip Kesek 1', category: 'paket-edukasi', price: 35000, note: '/pax' },
-  { id: 'edutrip-2', name: 'Edu Trip Kesek 2', category: 'paket-edukasi', price: 35000, note: '/pax' },
-  { id: 'edutrip-3', name: 'Edu Trip Kesek 3', category: 'paket-edukasi', price: 50000, note: '/pax' },
-  { id: 'edutrip-4', name: 'Edu Trip Kesek 4', category: 'paket-edukasi', price: 50000, note: '/pax' },
-  { id: 'edutrip-5', name: 'Edu Trip Kesek 5', category: 'paket-edukasi', price: 80000, note: '/pax' },
-  { id: 'package-1', name: 'Package Edukasi 1', category: 'paket-edukasi', price: 90000, note: '/pax - HTM + Keceh Kali + Terapi Ikan + Edukasi Gula Aren + Lunch + Welcome drink' },
-  { id: 'package-2', name: 'Package Edukasi 2', category: 'paket-edukasi', price: 100000, note: '/pax - HTM + Keceh Kali + Terapi Ikan + Fun Game + Lunch + Welcome drink' },
-  { id: 'package-3', name: 'Package Edukasi 3', category: 'paket-edukasi', price: 120000, note: '/pax - HTM + Keceh Kali + Terapi Ikan + Edukasi Gula Aren + Fun Game + Lunch + Welcome drink' },
-]
+interface TourPackage {
+  id: string
+  name: string
+  category: string
+  price: number
+  max_price: number | null
+  capacity: string | null
+  note: string | null
+}
 
 export default function BookingWisataPage() {
+  const router = useRouter()
+  const [packages, setPackages] = useState<TourPackage[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState('semua')
   const [cart, setCart] = useState<BookingItem[]>([])
   const [showForm, setShowForm] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
+  const [customerAddress, setCustomerAddress] = useState('')
+  const [eventName, setEventName] = useState('')
   const [bookingDate, setBookingDate] = useState('')
+  const [timeStart, setTimeStart] = useState('')
+  const [timeEnd, setTimeEnd] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [fetchError, setFetchError] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (redirectUrl) {
+      window.location.href = redirectUrl
+    }
+  }, [redirectUrl])
+
+  useEffect(() => {
+    async function fetchPackages() {
+      try {
+        const res = await fetch('/api/tour-packages?available=true')
+        if (res.ok) {
+          const data = await res.json()
+          setPackages(data)
+        } else {
+          setFetchError('Gagal memuat paket wisata')
+        }
+      } catch (e) {
+        console.error('Failed to load packages:', e)
+        setFetchError('Gagal memuat paket wisata')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPackages()
+  }, [])
 
   const filteredItems = activeCategory === 'semua'
-    ? items
-    : items.filter((item) => item.category === activeCategory)
+    ? packages
+    : packages.filter((item) => item.category === activeCategory)
   const activeCategoryInfo = getServiceCategory(activeCategory)
 
-  const addItem = (item: typeof items[0]) => {
+  const addItem = (item: TourPackage) => {
     setCart((prev) => {
       const existing = prev.find((ci) => ci.id === item.id)
       if (existing) {
@@ -124,6 +112,7 @@ export default function BookingWisataPage() {
     e.preventDefault()
     if (!customerName || !customerPhone || !bookingDate) return
 
+    setSubmitError('')
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/bookings', {
@@ -134,7 +123,11 @@ export default function BookingWisataPage() {
           customerName,
           customerPhone,
           customerEmail,
+          customerAddress,
+          eventName: eventName || undefined,
           bookingDate,
+          timeStart: timeStart || undefined,
+          timeEnd: timeEnd || undefined,
           notes,
           items: cart.map((ci) => ({
             id: ci.id,
@@ -148,13 +141,18 @@ export default function BookingWisataPage() {
 
       const data = await res.json()
 
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl
-      } else {
-        window.location.href = `/booking/sukses?id=${data.bookingId}`
+      if (!res.ok) {
+        setSubmitError(data.error || 'Gagal memproses booking')
+        return
       }
-    } catch (error) {
-      alert('Gagal memproses booking. Silakan coba lagi.')
+
+      if (data.paymentUrl) {
+        setRedirectUrl(data.paymentUrl)
+      } else {
+        router.push(`/booking/sukses?id=${data.bookingId}`)
+      }
+    } catch {
+      setSubmitError('Gagal memproses booking. Silakan coba lagi.')
     } finally {
       setIsSubmitting(false)
     }
@@ -189,6 +187,18 @@ export default function BookingWisataPage() {
           ))}
         </div>
 
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full" />
+          </div>
+        ) : fetchError ? (
+          <div className="rounded-xl bg-red-50 p-6 text-center text-red-700 mb-12">
+            <p className="text-lg font-medium mb-1">{fetchError}</p>
+            <button onClick={() => window.location.reload()} className="text-sm text-red-600 underline">
+              Coba lagi
+            </button>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-12">
           {filteredItems.map((item) => {
             const itemCategory = getServiceCategory(item.category)
@@ -205,7 +215,7 @@ export default function BookingWisataPage() {
                   <h3 className="truncate text-sm font-semibold text-gray-900">{item.name}</h3>
                   <p className="text-sm font-medium text-emerald-700">
                     {item.price === 0 ? 'Gratis' : formatPrice(item.price)}
-                    {item.maxPrice && ` - ${formatPrice(item.maxPrice)}`}
+                    {item.max_price && ` - ${formatPrice(item.max_price)}`}
                     {item.note && <span className="ml-0.5 text-xs text-gray-500">{item.note}</span>}
                   </p>
                 </div>
@@ -220,6 +230,7 @@ export default function BookingWisataPage() {
             )
           })}
         </div>
+        )}
 
         {cart.length > 0 && (
           <div className="card mx-auto max-w-2xl p-4 sm:p-6">
@@ -269,6 +280,11 @@ export default function BookingWisataPage() {
               </button>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4 border-t pt-4">
+                {submitError && (
+                  <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                    {submitError}
+                  </div>
+                )}
                 <div>
                   <label className="form-label">Nama Lengkap *</label>
                   <input
@@ -300,6 +316,26 @@ export default function BookingWisataPage() {
                   />
                 </div>
                 <div>
+                  <label className="form-label">Alamat</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    placeholder="Alamat lengkap"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Nama Acara (opsional)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={eventName}
+                    onChange={(e) => setEventName(e.target.value)}
+                    placeholder="Misal: Arisan Keluarga, Meeting"
+                  />
+                </div>
+                <div>
                   <label className="form-label">Tanggal Booking *</label>
                   <input
                     type="date"
@@ -308,6 +344,26 @@ export default function BookingWisataPage() {
                     onChange={(e) => setBookingDate(e.target.value)}
                     required
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="form-label">Jam Mulai</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={timeStart}
+                      onChange={(e) => setTimeStart(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Jam Selesai</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={timeEnd}
+                      onChange={(e) => setTimeEnd(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="form-label">Catatan (opsional)</label>

@@ -5,15 +5,21 @@ CREATE TABLE IF NOT EXISTS bookings (
   customer_name TEXT NOT NULL,
   customer_phone TEXT NOT NULL,
   customer_email TEXT,
+  customer_address TEXT,
+  event_name TEXT,
   booking_date TEXT,
   time_start TEXT,
   time_end TEXT,
   items JSONB DEFAULT '[]',
   total_amount INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'confirmed', 'cancelled')),
+  payment_status TEXT DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'paid', 'refunded')),
   payment_method TEXT,
   payment_url TEXT,
+  booking_code TEXT,
+  assigned_pic TEXT,
   notes TEXT,
+  expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -52,9 +58,6 @@ CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_type ON bookings(type);
 CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(booking_date);
 CREATE INDEX IF NOT EXISTS idx_bookings_created ON bookings(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_parking_bookings_status ON parking_bookings(status);
-CREATE INDEX IF NOT EXISTS idx_parking_bookings_date ON parking_bookings(booking_date);
-CREATE INDEX IF NOT EXISTS idx_parking_bookings_created ON parking_bookings(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_rental_bookings_date ON rental_bookings(booking_date);
 CREATE INDEX IF NOT EXISTS idx_rental_bookings_item ON rental_bookings(item_id);
 
@@ -72,11 +75,6 @@ CREATE TRIGGER trigger_bookings_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
-CREATE TRIGGER trigger_parking_bookings_updated_at
-  BEFORE UPDATE ON parking_bookings
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at();
-
 CREATE TRIGGER trigger_inventory_rentals_updated_at
   BEFORE UPDATE ON inventory_rentals
   FOR EACH ROW
@@ -84,14 +82,11 @@ CREATE TRIGGER trigger_inventory_rentals_updated_at
 
 -- Row Level Security
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE parking_bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inventory_rentals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rental_bookings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY anon_insert_bookings ON bookings FOR INSERT TO anon WITH CHECK (true);
 CREATE POLICY anon_select_bookings ON bookings FOR SELECT TO anon USING (true);
-CREATE POLICY anon_insert_parking ON parking_bookings FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY anon_select_parking ON parking_bookings FOR SELECT TO anon USING (true);
 CREATE POLICY anon_select_inventory ON inventory_rentals FOR SELECT TO anon USING (true);
 CREATE POLICY anon_select_rentals ON rental_bookings FOR SELECT TO anon USING (true);
 CREATE POLICY anon_insert_rentals ON rental_bookings FOR INSERT TO anon WITH CHECK (true);
