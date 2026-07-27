@@ -22,9 +22,15 @@ const mobileNavItems = [
   ...navItems.slice(2),
 ]
 
+function isNavPathActive(pathname: string, href: string) {
+  if (href === '/') return pathname === '/'
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
   const pathname = usePathname()
   const isHome = pathname === '/'
 
@@ -35,7 +41,25 @@ export default function Header() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const elevated = !isHome || isScrolled || isOpen
+  useEffect(() => {
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setPendingHref(null)
+      setIsOpen(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [pathname])
+
+  const elevated = !isHome || isScrolled
+  const isSelected = (href: string) =>
+    pendingHref ? pendingHref === href : isNavPathActive(pathname, href)
+  const selectMenu = (href: string, closeMobile = false) => {
+    if (!isNavPathActive(pathname, href)) setPendingHref(href)
+    if (closeMobile) setIsOpen(false)
+  }
 
   return (
     <header
@@ -47,7 +71,12 @@ export default function Header() {
     >
       <div className="container-page">
         <div className={`flex items-center justify-between transition-all duration-300 ${elevated ? 'h-18 md:h-20' : 'h-20 md:h-28'}`}>
-          <Link href="/" className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="site-brand flex items-center gap-3"
+            aria-label="Kembali ke beranda"
+            onClick={() => selectMenu('/')}
+          >
             <Image
               src="/images/logo-arenan-kalikesek.png"
               alt="Arenan Kalikesek"
@@ -70,17 +99,21 @@ export default function Header() {
           </Link>
 
           <div className="hidden items-center gap-2 lg:flex">
-            <nav className="flex items-center gap-0.5">
+            <nav className="flex items-center gap-0.5" aria-label="Navigasi utama">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-full px-3 py-2 text-[13px] font-semibold transition-colors ${
-                    pathname === item.href
-                      ? 'bg-emerald-50 text-emerald-700'
+                  aria-current={isNavPathActive(pathname, item.href) ? 'page' : undefined}
+                  onClick={() => selectMenu(item.href)}
+                  className={`site-nav-link rounded-full px-3 py-2 text-[13px] font-semibold ${
+                    isSelected(item.href)
+                      ? elevated
+                        ? 'site-nav-link--active nav-choice-active bg-orange-500/15 text-orange-700 ring-1 ring-inset ring-orange-400/25 backdrop-blur-md'
+                        : 'site-nav-link--active nav-choice-active bg-orange-400/20 text-orange-100 ring-1 ring-inset ring-orange-300/25 backdrop-blur-md'
                       : elevated
-                        ? 'text-orange-600 hover:bg-emerald-50 hover:text-emerald-700'
-                        : 'text-orange-300 hover:bg-white/10 hover:text-white'
+                        ? 'text-emerald-800 hover:bg-orange-500/10 hover:text-orange-700'
+                        : 'text-orange-200 hover:bg-orange-400/15 hover:text-white'
                   }`}
                 >
                   {item.label}
@@ -90,17 +123,30 @@ export default function Header() {
             <span className={`mx-1 h-7 w-px ${elevated ? 'bg-gray-200' : 'bg-white/25'}`} />
             <Link
               href="/jadwal"
-              className={`rounded-full px-3 py-2 text-[13px] font-semibold transition ${
-                pathname === '/jadwal'
-                  ? 'text-emerald-700'
+              aria-current={isNavPathActive(pathname, '/jadwal') ? 'page' : undefined}
+              onClick={() => selectMenu('/jadwal')}
+              className={`site-nav-link rounded-full px-3 py-2 text-[13px] font-semibold ${
+                isSelected('/jadwal')
+                  ? elevated
+                    ? 'site-nav-link--active nav-choice-active bg-orange-500/15 text-orange-700 ring-1 ring-inset ring-orange-400/25 backdrop-blur-md'
+                    : 'site-nav-link--active nav-choice-active bg-orange-400/20 text-orange-100 ring-1 ring-inset ring-orange-300/25 backdrop-blur-md'
                   : elevated
-                    ? 'text-emerald-800 hover:text-orange-600'
-                    : 'text-white hover:text-orange-300'
+                    ? 'text-emerald-800 hover:bg-orange-500/10 hover:text-orange-700'
+                    : 'text-white hover:bg-orange-400/15 hover:text-orange-200'
               }`}
             >
               Jadwal
             </Link>
-            <Link href="/booking/wisata" className="rounded-full bg-orange-500 px-4 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-orange-950/15 transition hover:-translate-y-0.5 hover:bg-orange-600">
+            <Link
+              href="/booking/wisata"
+              aria-current={isNavPathActive(pathname, '/booking/wisata') ? 'page' : undefined}
+              onClick={() => selectMenu('/booking/wisata')}
+              className={`nav-booking-button rounded-full px-4 py-2.5 text-[13px] font-semibold ${
+                isSelected('/booking/wisata')
+                  ? 'nav-booking-button--active bg-orange-500/15 text-orange-700 ring-1 ring-inset ring-orange-400/25 backdrop-blur-md'
+                  : 'bg-orange-500 text-white shadow-lg shadow-orange-950/15'
+              }`}
+            >
               Booking
             </Link>
           </div>
@@ -108,7 +154,14 @@ export default function Header() {
           <button
             type="button"
             aria-label={isOpen ? 'Tutup menu' : 'Buka menu'}
-            className={`lg:hidden p-2.5 rounded-full shadow-lg transition ${elevated ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
+            aria-expanded={isOpen}
+            className={`mobile-menu-trigger rounded-full p-2.5 shadow-lg transition lg:hidden ${
+              isOpen
+                ? 'bg-[#f47c12]/80 text-white ring-1 ring-inset ring-orange-200/45 backdrop-blur-xl'
+                : elevated
+                  ? 'bg-emerald-700 text-white hover:bg-emerald-800'
+                  : 'bg-orange-500 text-white hover:bg-orange-600'
+            }`}
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? (
@@ -120,22 +173,34 @@ export default function Header() {
         </div>
       </div>
 
-      {isOpen && (
-        <div className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-gray-100 bg-white shadow-xl lg:hidden">
-          <div className="container-page space-y-1 py-4">
-            {mobileNavItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${pathname === item.href ? 'bg-emerald-50 text-emerald-700' : 'text-gray-700 hover:text-emerald-700 hover:bg-emerald-50'}`}
-                onClick={() => setIsOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
+      <div
+        aria-hidden={!isOpen}
+        className={`mobile-nav-shell absolute inset-x-0 top-full grid lg:hidden ${
+          isOpen ? 'mobile-nav-shell--open' : ''
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="mobile-nav-panel mx-auto mt-1 max-h-[calc(100dvh-5.75rem)] w-[calc(100%-1rem)] space-y-0.5 overflow-y-auto rounded-b-[1.35rem] rounded-t-md border border-orange-200/35 bg-[rgba(244,124,18,0.72)] p-2 shadow-[0_22px_55px_-24px_rgba(105,42,0,0.82)] backdrop-blur-xl">
+              {mobileNavItems.map((item, index) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  tabIndex={isOpen ? 0 : -1}
+                  aria-current={isNavPathActive(pathname, item.href) ? 'page' : undefined}
+                  className={`mobile-nav-link block rounded-xl px-4 py-2.5 text-sm font-semibold ${
+                    isSelected(item.href)
+                      ? 'mobile-nav-link--active bg-[#f47c12]/95 text-white ring-1 ring-inset ring-orange-200/50 shadow-sm'
+                      : 'text-white/90 hover:bg-[#f47c12]/75 hover:text-white'
+                  }`}
+                  style={{ '--mobile-link-order': index } as React.CSSProperties}
+                  onClick={() => selectMenu(item.href, true)}
+                >
+                  <span>{item.label}</span>
+                </Link>
+              ))}
           </div>
         </div>
-      )}
+      </div>
     </header>
   )
 }

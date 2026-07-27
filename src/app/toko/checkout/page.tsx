@@ -14,6 +14,8 @@ interface CartItem {
 function CheckoutForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [cartReady, setCartReady] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
@@ -28,31 +30,29 @@ function CheckoutForm() {
     }
   }, [redirectUrl])
 
-  let cart: CartItem[] = []
   const itemsParam = searchParams.get('items')
 
-  if (itemsParam) {
-    try {
-      cart = JSON.parse(decodeURIComponent(itemsParam))
-    } catch {
-      cart = []
-    }
-  } else {
-    try {
-      const stored = sessionStorage.getItem('toko-cart')
-      if (stored) {
-        cart = JSON.parse(stored)
-      }
-    } catch {
-      cart = []
-    }
-  }
-
   useEffect(() => {
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+
+      try {
+        const storedCart = itemsParam
+          ? decodeURIComponent(itemsParam)
+          : sessionStorage.getItem('toko-cart')
+        setCart(storedCart ? JSON.parse(storedCart) : [])
+      } catch {
+        setCart([])
+      } finally {
+        setCartReady(true)
+      }
+    })
+
     return () => {
-      try { sessionStorage.removeItem('toko-cart') } catch {}
+      cancelled = true
     }
-  }, [])
+  }, [itemsParam])
 
   const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
@@ -89,6 +89,9 @@ function CheckoutForm() {
         return
       }
 
+      if (data.booking) {
+        localStorage.setItem(`invoice_${data.bookingId}`, JSON.stringify(data.booking))
+      }
       try { sessionStorage.removeItem('toko-cart') } catch {}
 
       if (data.paymentUrl) {
@@ -101,6 +104,14 @@ function CheckoutForm() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (!cartReady) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+      </div>
+    )
   }
 
   if (cart.length === 0) {

@@ -54,12 +54,12 @@ export default function HomeHero() {
     <section
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className="relative flex min-h-[max(640px,100svh)] items-center overflow-hidden bg-emerald-950 md:min-h-[820px] lg:min-h-[max(760px,100svh)]">
+      className="home-hero relative flex min-h-[max(640px,100svh)] items-center overflow-hidden bg-emerald-950 md:min-h-[820px] lg:min-h-[max(760px,100svh)]">
       {slides.map((slide, index) => (
         <div
           key={slide.image}
-          className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ${
-            activeSlide === index ? 'scale-100 opacity-100' : 'scale-105 opacity-0'
+          className={`home-hero__slide absolute inset-0 bg-cover bg-center ${
+            activeSlide === index ? 'home-hero__slide--active' : ''
           }`}
           style={{ backgroundImage: `url(${slide.image})` }}
           aria-hidden={activeSlide !== index}
@@ -70,7 +70,7 @@ export default function HomeHero() {
       <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/65 via-transparent to-black/25" />
 
       <div className="container-page relative z-10 w-full pb-16 pt-24 sm:pb-20">
-        <div className="max-w-3xl text-white">
+        <div key={activeSlide} className="home-hero__copy max-w-3xl text-white">
           <div className="mb-4 inline-flex max-w-full items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/85 backdrop-blur-md min-[380px]:px-4 min-[380px]:text-[10px] sm:mb-5 sm:text-xs">
             <MapPinIcon className="h-4 w-4 text-orange-400" />
             {slides[activeSlide].eyebrow}

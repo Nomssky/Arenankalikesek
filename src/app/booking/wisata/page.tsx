@@ -1,10 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  ArrowLeftIcon,
+  CalendarDaysIcon,
+  CheckIcon,
+  ClockIcon,
+  MinusIcon,
+  PlusIcon,
+  ShoppingCartIcon,
+  TrashIcon,
+  UserGroupIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import CategoryVisualHeader from '@/components/CategoryVisualHeader'
+import CartToast from '@/components/CartToast'
 import { formatPrice } from '@/lib/utils'
 import { getServiceCategory, serviceCategories } from '@/lib/service-categories'
 
@@ -14,9 +27,15 @@ interface BookingItem {
   category: string
   price: number
   max_price: number | null
+  price_label: string
+  pricing_type: string
+  unit: string | null
   capacity: string | null
   quantity: number
   note: string | null
+  facilities: string[]
+  rate_options: { label: string; price: number }[]
+  bookable: boolean
 }
 
 interface TourPackage {
@@ -25,17 +44,31 @@ interface TourPackage {
   category: string
   price: number
   max_price: number | null
+  price_label: string
+  pricing_type: string
+  unit: string | null
   capacity: string | null
   note: string | null
+  facilities: string[]
+  rate_options: { label: string; price: number }[]
+  bookable: boolean
 }
+
+type CheckoutStep = 'cart' | 'details'
 
 export default function BookingWisataPage() {
   const router = useRouter()
+  const toastTimerRef = useRef<number | null>(null)
   const [packages, setPackages] = useState<TourPackage[]>([])
   const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState('semua')
   const [cart, setCart] = useState<BookingItem[]>([])
-  const [showForm, setShowForm] = useState(false)
+  const [cartReady, setCartReady] = useState(false)
+  const [cartOpen, setCartOpen] = useState(false)
+  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('cart')
+  const [toastItem, setToastItem] = useState<TourPackage | null>(null)
+  const [minimumDate, setMinimumDate] = useState('')
+  const [participantCount, setParticipantCount] = useState(1)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
@@ -48,26 +81,72 @@ export default function BookingWisataPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [fetchError, setFetchError] = useState('')
   const [submitError, setSubmitError] = useState('')
-  const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    if (redirectUrl) {
-      window.location.href = redirectUrl
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+
+      setMinimumDate(new Date().toISOString().split('T')[0])
+
+      const requestedCategory = new URLSearchParams(window.location.search).get('category')
+      if (
+        requestedCategory &&
+        serviceCategories.some((category) => category.id === requestedCategory)
+      ) {
+        setActiveCategory(requestedCategory)
+      }
+
+      try {
+        const storedCart = sessionStorage.getItem('wisata-cart')
+        if (storedCart) setCart(JSON.parse(storedCart))
+      } catch {
+        sessionStorage.removeItem('wisata-cart')
+      } finally {
+        setCartReady(true)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
     }
-  }, [redirectUrl])
+  }, [])
+
+  useEffect(() => {
+    if (!cartReady) return
+    sessionStorage.setItem('wisata-cart', JSON.stringify(cart))
+  }, [cart, cartReady])
+
+  useEffect(() => {
+    if (!cartOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [cartOpen])
 
   useEffect(() => {
     async function fetchPackages() {
       try {
         const res = await fetch('/api/tour-packages?available=true')
         if (res.ok) {
-          const data = await res.json()
+          const data: TourPackage[] = await res.json()
           setPackages(data)
+          setCart((currentCart) =>
+            currentCart.flatMap((cartItem) => {
+              const currentPackage = data.find((item) => item.id === cartItem.id)
+              return currentPackage
+                ? [{ ...currentPackage, quantity: cartItem.quantity }]
+                : []
+            })
+          )
         } else {
           setFetchError('Gagal memuat paket wisata')
         }
-      } catch (e) {
-        console.error('Failed to load packages:', e)
+      } catch (error) {
+        console.error('Failed to load packages:', error)
         setFetchError('Gagal memuat paket wisata')
       } finally {
         setLoading(false)
@@ -76,43 +155,70 @@ export default function BookingWisataPage() {
     fetchPackages()
   }, [])
 
-  const filteredItems = activeCategory === 'semua'
-    ? packages
-    : packages.filter((item) => item.category === activeCategory)
+  const filteredItems =
+    activeCategory === 'semua'
+      ? packages
+      : packages.filter((item) => item.category === activeCategory)
   const activeCategoryInfo = getServiceCategory(activeCategory)
+  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+  const showAddedToast = (item: TourPackage) => {
+    setToastItem(item)
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = window.setTimeout(() => setToastItem(null), 4200)
+  }
 
   const addItem = (item: TourPackage) => {
-    setCart((prev) => {
-      const existing = prev.find((ci) => ci.id === item.id)
+    if (!item.bookable) return
+    setCart((currentCart) => {
+      const existing = currentCart.find((cartItem) => cartItem.id === item.id)
       if (existing) {
-        return prev.map((ci) =>
-          ci.id === item.id ? { ...ci, quantity: ci.quantity + 1 } : ci
+        return currentCart.map((cartItem) =>
+          cartItem.id === item.id
+            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            : cartItem
         )
       }
-      return [...prev, { ...item, quantity: 1 }]
+      return [...currentCart, { ...item, quantity: 1 }]
     })
+    showAddedToast(item)
   }
 
   const updateCartItem = (id: string, quantity: number) => {
     if (quantity <= 0) {
-      setCart((prev) => prev.filter((ci) => ci.id !== id))
+      setCart((currentCart) => currentCart.filter((item) => item.id !== id))
       return
     }
-    setCart((prev) =>
-      prev.map((ci) => (ci.id === id ? { ...ci, quantity } : ci))
+    setCart((currentCart) =>
+      currentCart.map((item) => (item.id === id ? { ...item, quantity } : item))
     )
   }
 
-  const totalPrice = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  )
+  const openCart = () => {
+    setToastItem(null)
+    setCheckoutStep('cart')
+    setCartOpen(true)
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!customerName || !customerPhone || !bookingDate) return
-
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setSubmitError('')
+
+    if (cart.length === 0) {
+      setSubmitError('Pilih minimal satu paket wisata.')
+      setCheckoutStep('cart')
+      return
+    }
+    if (!customerName.trim() || !customerPhone.trim() || !bookingDate || !timeStart) {
+      setSubmitError('Lengkapi nama, nomor WhatsApp, tanggal, dan jam kedatangan.')
+      return
+    }
+    if (timeEnd && timeEnd <= timeStart) {
+      setSubmitError('Jam selesai harus lebih akhir dari jam mulai.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/bookings', {
@@ -120,34 +226,40 @@ export default function BookingWisataPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'wisata',
-          customerName,
-          customerPhone,
-          customerEmail,
-          customerAddress,
-          eventName: eventName || undefined,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          customerEmail: customerEmail.trim() || undefined,
+          customerAddress: customerAddress.trim() || undefined,
+          eventName: eventName.trim() || undefined,
           bookingDate,
-          timeStart: timeStart || undefined,
+          timeStart,
           timeEnd: timeEnd || undefined,
-          notes,
-          items: cart.map((ci) => ({
-            id: ci.id,
-            name: ci.name,
-            quantity: ci.quantity,
-            price: ci.price,
+          participantCount,
+          notes: notes.trim(),
+          items: cart.map((item) => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
           })),
           totalAmount: totalPrice,
         }),
       })
 
       const data = await res.json()
-
       if (!res.ok) {
         setSubmitError(data.error || 'Gagal memproses booking')
         return
       }
 
+      if (data.booking) {
+        localStorage.setItem(`invoice_${data.bookingId}`, JSON.stringify(data.booking))
+      }
+      sessionStorage.removeItem('wisata-cart')
+      setCart([])
+
       if (data.paymentUrl) {
-        setRedirectUrl(data.paymentUrl)
+        window.location.assign(data.paymentUrl)
       } else {
         router.push(`/booking/sukses?id=${data.bookingId}`)
       }
@@ -162,7 +274,7 @@ export default function BookingWisataPage() {
     <>
       <Hero
         title="Booking Wisata"
-        subtitle="Pilih aktivitas, paket edukasi, sewa tempat, atau homestay"
+        subtitle="Pilih satu atau beberapa pengalaman, lalu lengkapi detail kunjungan"
         image="/images/village-hero.jpg"
         height="sm"
       />
@@ -170,230 +282,498 @@ export default function BookingWisataPage() {
       <Section className="relative overflow-hidden">
         <CategoryVisualHeader category={activeCategoryInfo} />
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          {serviceCategories.map((category) => (
+        <div className="mb-7">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
+            Pilih kategori
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {serviceCategories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => setActiveCategory(category.id)}
+                aria-pressed={activeCategory === category.id}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  activeCategory === category.id
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/10'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">
+              Daftar layanan
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-emerald-950">
+              {activeCategoryInfo.name}
+            </h2>
+          </div>
+          {cart.length > 0 && (
             <button
-              key={category.id}
-              onClick={() => setActiveCategory(category.id)}
-              aria-pressed={activeCategory === category.id}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                activeCategory === category.id
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              type="button"
+              onClick={openCart}
+              className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
             >
-              {category.name}
+              <ShoppingCartIcon className="h-5 w-5" />
+              {totalItems} pilihan
             </button>
-          ))}
+          )}
         </div>
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="animate-spin w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full" />
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
           </div>
         ) : fetchError ? (
-          <div className="rounded-xl bg-red-50 p-6 text-center text-red-700 mb-12">
-            <p className="text-lg font-medium mb-1">{fetchError}</p>
-            <button onClick={() => window.location.reload()} className="text-sm text-red-600 underline">
+          <div className="mb-12 rounded-xl bg-red-50 p-6 text-center text-red-700">
+            <p className="mb-1 text-lg font-medium">{fetchError}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="text-sm text-red-600 underline"
+            >
               Coba lagi
             </button>
           </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="rounded-2xl bg-gray-50 py-14 text-center text-gray-500">
+            Belum ada paket pada kategori ini.
+          </div>
         ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-12">
-          {filteredItems.map((item) => {
-            const itemCategory = getServiceCategory(item.category)
-            return (
-              <div
-                key={item.id}
-                className="card flex items-center justify-between gap-2 bg-cover bg-center p-4"
-                style={{
-                  backgroundImage: `linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.94)), url(${itemCategory.image})`,
-                  backgroundPosition: itemCategory.position || 'center',
-                }}
-              >
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold text-gray-900">{item.name}</h3>
-                  <p className="text-sm font-medium text-emerald-700">
-                    {item.price === 0 ? 'Gratis' : formatPrice(item.price)}
-                    {item.max_price && ` - ${formatPrice(item.max_price)}`}
-                    {item.note && <span className="ml-0.5 text-xs text-gray-500">{item.note}</span>}
-                  </p>
-                </div>
-                <button
-                  onClick={() => addItem(item)}
-                  aria-label={`Tambahkan ${item.name}`}
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-white transition hover:bg-emerald-700"
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredItems.map((item) => {
+              const itemCategory = getServiceCategory(item.category)
+              const selectedQuantity =
+                cart.find((cartItem) => cartItem.id === item.id)?.quantity || 0
+
+              return (
+                <article
+                  key={item.id}
+                  className={`group relative flex min-h-44 flex-col justify-between overflow-hidden rounded-[1.35rem] border bg-cover bg-center p-5 shadow-[0_16px_40px_-28px_rgba(12,54,27,0.55)] transition ${
+                    selectedQuantity > 0
+                      ? 'border-emerald-500 ring-2 ring-emerald-500/10'
+                      : 'border-emerald-950/5 hover:-translate-y-1 hover:shadow-xl'
+                  }`}
+                  style={{
+                    backgroundImage: `linear-gradient(120deg, rgba(255,255,255,0.98), rgba(255,255,255,0.86)), url(${itemCategory.image})`,
+                    backgroundPosition: itemCategory.position || 'center',
+                  }}
                 >
-                  +
-                </button>
-              </div>
-            )
-          })}
-        </div>
-        )}
-
-        {cart.length > 0 && (
-          <div className="card mx-auto max-w-2xl p-4 sm:p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Pesanan Anda ({cart.length} item)
-            </h3>
-
-            <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
-              {cart.map((item) => (
-                <div key={item.id} className="flex flex-col gap-3 rounded-lg bg-gray-50 p-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
-                    <p className="text-xs text-gray-500">{formatPrice(item.price)}</p>
-                  </div>
-                  <div className="flex flex-shrink-0 items-center gap-2 self-end min-[380px]:ml-2 min-[380px]:self-auto">
-                    <button
-                      onClick={() => updateCartItem(item.id, item.quantity - 1)}
-                      className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 text-sm"
-                    >
-                      -
-                    </button>
-                    <span className="font-medium w-6 text-center text-sm">{item.quantity}</span>
-                    <button
-                      onClick={() => updateCartItem(item.id, item.quantity + 1)}
-                      className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 text-sm"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="border-t pt-4 mb-6">
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-gray-900">Total</span>
-                <span className="font-bold text-xl text-emerald-600">
-                  {formatPrice(totalPrice)}
-                </span>
-              </div>
-              <p className="text-xs text-gray-400 mt-1">Check-in: 14.00 | Check-out: 12.00</p>
-            </div>
-
-            {!showForm ? (
-              <button onClick={() => setShowForm(true)} className="btn-primary w-full">
-                Lanjutkan ke Data Diri
-              </button>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4 border-t pt-4">
-                {submitError && (
-                  <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                    {submitError}
-                  </div>
-                )}
-                <div>
-                  <label className="form-label">Nama Lengkap *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label">No. WhatsApp *</label>
-                  <input
-                    type="tel"
-                    className="form-input"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="628xxx"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Email</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Alamat</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={customerAddress}
-                    onChange={(e) => setCustomerAddress(e.target.value)}
-                    placeholder="Alamat lengkap"
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Nama Acara (opsional)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={eventName}
-                    onChange={(e) => setEventName(e.target.value)}
-                    placeholder="Misal: Arisan Keluarga, Meeting"
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Tanggal Booking *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={bookingDate}
-                    onChange={(e) => setBookingDate(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="form-label">Jam Mulai</label>
-                    <input
-                      type="time"
-                      className="form-input"
-                      value={timeStart}
-                      onChange={(e) => setTimeStart(e.target.value)}
-                    />
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-orange-600">
+                        {itemCategory.name}
+                      </span>
+                      {selectedQuantity > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-white">
+                          <CheckIcon className="h-3.5 w-3.5" />
+                          Dipilih {selectedQuantity}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="mt-4 font-semibold leading-6 text-gray-950">{item.name}</h3>
+                    {item.capacity && (
+                      <p className="mt-1 text-xs text-gray-500">Kapasitas {item.capacity}</p>
+                    )}
+                    {item.note && <p className="mt-1 text-xs text-gray-500">{item.note}</p>}
+                    {item.facilities.length > 0 && (
+                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-gray-600">
+                        <strong>Fasilitas:</strong> {item.facilities.join(', ')}
+                      </p>
+                    )}
+                    {item.rate_options.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {item.rate_options.map((rate) => (
+                          <span
+                            key={rate.label}
+                            className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-emerald-800"
+                          >
+                            {rate.label} {formatPrice(rate.price)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="form-label">Jam Selesai</label>
-                    <input
-                      type="time"
-                      className="form-input"
-                      value={timeEnd}
-                      onChange={(e) => setTimeEnd(e.target.value)}
-                    />
+                  <div className="mt-5 flex items-center justify-between gap-3">
+                    <p className="font-bold text-emerald-700">
+                      {item.price_label}
+                      {item.unit && item.pricing_type === 'fixed' && (
+                        <span className="block text-[10px] font-medium text-gray-500">
+                          per {item.unit}
+                        </span>
+                      )}
+                    </p>
+                    {item.bookable ? (
+                      <button
+                        type="button"
+                        onClick={() => addItem(item)}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-orange-500 active:scale-95"
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                        Tambah
+                      </button>
+                    ) : (
+                      <a
+                        href={`https://wa.me/6285741171957?text=${encodeURIComponent(`Halo, saya ingin menanyakan ${item.name}.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-10 items-center rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"
+                      >
+                        Hubungi Pengelola
+                      </a>
+                    )}
                   </div>
-                </div>
-                <div>
-                  <label className="form-label">Catatan (opsional)</label>
-                  <textarea
-                    className="form-input"
-                    rows={3}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Jam datang, kebutuhan khusus, dll."
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn-primary w-full disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Memproses...' : `Bayar ${formatPrice(totalPrice)}`}
-                </button>
-              </form>
-            )}
+                </article>
+              )
+            })}
           </div>
         )}
 
-        {cart.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg mb-2">Belum ada item dipilih</p>
-            <p className="text-sm">Silakan pilih aktivitas, paket, atau sewa tempat di atas</p>
+        {cart.length === 0 && !loading && (
+          <div className="mt-10 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/50 px-5 py-8 text-center">
+            <ShoppingCartIcon className="mx-auto h-8 w-8 text-emerald-700" />
+            <p className="mt-3 font-semibold text-emerald-950">Belum ada paket dipilih</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Tekan tombol Tambah. Anda dapat memesan beberapa layanan sekaligus.
+            </p>
           </div>
         )}
       </Section>
+
+      {cart.length > 0 && (
+        <button
+          type="button"
+          onClick={openCart}
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl bg-emerald-900 px-4 py-3.5 text-left text-white shadow-[0_18px_55px_-18px_rgba(6,78,59,0.8)] transition hover:bg-emerald-800 sm:left-auto sm:right-6 sm:w-auto sm:min-w-80 sm:translate-x-0"
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">
+              <ShoppingCartIcon className="h-5 w-5" />
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold">
+                {totalItems}
+              </span>
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs text-white/65">Booking dipilih</span>
+              <span className="block truncate text-sm font-semibold">Lihat & checkout</span>
+            </span>
+          </span>
+          <strong className="shrink-0 text-sm">{formatPrice(totalPrice)}</strong>
+        </button>
+      )}
+
+      {toastItem && (
+        <CartToast
+          title="Paket ditambahkan"
+          message={`${toastItem.name} sudah masuk ke daftar booking.`}
+          actionLabel="Lihat booking"
+          onAction={openCart}
+          onClose={() => setToastItem(null)}
+        />
+      )}
+
+      {cartOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-emerald-950/55 backdrop-blur-sm sm:items-center sm:p-5"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setCartOpen(false)
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Checkout booking wisata"
+            className="max-h-[96dvh] w-full overflow-y-auto rounded-t-[1.75rem] bg-[#fbfaf5] shadow-2xl sm:max-w-3xl sm:rounded-[1.75rem]"
+          >
+            <div className="sticky top-0 z-10 border-b border-gray-100 bg-white/95 px-5 py-4 backdrop-blur-xl sm:px-7">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-500">
+                    Checkout wisata
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold text-emerald-950">
+                    {checkoutStep === 'cart' ? 'Ringkasan Booking' : 'Keterangan Booking'}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCartOpen(false)}
+                  aria-label="Tutup checkout"
+                  className="rounded-full bg-gray-100 p-2 text-gray-600 transition hover:bg-gray-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className={`h-1.5 rounded-full ${checkoutStep === 'cart' ? 'bg-orange-500' : 'bg-emerald-600'}`} />
+                <div className={`h-1.5 rounded-full ${checkoutStep === 'details' ? 'bg-orange-500' : 'bg-gray-200'}`} />
+              </div>
+              <div className="mt-2 flex justify-between text-[10px] font-medium text-gray-500">
+                <span>1. Pilihan</span>
+                <span>2. Data kunjungan</span>
+              </div>
+            </div>
+
+            {checkoutStep === 'cart' ? (
+              <div className="p-5 sm:p-7">
+                <div className="space-y-3">
+                  {cart.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-3 rounded-2xl border border-emerald-950/5 bg-white p-4 sm:flex-row sm:items-center"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-gray-950">{item.name}</p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {item.price_label}
+                          {item.unit ? ` per ${item.unit}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 sm:justify-end">
+                        <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1">
+                          <button
+                            type="button"
+                            onClick={() => updateCartItem(item.id, item.quantity - 1)}
+                            aria-label={`Kurangi ${item.name}`}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-700 transition hover:bg-white"
+                          >
+                            <MinusIcon className="h-4 w-4" />
+                          </button>
+                          <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateCartItem(item.id, item.quantity + 1)}
+                            aria-label={`Tambah ${item.name}`}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-700 transition hover:bg-white"
+                          >
+                            <PlusIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="min-w-24 text-right text-sm font-semibold text-emerald-700">
+                          {formatPrice(item.price * item.quantity)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => updateCartItem(item.id, 0)}
+                          aria-label={`Hapus ${item.name}`}
+                          className="rounded-full p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 rounded-2xl bg-emerald-950 p-5 text-white">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs text-white/60">{totalItems} pilihan dari {cart.length} layanan</p>
+                      <p className="mt-1 font-semibold">Estimasi total</p>
+                    </div>
+                    <p className="text-xl font-bold text-orange-300">{formatPrice(totalPrice)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setCartOpen(false)}
+                    className="inline-flex items-center justify-center rounded-full border border-emerald-200 px-5 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-50"
+                  >
+                    Tambah layanan lain
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutStep('details')}
+                    className="btn-primary"
+                  >
+                    Isi keterangan booking
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-6 p-5 sm:p-7">
+                <button
+                  type="button"
+                  onClick={() => setCheckoutStep('cart')}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 transition hover:text-orange-600"
+                >
+                  <ArrowLeftIcon className="h-4 w-4" />
+                  Kembali ke pilihan
+                </button>
+
+                {submitError && (
+                  <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                    {submitError}
+                  </div>
+                )}
+
+                <fieldset>
+                  <legend className="mb-4 flex items-center gap-2 font-semibold text-emerald-950">
+                    <CalendarDaysIcon className="h-5 w-5 text-orange-500" />
+                    Waktu kunjungan
+                  </legend>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label className="form-label">Tanggal kunjungan *</label>
+                      <input
+                        type="date"
+                        min={minimumDate}
+                        className="form-input"
+                        value={bookingDate}
+                        onChange={(event) => setBookingDate(event.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Jam kedatangan *</label>
+                      <div className="relative">
+                        <ClockIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="time"
+                          className="form-input !pl-10"
+                          value={timeStart}
+                          onChange={(event) => setTimeStart(event.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="form-label">Perkiraan selesai</label>
+                      <input
+                        type="time"
+                        className="form-input"
+                        value={timeEnd}
+                        onChange={(event) => setTimeEnd(event.target.value)}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="form-label">Jumlah peserta *</label>
+                      <div className="relative">
+                        <UserGroupIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="number"
+                          min={1}
+                          max={500}
+                          className="form-input !pl-10"
+                          value={participantCount}
+                          onChange={(event) =>
+                            setParticipantCount(Math.max(1, Number(event.target.value) || 1))
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend className="mb-4 font-semibold text-emerald-950">Data pemesan</legend>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="form-label">Atas nama *</label>
+                      <input
+                        type="text"
+                        autoComplete="name"
+                        className="form-input"
+                        value={customerName}
+                        onChange={(event) => setCustomerName(event.target.value)}
+                        placeholder="Nama lengkap pemesan"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Nomor WhatsApp *</label>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        className="form-input"
+                        value={customerPhone}
+                        onChange={(event) => setCustomerPhone(event.target.value)}
+                        placeholder="Contoh: 0812 3456 7890"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Email</label>
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        className="form-input"
+                        value={customerEmail}
+                        onChange={(event) => setCustomerEmail(event.target.value)}
+                        placeholder="Opsional"
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">Nama rombongan/acara</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={eventName}
+                        onChange={(event) => setEventName(event.target.value)}
+                        placeholder="Contoh: Kunjungan SD Harapan"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="form-label">Alamat</label>
+                      <input
+                        type="text"
+                        autoComplete="street-address"
+                        className="form-input"
+                        value={customerAddress}
+                        onChange={(event) => setCustomerAddress(event.target.value)}
+                        placeholder="Kota atau alamat lengkap"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="form-label">Catatan tambahan</label>
+                      <textarea
+                        className="form-input"
+                        rows={3}
+                        value={notes}
+                        onChange={(event) => setNotes(event.target.value)}
+                        placeholder="Kebutuhan khusus, kendaraan rombongan, permintaan konsumsi, dan sebagainya."
+                      />
+                    </div>
+                  </div>
+                </fieldset>
+
+                <div className="rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500">
+                        {cart.length} layanan · {participantCount} peserta
+                      </p>
+                      <p className="font-semibold text-gray-950">Total booking</p>
+                    </div>
+                    <p className="text-xl font-bold text-emerald-700">{formatPrice(totalPrice)}</p>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Memproses booking...' : 'Konfirmasi booking'}
+                </button>
+                <p className="text-center text-xs leading-5 text-gray-500">
+                  Tim Arenan Kalikesek akan menghubungi nomor WhatsApp Anda untuk konfirmasi akhir.
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </>
   )
 }

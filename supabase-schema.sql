@@ -98,22 +98,5 @@ CREATE POLICY anon_select_rentals ON rental_bookings FOR SELECT TO anon USING (t
 DROP POLICY IF EXISTS anon_insert_rentals ON rental_bookings;
 CREATE POLICY anon_insert_rentals ON rental_bookings FOR INSERT TO anon WITH CHECK (true);
 
--- Seed data untuk inventory_rentals
-INSERT INTO inventory_rentals (id, name, description, category, price_per_unit, price_type, stock) VALUES
-  ('aula-dalam', 'Aula Dalam', 'Ruangan aula di dalam gedung', 'ruangan', 75000, 'per_jam', 1),
-  ('aula-teras', 'Aula Teras', 'Ruangan aula di teras', 'ruangan', 75000, 'per_jam', 1),
-  ('aula-full', 'Aula Full', 'Paket aula lengkap dalam + teras', 'ruangan', 100000, 'per_jam', 1),
-  ('aula-sungai', 'Aula Sungai', 'Aula dengan pemandangan sungai', 'ruangan', 100000, 'per_jam', 1),
-  ('panggung', 'Panggung', 'Panggung untuk acara', 'ruangan', 75000, 'per_jam', 1),
-  ('gazebo-bawah', 'Gazebo Bawah', 'Gazebo area bawah', 'ruangan', 30000, 'per_jam', 3),
-  ('gazebo-atas', 'Gazebo Atas', 'Gazebo area atas', 'ruangan', 30000, 'per_jam', 3),
-  ('joglo', 'Joglo', 'Ruangan joglo tradisional', 'ruangan', 100000, 'per_jam', 1),
-  ('pawon', 'Pawon', 'Dapur tradisional', 'ruangan', 50000, 'per_jam', 1),
-  ('homestay-1', 'Homestay Aren 1', 'Kapasitas 2 orang', 'homestay', 200000, 'per_malam', 1),
-  ('homestay-2', 'Homestay Aren 2', 'Kapasitas 2 orang', 'homestay', 200000, 'per_malam', 1),
-  ('homestay-3', 'Homestay Aren 3', 'Kapasitas 4 orang', 'homestay', 375000, 'per_malam', 1),
-  ('homestay-4', 'Homestay Aren 4', 'Kapasitas 4 orang', 'homestay', 450000, 'per_malam', 1),
-  ('kapling-tenda', 'Kapling Tenda', 'Lahan untuk mendirikan tenda', 'camping', 25000, 'per_malam', 10),
-  ('tenda-4', 'Tenda 4 Orang', 'Tenda kapasitas 4 orang', 'camping', 60000, 'per_malam', 5),
-  ('sewa-alat-pancing', 'Sewa Alat Pancing', 'Set alat pancing lengkap', 'fishing', 5000, 'per_jam', 10)
-ON CONFLICT (id) DO NOTHING;
+-- Harga publik tidak disimpan ulang di schema ini.
+-- Sumber data terpusat: src/data/pricing.ts

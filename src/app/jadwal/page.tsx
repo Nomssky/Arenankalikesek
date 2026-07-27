@@ -29,12 +29,17 @@ interface RentalBooking {
 }
 
 const scheduleCategoryIds = new Set([
-  'semua', 'tiket', 'aktivitas', 'sewa-tempat', 'homestay', 'camping', 'fishing',
+  'semua', 'area-kegiatan', 'tempat-pertemuan', 'homestay', 'fishing',
 ])
 
 const categories = serviceCategories.filter((c) => scheduleCategoryIds.has(c.id))
 
-const rentalCategories = new Set(['ruangan', 'homestay', 'camping', 'fishing'])
+const rentalCategories = new Set([
+  'area-kegiatan',
+  'tempat-pertemuan',
+  'homestay',
+  'fishing',
+])
 
 function isRentalCategory(cat: string): boolean {
   return rentalCategories.has(cat)
@@ -66,7 +71,7 @@ export default function JadwalPage() {
       try {
         const [invRes, bookingRes] = await Promise.all([
           fetch('/api/inventory-rentals'),
-          fetch(`/api/bookings?start_date=${selectedDate}&end_date=${selectedDate}`),
+          fetch(`/api/schedule?start_date=${selectedDate}&end_date=${selectedDate}`),
         ])
         if (invRes.ok) {
           const items = await invRes.json()
