@@ -22,6 +22,7 @@ interface InventoryItem {
 
 interface RentalBooking {
   item_id: string
+  item_name: string
   time_start: string
   time_end: string
   booking_date: string
@@ -84,7 +85,8 @@ export default function JadwalPage() {
             if (b.items && Array.isArray(b.items)) {
               for (const item of b.items) {
                 rentalEntries.push({
-                  item_id: item.id || item.itemId,
+                  item_id: item.id || item.itemId || '',
+                  item_name: item.name || '',
                   time_start: b.time_start || '',
                   time_end: b.time_end || '',
                   booking_date: b.booking_date || selectedDate,
@@ -120,10 +122,15 @@ export default function JadwalPage() {
     : scheduleItems.filter((item) => item.category === selectedCategory)
   const activeCategoryInfo = getServiceCategory(selectedCategory)
 
-  const isBooked = (itemId: string, time?: string) => {
+  const isBooked = (itemId: string, itemName: string, time?: string) => {
     return rentalBookings.some((rb) => {
-      if (rb.item_id !== itemId) return false
       if (rb.status === 'cancelled') return false
+      const matched = rb.item_id === itemId || (
+        itemName && rb.item_name &&
+        (itemName.toLowerCase().includes(rb.item_name.toLowerCase()) ||
+         rb.item_name.toLowerCase().includes(itemName.toLowerCase()))
+      )
+      if (!matched) return false
       if (time) {
         if (!rb.time_start) return true
         const rbStart = rb.time_start.substring(0, 5)
@@ -134,10 +141,16 @@ export default function JadwalPage() {
     })
   }
 
-  const isItemBooked = (itemId: string) => {
-    return rentalBookings.some(
-      (rb) => rb.item_id === itemId && rb.status !== 'cancelled'
-    )
+  const isItemBooked = (itemId: string, itemName: string) => {
+    return rentalBookings.some((rb) => {
+      if (rb.status === 'cancelled') return false
+      if (rb.item_id === itemId) return true
+      if (itemName && rb.item_name) {
+        return itemName.toLowerCase().includes(rb.item_name.toLowerCase()) ||
+               rb.item_name.toLowerCase().includes(itemName.toLowerCase())
+      }
+      return false
+    })
   }
 
   if (!mounted || loading) {
@@ -244,7 +257,7 @@ export default function JadwalPage() {
                           </div>
                         </td>
                         {timeSlots.map((time) => {
-                          const booked = isBooked(item.id, time)
+                          const booked = isBooked(item.id, item.name, time)
                           const isRental = item.type === 'rental'
                           return (
                             <td key={time} className="p-2 text-center">
@@ -268,11 +281,11 @@ export default function JadwalPage() {
                         })}
                         <td className="p-2 text-center">
                           <span className={`inline-block w-full py-1.5 rounded text-xs font-medium ${
-                            isItemBooked(item.id)
+                            isItemBooked(item.id, item.name)
                               ? 'bg-red-100 text-red-700'
                               : 'bg-emerald-100 text-emerald-700'
                           }`}>
-                            {isItemBooked(item.id) ? 'Full' : 'Tersedia'}
+                            {isItemBooked(item.id, item.name) ? 'Full' : 'Tersedia'}
                           </span>
                         </td>
                       </tr>
@@ -284,7 +297,7 @@ export default function JadwalPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredItems.map((item) => {
-                const booked = isItemBooked(item.id)
+                const booked = isItemBooked(item.id, item.name)
                 return (
                   <div key={item.id} className={`card p-5 border-l-4 ${
                     booked ? 'border-l-red-500' : 'border-l-emerald-500'
