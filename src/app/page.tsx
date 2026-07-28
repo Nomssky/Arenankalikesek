@@ -114,12 +114,12 @@ export default function HomePage() {
             <Link
               key={item.name}
               href={item.href}
-              className="group relative aspect-[3/4.6] min-h-[205px] overflow-hidden rounded-b-[1.25rem] rounded-t-[5rem] bg-emerald-950 shadow-[0_16px_32px_-18px_rgba(12,54,27,0.55)] min-[380px]:min-h-[230px] sm:min-h-[285px]"
+              className="motion-card group relative aspect-[3/4.6] min-h-[205px] overflow-hidden rounded-b-[1.25rem] rounded-t-[5rem] bg-emerald-950 shadow-[0_16px_32px_-18px_rgba(12,54,27,0.55)] min-[380px]:min-h-[230px] sm:min-h-[285px]"
             >
               <div
                 role="img"
                 aria-label={item.name}
-                className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-110"
+                className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-[1.03]"
                 style={{ backgroundImage: `url(${item.image})` }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/5" />
@@ -159,7 +159,7 @@ export default function HomePage() {
                 <Link
                   key={feature.title}
                   href={feature.href}
-                  className="group rounded-[1.5rem] border border-emerald-950/5 bg-white p-5 shadow-[0_18px_45px_-30px_rgba(12,54,27,0.55)] transition hover:-translate-y-1 hover:shadow-xl sm:p-7"
+                  className="motion-card group rounded-[1.5rem] border border-emerald-950/5 bg-white p-5 shadow-[0_18px_45px_-30px_rgba(12,54,27,0.55)] sm:p-7"
                 >
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 transition group-hover:bg-orange-500 group-hover:text-white">
                     <Icon className="h-6 w-6" />
@@ -179,9 +179,14 @@ export default function HomePage() {
 
       <section id="paket-gula-aren" className="relative overflow-hidden bg-[#173822] text-white">
         <div className="grid lg:min-h-[620px] lg:grid-cols-2">
-          <div className="relative min-h-[320px] sm:min-h-[390px] lg:order-2 lg:min-h-full" data-reveal="scale">
+          <div
+            className="relative min-h-[320px] overflow-hidden sm:min-h-[390px] lg:order-2 lg:min-h-full"
+            data-reveal="scale"
+            data-gallery-reveal
+          >
             <div
               className="absolute inset-0 bg-cover bg-center"
+              data-gallery-media
               style={{ backgroundImage: 'url(/images/village-tradition.jpg)' }}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[#173822]/45 to-transparent" />
@@ -266,11 +271,16 @@ export default function HomePage() {
           {newsItems.map((item) => (
             <article
               key={item.title}
-              className="group overflow-hidden rounded-[1.5rem] bg-white shadow-[0_18px_42px_-28px_rgba(12,54,27,0.5)]"
+              className="motion-card group overflow-hidden rounded-[1.5rem] bg-white shadow-[0_18px_42px_-28px_rgba(12,54,27,0.5)]"
             >
-              <Link href={item.href} className="block aspect-[4/3] overflow-hidden">
+              <Link
+                href={item.href}
+                className="block aspect-[4/3] overflow-hidden"
+                data-gallery-reveal
+              >
                 <div
-                  className="h-full w-full bg-cover bg-center transition duration-700 group-hover:scale-105"
+                  className="h-full w-full bg-cover bg-center transition duration-700 group-hover:scale-[1.03]"
+                  data-gallery-media
                   style={{ backgroundImage: `url(${item.image})` }}
                 />
               </Link>
@@ -299,7 +309,8 @@ export default function HomePage() {
       >
         <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
           <div
-            className="relative min-h-[330px] overflow-hidden rounded-[1.75rem] bg-cover bg-center sm:min-h-[430px]"
+            className="motion-card relative min-h-[330px] overflow-hidden rounded-[1.75rem] bg-cover bg-center sm:min-h-[430px]"
+            data-gallery-reveal
             style={{ backgroundImage: 'url(/images/village-sign.jpg)' }}
           >
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
@@ -310,7 +321,7 @@ export default function HomePage() {
               <h3 className="mt-2 text-2xl font-semibold">Dekat dengan alam, hangat seperti rumah</h3>
             </div>
           </div>
-          <div className="flex flex-col justify-between rounded-[1.75rem] bg-white p-5 shadow-xl shadow-emerald-950/5 sm:p-7 md:p-9">
+          <div className="motion-card flex flex-col justify-between rounded-[1.75rem] bg-white p-5 shadow-xl shadow-emerald-950/5 sm:p-7 md:p-9">
             <div>
               <p className="eyebrow">Informasi menginap</p>
               <h3 className="mt-4 text-2xl font-semibold text-emerald-950">

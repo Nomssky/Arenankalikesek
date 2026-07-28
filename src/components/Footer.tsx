@@ -22,7 +22,7 @@ export default function Footer() {
   return (
     <footer className="relative overflow-hidden bg-[#173822] text-white/70">
       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 15% 20%, white 0 1px, transparent 2px)', backgroundSize: '28px 28px' }} />
-      <div className="relative container-page py-14 md:py-18">
+      <div className="relative container-page py-14 md:py-18" data-footer-reveal>
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-[1.35fr_0.8fr_1fr] md:gap-10">
           <div className="sm:col-span-2 md:col-span-1">
             <div className="flex items-center gap-3 mb-4">

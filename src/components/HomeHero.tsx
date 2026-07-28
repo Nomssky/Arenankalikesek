@@ -58,12 +58,17 @@ export default function HomeHero() {
       {slides.map((slide, index) => (
         <div
           key={slide.image}
-          className={`home-hero__slide absolute inset-0 bg-cover bg-center ${
+          className={`home-hero__slide absolute inset-0 overflow-hidden ${
             activeSlide === index ? 'home-hero__slide--active' : ''
           }`}
-          style={{ backgroundImage: `url(${slide.image})` }}
           aria-hidden={activeSlide !== index}
-        />
+        >
+          <div
+            className="home-hero__media absolute -inset-y-[8%] inset-x-0 bg-cover bg-center"
+            data-parallax-media
+            style={{ backgroundImage: `url(${slide.image})` }}
+          />
+        </div>
       ))}
 
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,30,17,0.82)_0%,rgba(8,30,17,0.42)_52%,rgba(8,30,17,0.2)_100%)]" />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { formatPrice, formatDate, formatDateTime } from '@/lib/utils'
 import { PrinterIcon } from '@heroicons/react/24/outline'
 
@@ -98,11 +99,19 @@ export default function InvoicePage() {
 
   const items = parseItems(data.items)
   return (
-    <div className="min-h-screen bg-gray-100 pb-8 pt-28 print:bg-white print:py-0">
-      <div className="max-w-3xl mx-auto px-4">
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden print:shadow-none print:rounded-none">
-          <div className="p-4 sm:p-8 print:p-4">
-            <div className="mb-8 flex flex-col gap-4 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between print:mb-4 print:flex-row">
+    <div className="invoice-page min-h-screen bg-gray-100 pb-8 pt-28 print:bg-white print:py-0">
+      <div className="mx-auto max-w-3xl px-4 print:max-w-none print:px-0">
+        <div className="invoice-paper relative overflow-hidden rounded-2xl bg-white shadow-sm print:rounded-none print:shadow-none">
+          <Image
+            src="/images/logo-arenan-kalikesek.png"
+            alt=""
+            width={520}
+            height={520}
+            aria-hidden="true"
+            className="invoice-watermark pointer-events-none absolute left-1/2 top-1/2 z-0 h-auto w-[56%] max-w-[25rem] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.055]"
+          />
+          <div className="relative z-10 p-4 sm:p-8 print:p-0">
+            <div className="invoice-keep mb-8 flex flex-col gap-4 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between print:mb-4 print:flex-row">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">INVOICE</h1>
                 <p className="text-gray-500 text-sm mt-1">Arenan Kalikesek</p>
@@ -120,7 +129,7 @@ export default function InvoicePage() {
               </div>
             </div>
 
-            <div className="mb-8 grid grid-cols-1 gap-6 min-[420px]:grid-cols-2 min-[420px]:gap-8 print:mb-4 print:grid-cols-2 print:gap-4">
+            <div className="invoice-keep mb-8 grid grid-cols-1 gap-6 min-[420px]:grid-cols-2 min-[420px]:gap-8 print:mb-4 print:grid-cols-2 print:gap-4">
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Dari</h3>
                 <p className="font-semibold text-gray-900">Arenan Kalikesek</p>
@@ -137,7 +146,7 @@ export default function InvoicePage() {
               </div>
             </div>
 
-            <div className="border-t pt-6 mb-6 print:pt-4 print:mb-4">
+            <div className="invoice-keep mb-6 border-t pt-6 print:mb-4 print:pt-4">
               <div className="grid grid-cols-1 gap-4 text-sm min-[360px]:grid-cols-2 sm:grid-cols-4">
                 <div>
                   <p className="text-gray-500">Tanggal</p>
@@ -165,8 +174,8 @@ export default function InvoicePage() {
               </div>
             </div>
 
-            <div className="-mx-4 mb-6 overflow-x-auto px-4 sm:mx-0 sm:px-0 print:mx-0 print:mb-4 print:px-0">
-            <table className="min-w-[560px] w-full">
+            <div className="invoice-table-wrap -mx-4 mb-6 overflow-x-auto px-4 sm:mx-0 sm:px-0 print:mx-0 print:mb-4 print:overflow-visible print:px-0">
+            <table className="invoice-table min-w-[560px] w-full print:min-w-0">
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="text-left py-3 text-xs font-semibold text-gray-500 uppercase">Item</th>
@@ -190,7 +199,7 @@ export default function InvoicePage() {
             </table>
             </div>
 
-            <div className="border-t-2 pt-4">
+            <div className="invoice-keep border-t-2 pt-4">
               <div className="flex flex-wrap items-center justify-between gap-3 text-lg">
                 <span className="font-bold text-gray-900">Total</span>
                 <span className="font-bold text-2xl text-emerald-600">{formatPrice(data.total_amount)}</span>
@@ -203,7 +212,7 @@ export default function InvoicePage() {
             </div>
 
             {data.notes && (
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg print:mt-4">
+              <div className="invoice-keep mt-6 rounded-lg bg-gray-50 p-4 print:mt-4">
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Catatan</p>
                 <p className="text-sm text-gray-700">{data.notes}</p>
               </div>

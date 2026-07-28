@@ -139,12 +139,12 @@ export default function AdminBookingsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="admin-page-header flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Manajemen Booking</h1>
         <span className="text-sm text-gray-500">{bookings.length} booking</span>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="admin-filterbar mt-4 flex flex-wrap gap-3">
         <input
           type="text"
           placeholder="Cari nama/no. WA/kode..."
@@ -190,7 +190,11 @@ export default function AdminBookingsPage() {
         </select>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-xl bg-white shadow-sm">
+      <div
+        className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl bg-white shadow-sm"
+        data-lenis-prevent
+        data-scroll-container
+      >
         {updateError && (
           <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
             {updateError}

@@ -40,7 +40,7 @@ function VisualCard({ categoryId, children, className = '' }: VisualCardProps) {
 
   return (
     <article
-      className={`card bg-cover bg-center p-5 ${className}`}
+      className={`card motion-card bg-cover bg-center p-5 ${className}`}
       style={{
         backgroundImage: `linear-gradient(rgba(255,255,255,0.89), rgba(255,255,255,0.95)), url(${category.image})`,
         backgroundPosition: category.position || 'center',

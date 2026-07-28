@@ -79,8 +79,13 @@ export default function TokoPage() {
     if (!showCart) return
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowCart(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
     return () => {
       document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
     }
   }, [showCart])
 
@@ -228,11 +233,11 @@ export default function TokoPage() {
               return (
               <article
                 key={product.id}
-                className={`card group ${selectedQuantity > 0 ? 'ring-2 ring-emerald-500/25' : ''}`}
+                className={`card motion-card group ${selectedQuantity > 0 ? 'ring-2 ring-emerald-500/25' : ''}`}
               >
                 <div className="aspect-[4/3] bg-gradient-to-br from-emerald-50 to-amber-50 flex items-center justify-center overflow-hidden relative">
                   <div
-                    className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full bg-cover bg-center group-hover:scale-[1.03] transition-transform duration-300"
                     style={{ backgroundImage: `url(${product.image})` }}
                   >
                     <div className="h-full w-full bg-gradient-to-t from-black/20 to-transparent" />
@@ -326,6 +331,8 @@ export default function TokoPage() {
             role="dialog"
             aria-modal="true"
             aria-label="Keranjang belanja"
+            data-lenis-prevent
+            data-scroll-container
             className="max-h-[calc(100dvh-1rem)] w-full overflow-auto rounded-t-[1.75rem] bg-white p-5 sm:max-h-[82vh] sm:max-w-xl sm:rounded-[1.75rem] sm:p-7"
           >
             <div className="flex justify-between items-center mb-4">

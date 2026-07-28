@@ -35,11 +35,20 @@ export default function Header() {
   const isHome = pathname === '/'
 
   useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 24)
+    const onScroll = () => setIsScrolled(window.scrollY > 64)
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [isOpen])
 
   useEffect(() => {
     let cancelled = false
@@ -82,6 +91,8 @@ export default function Header() {
               alt="Arenan Kalikesek"
               width={320}
               height={320}
+              priority
+              loading="eager"
               className={`w-auto transition-all duration-300 ${elevated ? 'h-12' : 'h-14 md:h-16'}`}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = ''

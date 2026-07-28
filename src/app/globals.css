@@ -226,7 +226,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   max-width: 100%;
   overflow-x: clip;
 }
@@ -256,6 +256,10 @@ video,
 canvas,
 iframe {
   max-width: 100%;
+}
+
+[id] {
+  scroll-margin-top: 6rem;
 }
 
 input,
@@ -682,32 +686,33 @@ html[data-route-transition="active"] body {
 }
 
 [data-reveal].is-revealed > .grid > *:nth-child(2) {
-  animation-delay: 70ms;
+  animation-delay: 90ms;
 }
 
 [data-reveal].is-revealed > .grid > *:nth-child(3) {
-  animation-delay: 140ms;
+  animation-delay: 180ms;
 }
 
 [data-reveal].is-revealed > .grid > *:nth-child(4) {
-  animation-delay: 210ms;
+  animation-delay: 270ms;
 }
 
 [data-reveal].is-revealed > .grid > *:nth-child(5) {
-  animation-delay: 280ms;
+  animation-delay: 360ms;
 }
 
 [data-reveal].is-revealed > .grid > *:nth-child(6) {
-  animation-delay: 350ms;
+  animation-delay: 450ms;
 }
 
 [data-reveal].is-revealed > .grid > *:nth-child(n + 7) {
-  animation-delay: 420ms;
+  animation-delay: 540ms;
 }
 
 .page-hero__background {
-  transform: scale(1.09);
+  transform: scale(1.05);
   animation: hero-background-arrive 1.6s cubic-bezier(0.16, 1, 0.3, 1) 80ms forwards;
+  will-change: transform;
 }
 
 .page-hero__content > * {
@@ -732,7 +737,7 @@ html[data-route-transition="active"] body {
 
 .home-hero__slide {
   opacity: 0;
-  transform: scale(1.075);
+  transform: scale(1.05);
   transition:
     opacity 1s ease,
     transform 7s cubic-bezier(0.2, 0.7, 0, 1);
@@ -741,6 +746,35 @@ html[data-route-transition="active"] body {
 .home-hero__slide--active {
   opacity: 1;
   transform: scale(1);
+}
+
+.home-hero__media {
+  will-change: transform;
+}
+
+.motion-card {
+  transform: translate3d(0, 0, 0);
+  transition:
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 300ms ease,
+    border-color 240ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .motion-card:hover {
+    box-shadow: 0 24px 55px -30px rgb(12 54 27 / 0.6);
+    transform: translate3d(0, -5px, 0);
+  }
+}
+
+[data-gallery-reveal] {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+[data-gallery-media] {
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .home-hero__copy > * {
@@ -788,6 +822,83 @@ html[data-route-transition="active"] body {
   box-shadow: 0 22px 60px -28px rgb(6 78 59 / 0.55);
   backdrop-filter: blur(18px);
   animation: cart-toast-arrive 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.booking-summary-details {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 240ms ease;
+}
+
+.booking-summary-details--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.booking-sheet-backdrop {
+  animation: booking-backdrop-in 220ms ease both;
+}
+
+.booking-sheet {
+  animation: booking-sheet-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  overscroll-behavior: contain;
+}
+
+.admin-shell {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.admin-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-table-scroll table {
+  min-width: 44rem;
+}
+
+.admin-table-scroll--wide table {
+  min-width: 64rem;
+}
+
+.admin-shell input,
+.admin-shell select,
+.admin-shell textarea {
+  min-height: 2.75rem;
+}
+
+.admin-shell td button,
+.admin-shell td a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+}
+
+.admin-modal {
+  max-height: calc(100dvh - 1.5rem);
+  overscroll-behavior: contain;
+  animation: admin-modal-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.admin-modal-backdrop {
+  animation: booking-backdrop-in 180ms ease both;
+}
+
+.invoice-watermark {
+  filter: saturate(0.75);
+}
+
+.invoice-keep,
+.invoice-table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 @keyframes route-page-enter {
@@ -889,7 +1000,7 @@ html[data-route-transition="active"] body {
 
 @keyframes hero-background-arrive {
   to {
-    transform: scale(1.02);
+    transform: scale(1);
   }
 }
 
@@ -944,10 +1055,91 @@ html[data-route-transition="active"] body {
   }
 }
 
+@keyframes booking-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes booking-sheet-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.5rem, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes admin-modal-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1rem, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
   header,
   footer {
     display: none !important;
+  }
+
+  html,
+  body {
+    width: 210mm;
+    max-width: none;
+    overflow: visible;
+    background: white;
+  }
+
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .route-page {
+    animation: none !important;
+  }
+
+  .invoice-page {
+    min-height: 0;
+  }
+
+  .invoice-paper {
+    width: 100%;
+    overflow: visible;
+  }
+
+  .invoice-watermark {
+    position: fixed;
+    top: 50%;
+    width: 105mm;
+    max-width: none;
+    opacity: 0.045;
+  }
+
+  .invoice-table {
+    width: 100%;
+    table-layout: fixed;
+    font-size: 10pt;
+  }
+
+  .invoice-table th,
+  .invoice-table td {
+    padding-block: 2.5mm;
   }
 }
 
@@ -972,6 +1164,14 @@ html[data-route-transition="active"] body {
 
   .route-curtain {
     display: none;
+  }
+
+  .page-hero__background,
+  .home-hero__media,
+  [data-gallery-media],
+  .motion-card {
+    transform: none !important;
+    will-change: auto;
   }
 }
 
@@ -1005,5 +1205,24 @@ html[data-route-transition="active"] body {
     right: 0.75rem;
     bottom: calc(5.5rem + env(safe-area-inset-bottom));
     width: calc(100vw - 1.5rem);
+  }
+
+  .admin-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-page-header > button,
+  .admin-page-header > a {
+    width: 100%;
+  }
+
+  .admin-filterbar {
+    flex-direction: column;
+  }
+
+  .admin-filterbar > * {
+    width: 100% !important;
+    min-width: 0 !important;
   }
 }

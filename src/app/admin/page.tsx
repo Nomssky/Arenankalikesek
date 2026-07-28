@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
       <p className="mt-1 text-sm text-gray-500">Ringkasan booking dan pendapatan</p>
 
       {/* Stats */}
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Total Booking</p>
           <p className="mt-1 text-3xl font-bold text-gray-900">{totalBookings}</p>
@@ -108,7 +108,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Filters */}
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="admin-filterbar mt-6 flex flex-wrap gap-3">
         <select
           className="form-input w-auto"
           value={statusFilter}
@@ -135,7 +135,11 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Table */}
-      <div className="mt-4 overflow-x-auto rounded-xl bg-white shadow-sm">
+      <div
+        className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl bg-white shadow-sm"
+        data-lenis-prevent
+        data-scroll-container
+      >
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
