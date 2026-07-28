@@ -318,6 +318,8 @@ export default function BookingWisataPage() {
           onError: () => { setSubmitError('Pembayaran gagal, silakan hubungi admin') },
           onClose: () => {
             if (!window.confirm('Pembayaran belum selesai. Batalkan booking?')) return
+            fetch(`/api/bookings/${data.bookingId}/cancel`, { method: 'PATCH' }).catch(() => {})
+            router.push('/booking/wisata')
           },
         })
       } else if (data.paymentUrl) {

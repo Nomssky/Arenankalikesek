@@ -13,6 +13,14 @@ export async function GET(
 
   try {
     const supabase = getSupabaseAdmin()
+
+    await supabase
+      .from('bookings')
+      .update({ status: 'cancelled', payment_status: 'unpaid', updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', 'pending')
+      .lt('expires_at', new Date().toISOString())
+
     const { data, error } = await supabase
       .from('bookings')
       .select('id, booking_code, customer_name, customer_phone, customer_email, customer_address, type, status, payment_status, payment_method, total_amount, items, booking_date, created_at, notes')

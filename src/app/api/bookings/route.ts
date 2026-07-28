@@ -121,6 +121,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    supabase
+      .from('bookings')
+      .update({ status: 'cancelled', payment_status: 'unpaid', updated_at: new Date().toISOString() })
+      .eq('status', 'pending')
+      .lt('expires_at', new Date().toISOString())
+      .then()
+
     const safeItems = (items || []).map(
       (item: { id?: string; name: string; quantity?: number; price: number }) => ({
         id: item.id || `item-${Math.random().toString(36).substring(2, 6)}`,
@@ -220,6 +227,13 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = getSupabaseAdmin()
+
+    await supabase
+      .from('bookings')
+      .update({ status: 'cancelled', payment_status: 'unpaid', updated_at: new Date().toISOString() })
+      .eq('status', 'pending')
+      .lt('expires_at', new Date().toISOString())
+
     let query = supabase
       .from('bookings')
       .select('*')

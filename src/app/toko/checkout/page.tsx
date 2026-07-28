@@ -118,7 +118,10 @@ function CheckoutForm() {
           onSuccess: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
           onPending: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
           onError: () => { setSubmitError('Pembayaran gagal, silakan hubungi admin') },
-          onClose: () => {},
+          onClose: () => {
+            fetch(`/api/bookings/${data.bookingId}/cancel`, { method: 'PATCH' }).catch(() => {})
+            router.push('/toko/checkout')
+          },
         })
       } else if (data.paymentUrl) {
         window.location.assign(data.paymentUrl)
