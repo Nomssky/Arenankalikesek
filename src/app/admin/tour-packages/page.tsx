@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { formatPrice } from '@/lib/utils'
+import AdminModal from '@/components/admin/AdminModal'
 
 interface TourPackage {
   id: string
@@ -144,7 +145,7 @@ export default function AdminTourPackagesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="admin-page-header flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Paket Wisata</h1>
         <button onClick={openCreate} className="btn-primary text-sm">
           + Tambah Paket
@@ -152,12 +153,11 @@ export default function AdminTourPackagesPage() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6">
-            <h2 className="text-lg font-bold text-gray-900">
-              {editingId ? 'Edit Paket' : 'Tambah Paket'}
-            </h2>
-            <form onSubmit={handleSave} className="mt-4 space-y-3">
+        <AdminModal
+          title={editingId ? 'Edit Paket' : 'Tambah Paket'}
+          onClose={() => setShowForm(false)}
+        >
+            <form onSubmit={handleSave} className="space-y-3">
               {saveError && (
                 <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
                   {saveError}
@@ -255,11 +255,14 @@ export default function AdminTourPackagesPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </AdminModal>
       )}
 
-      <div className="mt-4 overflow-x-auto rounded-xl bg-white shadow-sm">
+      <div
+        className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl bg-white shadow-sm"
+        data-lenis-prevent
+        data-scroll-container
+      >
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />

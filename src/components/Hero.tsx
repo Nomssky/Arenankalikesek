@@ -21,6 +21,7 @@ export default function Hero({ title, subtitle, image, height = 'md', children }
     >
       <div
         className="page-hero__background absolute inset-0 bg-cover bg-center"
+        data-parallax-media
         style={{ backgroundImage: `url(${heroImage})` }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#102d20]/70 via-[#102d20]/45 to-[#102d20]/75" />

@@ -17,6 +17,14 @@ const routeLabels: Record<string, string> = {
   '/eduwisata-gula-aren': 'Eduwisata',
 }
 
+const motionLightRoutes = ['/admin', '/booking', '/invoice', '/toko/checkout']
+
+function usesLightMotion(pathname: string) {
+  return motionLightRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  )
+}
+
 function getRouteLabel(pathname: string) {
   const exactLabel = routeLabels[pathname]
   if (exactLabel) return exactLabel
@@ -55,8 +63,11 @@ export default function PageTransition({ children }: { children: React.ReactNode
   const transitionActiveRef = useRef(false)
   const [phase, setPhase] = useState<TransitionPhase>('idle')
   const [destination, setDestination] = useState('Arenan Kalikesek')
+  const lightMotion = usesLightMotion(pathname)
 
   useEffect(() => {
+    if (lightMotion) return
+
     const clearTimers = () => {
       timersRef.current.forEach((timer) => window.clearTimeout(timer))
       timersRef.current = []
@@ -71,6 +82,7 @@ export default function PageTransition({ children }: { children: React.ReactNode
 
       const url = new URL(anchor.href, window.location.href)
       if (url.origin !== window.location.origin) return
+      if (usesLightMotion(url.pathname)) return
 
       const currentUrl = new URL(window.location.href)
       const currentDocument = `${currentUrl.pathname}${currentUrl.search}`
@@ -111,9 +123,11 @@ export default function PageTransition({ children }: { children: React.ReactNode
       transitionActiveRef.current = false
       delete document.documentElement.dataset.routeTransition
     }
-  }, [router])
+  }, [lightMotion, router])
 
   useEffect(() => {
+    if (lightMotion) return
+
     const root = mainRef.current
     if (!root) return
 
@@ -188,11 +202,15 @@ export default function PageTransition({ children }: { children: React.ReactNode
       intersectionObserver?.disconnect()
       mutationObserver?.disconnect()
     }
-  }, [pathname])
+  }, [lightMotion, pathname])
 
   return (
     <>
-      <main key={pathname} ref={mainRef} className="route-page flex-1">
+      <main
+        key={pathname}
+        ref={mainRef}
+        className={`${lightMotion ? '' : 'route-page'} min-w-0 flex-1`}
+      >
         {children}
       </main>
 

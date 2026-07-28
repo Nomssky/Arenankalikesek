@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
-import PageTransition from '@/components/PageTransition'
+import 'lenis/dist/lenis.css'
+import SiteFrame from '@/components/SiteFrame'
 
 export const metadata: Metadata = {
   title: {
@@ -37,11 +36,7 @@ export default function RootLayout({
   return (
     <html lang="id" data-scroll-behavior="smooth">
       <body>
-        <div className="flex flex-col min-h-screen">
-          <Header />
-          <PageTransition>{children}</PageTransition>
-          <Footer />
-        </div>
+        <SiteFrame>{children}</SiteFrame>
       </body>
     </html>
   )
