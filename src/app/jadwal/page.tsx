@@ -80,22 +80,7 @@ export default function JadwalPage() {
         }
         if (bookingRes.ok) {
           const bookings = await bookingRes.json()
-          const rentalEntries: RentalBooking[] = []
-          for (const b of bookings) {
-            if (b.items && Array.isArray(b.items)) {
-              for (const item of b.items) {
-                rentalEntries.push({
-                  item_id: item.id || item.itemId || '',
-                  item_name: item.name || '',
-                  time_start: b.time_start || '',
-                  time_end: b.time_end || '',
-                  booking_date: b.booking_date || selectedDate,
-                  status: b.status,
-                })
-              }
-            }
-          }
-          setRentalBookings(rentalEntries)
+          setRentalBookings(bookings)
         }
         if (!invRes.ok || !bookingRes.ok) {
           setError('Gagal memuat jadwal')

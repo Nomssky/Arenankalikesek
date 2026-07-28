@@ -9,6 +9,7 @@ import {
   ArrowRightStartOnRectangleIcon,
   ArrowTopRightOnSquareIcon,
   Bars3Icon,
+  CalendarDaysIcon,
   ChartBarSquareIcon,
   ClipboardDocumentListIcon,
   ShoppingBagIcon,
@@ -39,6 +40,7 @@ function LogoutButton() {
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: ChartBarSquareIcon },
   { href: '/admin/bookings', label: 'Booking', icon: ClipboardDocumentListIcon },
+  { href: '/admin/jadwal', label: 'Jadwal', icon: CalendarDaysIcon },
   { href: '/admin/products', label: 'Produk', icon: ShoppingBagIcon },
   { href: '/admin/tour-packages', label: 'Paket Wisata', icon: TicketIcon },
   { href: '/admin/inventory', label: 'Inventory', icon: ArchiveBoxIcon },

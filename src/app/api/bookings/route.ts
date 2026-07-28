@@ -14,6 +14,118 @@ function generateBookingCode(): string {
   return `BKK-${yymm}-${rand}`
 }
 
+function timeOverlaps(
+  newStart: string,
+  newEnd: string | undefined,
+  existingStart: string | null,
+  existingEnd: string | null,
+): boolean {
+  if (!existingStart) return true
+  const ns = newStart
+  const ne = newEnd || newStart
+  const es = existingStart
+  const ee = existingEnd || existingStart
+  return ns < ee && ne > es
+}
+
+async function checkAvailability(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  items: { id?: string; name: string; quantity?: number; price: number }[],
+  bookingDate?: string,
+  timeStart?: string,
+  timeEnd?: string,
+): Promise<string | null> {
+  if (!bookingDate || !items.length) return null
+
+  const { data: rentalItems } = await supabase
+    .from('inventory_rentals')
+    .select('id, name')
+    .eq('available', true)
+
+  if (!rentalItems?.length) return null
+
+  for (const item of items) {
+    const match = rentalItems.find(
+      (r) => r.name.toLowerCase() === (item.name || '').toLowerCase(),
+    )
+    if (!match) continue
+
+    const { data: conflicts } = await supabase
+      .from('rental_bookings')
+      .select('id, time_start, time_end')
+      .eq('item_id', match.id)
+      .eq('booking_date', bookingDate)
+      .neq('status', 'cancelled')
+
+    if (conflicts && conflicts.length > 0) {
+      if (!timeStart) {
+        return `"${item.name}" sudah dibooking pada tanggal tersebut`
+      }
+      const hasOverlap = conflicts.some(
+        (c) => c.time_start && timeOverlaps(timeStart, timeEnd, c.time_start, c.time_end),
+      )
+      if (hasOverlap) {
+        return `"${item.name}" sudah dibooking pada slot tersebut`
+      }
+    }
+  }
+
+  return null
+}
+
+async function createRentalBookings(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  bookingId: string,
+  items: { id?: string; name: string; quantity?: number; price: number }[],
+  bookingDate?: string,
+  timeStart?: string,
+  timeEnd?: string,
+) {
+  if (!bookingDate || !items.length) return
+
+  const { data: rentalItems } = await supabase
+    .from('inventory_rentals')
+    .select('id, name')
+
+  if (!rentalItems?.length) return
+
+  const entries: {
+    id: string
+    booking_id: string
+    item_id: string
+    quantity: number
+    booking_date: string
+    time_start: string | null
+    time_end: string | null
+    total_price: number
+    status: string
+  }[] = []
+
+  for (const item of items) {
+    const match = rentalItems.find(
+      (r) => r.name.toLowerCase() === (item.name || '').toLowerCase(),
+    )
+    if (!match) continue
+
+    entries.push({
+      id: generateId(),
+      booking_id: bookingId,
+      item_id: match.id,
+      quantity: item.quantity || 1,
+      booking_date: bookingDate,
+      time_start: timeStart || null,
+      time_end: timeEnd || null,
+      total_price: (item.price || 0) * (item.quantity || 1),
+      status: 'active',
+    })
+  }
+
+  if (entries.length > 0) {
+    await supabase.from('rental_bookings').insert(entries)
+  }
+}
+
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -111,6 +223,12 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin()
+
+    const conflictError = await checkAvailability(supabase, items || [], bookingDate, timeStart, timeEnd)
+    if (conflictError) {
+      return NextResponse.json({ error: conflictError }, { status: 409 })
+    }
+
     const { error } = await supabase.from('bookings').insert(bookingData)
 
     if (error) {
@@ -127,6 +245,8 @@ export async function POST(request: NextRequest) {
       .eq('status', 'pending')
       .lt('expires_at', new Date().toISOString())
       .then()
+
+    createRentalBookings(supabase, bookingId, items || [], bookingDate, timeStart, timeEnd)
 
     const safeItems = (items || []).map(
       (item: { id?: string; name: string; quantity?: number; price: number }) => ({

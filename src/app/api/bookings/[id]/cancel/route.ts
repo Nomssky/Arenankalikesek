@@ -46,6 +46,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Gagal membatalkan booking' }, { status: 500 })
     }
 
+    await supabase
+      .from('rental_bookings')
+      .update({ status: 'cancelled' })
+      .eq('booking_id', id)
+      .neq('status', 'returned')
+
     return NextResponse.json({ status: 'cancelled' })
   } catch (error) {
     console.error('Cancel booking error:', error)

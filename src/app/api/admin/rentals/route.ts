@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase-server'
+import { requireAdmin } from '@/lib/admin-guard'
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAdmin(request)
+  if (auth) return auth
+
   const { searchParams } = new URL(request.url)
   const startDate = searchParams.get('start_date')
   const endDate = searchParams.get('end_date')
+  const status = searchParams.get('status')
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.json([], {
-      headers: { 'X-Data-Source': 'local-fallback' },
-    })
+    return NextResponse.json([])
   }
 
   try {
@@ -19,6 +22,7 @@ export async function GET(request: NextRequest) {
       .from('rental_bookings')
       .select(`
         id,
+        booking_id,
         item_id,
         quantity,
         booking_date,
@@ -26,32 +30,26 @@ export async function GET(request: NextRequest) {
         time_end,
         total_price,
         status,
-        inventory_rentals!inner ( name )
+        created_at,
+        inventory_rentals ( name, category ),
+        bookings ( customer_name, customer_phone, booking_code )
       `)
-      .neq('status', 'cancelled')
+      .order('created_at', { ascending: false })
 
     if (startDate) query = query.gte('booking_date', startDate)
     if (endDate) query = query.lte('booking_date', endDate)
+    if (status) query = query.eq('status', status)
 
     const { data, error } = await query
 
     if (error) {
-      console.error('Fetch schedule error:', error)
-      return NextResponse.json({ error: 'Gagal memuat jadwal' }, { status: 500 })
+      console.error('Fetch rentals error:', error)
+      return NextResponse.json({ error: 'Gagal memuat data rental' }, { status: 500 })
     }
 
-    const mapped = (data || []).map((r: Record<string, unknown>) => ({
-      item_id: r.item_id,
-      item_name: (r.inventory_rentals as { name?: string })?.name || '',
-      time_start: r.time_start || '',
-      time_end: r.time_end || '',
-      booking_date: r.booking_date,
-      status: r.status,
-    }))
-
-    return NextResponse.json(mapped)
+    return NextResponse.json(data || [])
   } catch (error) {
-    console.error('Fetch schedule error:', error)
+    console.error('Fetch rentals error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
