@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-server'
 import { requireAdmin } from '@/lib/admin-guard'
+import { generateId } from '@/lib/utils'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request)
@@ -27,10 +28,16 @@ export async function POST(request: NextRequest) {
   if (auth) return auth
   try {
     const body = await request.json()
+
+    if (!body.name || !body.category) {
+      return NextResponse.json({ error: 'Nama dan kategori harus diisi' }, { status: 400 })
+    }
+
     const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from('inventory_rentals')
       .insert({
+        id: generateId(),
         name: body.name,
         category: body.category,
         description: body.description || null,

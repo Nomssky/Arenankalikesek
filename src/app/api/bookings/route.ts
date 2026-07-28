@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase-server'
-import { createXenditInvoice, isXenditConfigured } from '@/lib/xendit'
+import { createSnapTransaction, isMidtransConfigured } from '@/lib/midtrans'
 import { sendBookingNotification } from '@/lib/wa'
 import { generateId } from '@/lib/utils'
 import { requireAdmin } from '@/lib/admin-guard'
 import type { BookingType } from '@/lib/types'
+
 
 function generateBookingCode(): string {
   const now = new Date()
@@ -120,33 +121,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const safeItems: { name: string; quantity: number; price: number }[] = (items || []).map(
-      (item: { name: string; quantity?: number; price: number }) => ({
+    const safeItems = (items || []).map(
+      (item: { id?: string; name: string; quantity?: number; price: number }) => ({
+        id: item.id || `item-${Math.random().toString(36).substring(2, 6)}`,
         name: item.name,
         quantity: item.quantity || 1,
         price: item.price,
-      })
+      }),
     )
 
-    if (parsedTotal > 0) {
-      if (!isXenditConfigured()) {
-        await supabase
-          .from('bookings')
-          .update({ status: 'confirmed' })
-          .eq('id', bookingId)
+    await sendBookingNotification({
+      customerName,
+      customerPhone,
+      type: bookingType,
+      items: safeItems,
+      totalAmount: parsedTotal,
+      bookingDate,
+    })
 
-        return NextResponse.json({
-          bookingId,
-          bookingCode: bookingData.booking_code,
-          paymentUrl: null,
-          info: 'Payment gateway tidak dikonfigurasi, booking langsung dikonfirmasi',
-        })
-      }
-
+    if (parsedTotal > 0 && isMidtransConfigured()) {
       try {
-        const invoice = await createXenditInvoice({
-          externalId: bookingId,
-          amount: parsedTotal,
+        const snap = await createSnapTransaction({
+          orderId: bookingId,
+          grossAmount: parsedTotal,
           customerName,
           customerEmail: customerEmail || undefined,
           customerPhone,
@@ -155,38 +152,40 @@ export async function POST(request: NextRequest) {
 
         await supabase
           .from('bookings')
-          .update({ payment_url: invoice.invoice_url })
+          .update({ payment_url: snap.redirect_url })
           .eq('id', bookingId)
-
-        await sendBookingNotification({
-          customerName,
-          customerPhone,
-          type: bookingType,
-          items: safeItems,
-          totalAmount: parsedTotal,
-          bookingDate,
-        })
 
         return NextResponse.json({
           bookingId,
           bookingCode: bookingData.booking_code,
-          paymentUrl: invoice.invoice_url,
-          invoiceId: invoice.id,
+          snapToken: snap.token,
+          paymentUrl: snap.redirect_url,
         })
       } catch (paymentError) {
         console.error('Payment error:', paymentError)
-        await supabase
-          .from('bookings')
-          .update({ status: 'confirmed', notes: 'Payment failed, manually confirmed' })
-          .eq('id', bookingId)
-
         return NextResponse.json({
           bookingId,
           bookingCode: bookingData.booking_code,
+          snapToken: null,
           paymentUrl: null,
           info: 'Booking berhasil tapi pembayaran bermasalah, hubungi admin',
         })
       }
+    }
+
+    if (parsedTotal > 0) {
+      await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', bookingId)
+
+      return NextResponse.json({
+        bookingId,
+        bookingCode: bookingData.booking_code,
+        snapToken: null,
+        paymentUrl: null,
+        info: 'Payment gateway tidak dikonfigurasi, booking langsung dikonfirmasi',
+      })
     }
 
     await supabase

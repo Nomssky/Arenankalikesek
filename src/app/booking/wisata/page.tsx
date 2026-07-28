@@ -59,6 +59,31 @@ interface TourPackage {
 
 type CheckoutStep = 'cart' | 'details'
 
+function loadSnapJs(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof window.snap !== 'undefined') { resolve(); return }
+    const script = document.createElement('script')
+    script.src = `${process.env.NEXT_PUBLIC_MIDTRANS_API_URL || 'https://app.sandbox.midtrans.com'}/snap/snap.js`
+    script.setAttribute('data-client-key', process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '')
+    script.onload = () => resolve()
+    script.onerror = () => resolve()
+    document.body.appendChild(script)
+  })
+}
+
+declare global {
+  interface Window {
+    snap?: {
+      pay: (token: string, callbacks: {
+        onSuccess?: () => void
+        onPending?: () => void
+        onError?: () => void
+        onClose?: () => void
+      }) => void
+    }
+  }
+}
+
 export default function BookingWisataPage() {
   const router = useRouter()
   const toastTimerRef = useRef<number | null>(null)
@@ -285,7 +310,17 @@ export default function BookingWisataPage() {
       sessionStorage.removeItem('wisata-cart')
       setCart([])
 
-      if (data.paymentUrl) {
+      if (data.snapToken) {
+        await loadSnapJs()
+        window.snap?.pay(data.snapToken, {
+          onSuccess: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
+          onPending: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
+          onError: () => { setSubmitError('Pembayaran gagal, silakan hubungi admin') },
+          onClose: () => {
+            if (!window.confirm('Pembayaran belum selesai. Batalkan booking?')) return
+          },
+        })
+      } else if (data.paymentUrl) {
         window.location.assign(data.paymentUrl)
       } else {
         router.push(`/booking/sukses?id=${data.bookingId}`)

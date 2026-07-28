@@ -53,12 +53,20 @@ export async function POST(request: NextRequest) {
   if (auth) return auth
   try {
     const body = await request.json()
+
+    if (!body.name || !body.category) {
+      return NextResponse.json({ error: 'Nama dan kategori harus diisi' }, { status: 400 })
+    }
+    if (body.price === undefined || body.price === null || isNaN(Number(body.price))) {
+      return NextResponse.json({ error: 'Harga harus diisi dengan angka' }, { status: 400 })
+    }
+
     const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from('products')
       .insert({
         name: body.name,
-        price: body.price,
+        price: Number(body.price),
         category: body.category,
         image: body.image || '',
         description: body.description || '',

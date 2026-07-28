@@ -1,5 +1,5 @@
 export type BookingStatus = 'pending' | 'paid' | 'confirmed' | 'cancelled'
-export type PaymentStatus = 'unpaid' | 'paid' | 'refunded'
+export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'partial_refund'
 export type BookingType = 'wisata' | 'toko' | 'parkir' | 'sewa'
 
 export interface SiteContent {
@@ -29,19 +29,22 @@ export interface Product {
   price: number
   image?: string
   category: string
-  stock: number
+  unit: string | null
+  available: boolean
+  sort_order: number | null
 }
 
 export interface TourPackage {
   id: string
   name: string
-  description: string
+  category: string
   price: number
-  priceType: 'per_person' | 'flat' | 'range'
-  maxPrice?: number
+  max_price: number | null
+  capacity: string | null
+  note: string | null
   image?: string
-  category: 'aktivitas' | 'ruangan' | 'homestay' | 'camping' | 'fishing' | 'gratis'
   available: boolean
+  sort_order: number | null
 }
 export interface BookingRow {
   id: string
@@ -61,6 +64,7 @@ export interface BookingRow {
   payment_status: PaymentStatus
   payment_method: string | null
   payment_url: string | null
+  transaction_id: string | null
   assigned_pic: string | null
   notes: string | null
   expires_at: string | null

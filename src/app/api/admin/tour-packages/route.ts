@@ -39,13 +39,21 @@ export async function POST(request: NextRequest) {
   if (auth) return auth
   try {
     const body = await request.json()
+
+    if (!body.name || !body.category) {
+      return NextResponse.json({ error: 'Nama dan kategori harus diisi' }, { status: 400 })
+    }
+    if (body.price === undefined || body.price === null || isNaN(Number(body.price))) {
+      return NextResponse.json({ error: 'Harga harus diisi dengan angka' }, { status: 400 })
+    }
+
     const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from('tour_packages')
       .insert({
         name: body.name,
         category: body.category,
-        price: body.price,
+        price: Number(body.price),
         max_price: body.max_price || null,
         capacity: body.capacity || null,
         note: body.note || null,

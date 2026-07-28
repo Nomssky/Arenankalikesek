@@ -46,7 +46,7 @@ export default function InvoicePage() {
   useEffect(() => {
     async function fetchInvoice() {
       try {
-        const res = await fetch(`/api/bookings/${id}`)
+        const res = await fetch(`/api/invoice/${id}`)
         if (res.ok) {
           const json = await res.json()
           setData(json)

@@ -8,16 +8,16 @@ interface InventoryItem {
   id: string
   name: string
   category: string
-  price: number
-  capacity: string | null
+  price_per_unit: number
+  description: string | null
   available: boolean
 }
 
 const emptyItem = {
   name: '',
   category: 'ruangan',
-  price: 0,
-  capacity: '',
+  price_per_unit: 0,
+  description: '',
   available: true,
 }
 
@@ -61,8 +61,8 @@ export default function AdminInventoryPage() {
     setForm({
       name: item.name,
       category: item.category,
-      price: item.price,
-      capacity: item.capacity || '',
+      price_per_unit: item.price_per_unit,
+      description: item.description || '',
       available: item.available,
     })
     setEditingId(item.id)
@@ -157,19 +157,19 @@ export default function AdminInventoryPage() {
                 <input
                   type="number"
                   className="form-input"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                  value={form.price_per_unit}
+                  onChange={(e) => setForm({ ...form, price_per_unit: Number(e.target.value) })}
                   required
                 />
               </div>
               <div>
-                <label className="form-label">Kapasitas</label>
+                <label className="form-label">Deskripsi</label>
                 <input
                   type="text"
                   className="form-input"
-                  value={form.capacity}
-                  onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                  placeholder="2-5 orang"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Kapasitas 2-5 orang"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ export default function AdminInventoryPage() {
                 <th className="px-4 py-3 font-semibold text-gray-700">Nama</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Kategori</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Harga</th>
-                <th className="px-4 py-3 font-semibold text-gray-700">Kapasitas</th>
+                <th className="px-4 py-3 font-semibold text-gray-700">Deskripsi</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Tersedia</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Aksi</th>
               </tr>
@@ -231,8 +231,8 @@ export default function AdminInventoryPage() {
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
                   <td className="px-4 py-3 text-gray-500">{item.category}</td>
-                  <td className="px-4 py-3 text-gray-900">{formatPrice(item.price)}</td>
-                  <td className="px-4 py-3 text-gray-500">{item.capacity || '-'}</td>
+                  <td className="px-4 py-3 text-gray-900">{formatPrice(item.price_per_unit)}</td>
+                  <td className="px-4 py-3 text-gray-500">{item.description || '-'}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${

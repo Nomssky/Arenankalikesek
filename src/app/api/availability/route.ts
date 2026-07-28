@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
       .neq('status', 'cancelled')
 
     if (start_at) {
-      query = query.lte('booking_date', start_at)
+      query = query.gte('booking_date', start_at)
     }
     if (end_at) {
-      query = query.gte('booking_date', end_at)
+      query = query.lte('booking_date', end_at)
     }
 
     const { data, error, count } = await query
