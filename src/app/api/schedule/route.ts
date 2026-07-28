@@ -17,17 +17,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('rental_bookings')
-      .select(`
-        id,
-        item_id,
-        quantity,
-        booking_date,
-        time_start,
-        time_end,
-        total_price,
-        status,
-        inventory_rentals!inner ( name )
-      `)
+      .select('id, item_id, item_name, quantity, booking_date, time_start, time_end, total_price, status')
       .neq('status', 'cancelled')
 
     if (startDate) query = query.gte('booking_date', startDate)
@@ -42,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     const mapped = (data || []).map((r: Record<string, unknown>) => ({
       item_id: r.item_id,
-      item_name: (r.inventory_rentals as { name?: string })?.name || '',
+      item_name: r.item_name || '',
       time_start: r.time_start || '',
       time_end: r.time_end || '',
       booking_date: r.booking_date,

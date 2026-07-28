@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         id,
         booking_id,
         item_id,
+        item_name,
         quantity,
         booking_date,
         time_start,
@@ -31,7 +32,6 @@ export async function GET(request: NextRequest) {
         total_price,
         status,
         created_at,
-        inventory_rentals ( name, category ),
         bookings ( customer_name, customer_phone, booking_code )
       `)
       .order('created_at', { ascending: false })

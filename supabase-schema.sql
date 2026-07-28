@@ -41,10 +41,12 @@ CREATE TABLE IF NOT EXISTS inventory_rentals (
 );
 
 -- Tabel: rental_bookings (untuk detail persewaan)
+-- item_id menyimpan ID item asli (dari fallback data) — tidak ada FK ke inventory_rentals
 CREATE TABLE IF NOT EXISTS rental_bookings (
   id TEXT PRIMARY KEY,
-  booking_id TEXT REFERENCES bookings(id),
-  item_id TEXT REFERENCES inventory_rentals(id),
+  booking_id TEXT NOT NULL REFERENCES bookings(id),
+  item_id TEXT NOT NULL,
+  item_name TEXT,
   quantity INTEGER NOT NULL DEFAULT 1,
   booking_date DATE NOT NULL,
   time_start TIME,
@@ -61,6 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(booking_date);
 CREATE INDEX IF NOT EXISTS idx_bookings_created ON bookings(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_rental_bookings_date ON rental_bookings(booking_date);
 CREATE INDEX IF NOT EXISTS idx_rental_bookings_item ON rental_bookings(item_id);
+CREATE INDEX IF NOT EXISTS idx_rental_bookings_item_name ON rental_bookings(item_name);
 
 -- Trigger auto-update
 CREATE OR REPLACE FUNCTION update_updated_at()

@@ -37,23 +37,14 @@ async function checkAvailability(
 ): Promise<string | null> {
   if (!bookingDate || !items.length) return null
 
-  const { data: rentalItems } = await supabase
-    .from('inventory_rentals')
-    .select('id, name')
-    .eq('available', true)
-
-  if (!rentalItems?.length) return null
-
   for (const item of items) {
-    const match = rentalItems.find(
-      (r) => r.name.toLowerCase() === (item.name || '').toLowerCase(),
-    )
-    if (!match) continue
+    const itemId = item.id || ''
+    if (!itemId) continue
 
     const { data: conflicts } = await supabase
       .from('rental_bookings')
       .select('id, time_start, time_end')
-      .eq('item_id', match.id)
+      .eq('item_id', itemId)
       .eq('booking_date', bookingDate)
       .neq('status', 'cancelled')
 
@@ -83,16 +74,11 @@ async function createRentalBookings(
 ) {
   if (!bookingDate || !items.length) return
 
-  const { data: rentalItems } = await supabase
-    .from('inventory_rentals')
-    .select('id, name')
-
-  if (!rentalItems?.length) return
-
   const entries: {
     id: string
     booking_id: string
     item_id: string
+    item_name: string | null
     quantity: number
     booking_date: string
     time_start: string | null
@@ -102,15 +88,11 @@ async function createRentalBookings(
   }[] = []
 
   for (const item of items) {
-    const match = rentalItems.find(
-      (r) => r.name.toLowerCase() === (item.name || '').toLowerCase(),
-    )
-    if (!match) continue
-
     entries.push({
       id: generateId(),
       booking_id: bookingId,
-      item_id: match.id,
+      item_id: item.id || `item-${Math.random().toString(36).substring(2, 8)}`,
+      item_name: item.name || null,
       quantity: item.quantity || 1,
       booking_date: bookingDate,
       time_start: timeStart || null,
@@ -120,9 +102,7 @@ async function createRentalBookings(
     })
   }
 
-  if (entries.length > 0) {
-    await supabase.from('rental_bookings').insert(entries)
-  }
+  await supabase.from('rental_bookings').insert(entries)
 }
 
 

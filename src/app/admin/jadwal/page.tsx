@@ -7,6 +7,7 @@ interface RentalRow {
   id: string
   booking_id: string
   item_id: string
+  item_name: string | null
   quantity: number
   booking_date: string
   time_start: string | null
@@ -14,7 +15,6 @@ interface RentalRow {
   total_price: number
   status: string
   created_at: string
-  inventory_rentals: { name: string; category: string } | null
   bookings: { customer_name: string; customer_phone: string; booking_code: string } | null
 }
 
@@ -141,9 +141,9 @@ export default function AdminJadwalPage() {
                 <tr key={r.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">
-                      {r.inventory_rentals?.name || 'Unknown'}
+                      {r.item_name || r.item_id || 'Unknown'}
                     </div>
-                    <div className="text-xs text-gray-500">{r.inventory_rentals?.category}</div>
+                    <div className="text-xs text-gray-500">ID: {r.item_id}</div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">
