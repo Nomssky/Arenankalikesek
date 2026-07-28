@@ -8,19 +8,7 @@ import Section from '@/components/Section'
 import { getServiceCategory, serviceCategories } from '@/lib/service-categories'
 import { formatPrice } from '@/lib/utils'
 
-const wisataCategoryIds = new Set([
-  'semua',
-  'tiket',
-  'aktivitas',
-  'paket-edukasi',
-  'gratis',
-  'sewa-tempat',
-  'homestay',
-  'camping',
-  'fishing',
-])
-
-const wisataCategories = serviceCategories.filter((category) => wisataCategoryIds.has(category.id))
+const wisataCategories = serviceCategories
 
 interface TourPackage {
   id: string
@@ -28,8 +16,14 @@ interface TourPackage {
   category: string
   price: number
   max_price: number | null
+  price_label: string
+  pricing_type: string
+  unit: string | null
   capacity: string | null
   note: string | null
+  facilities: string[]
+  rate_options: { label: string; price: number }[]
+  bookable: boolean
   image: string
   available: boolean
   sort_order: number
@@ -58,16 +52,13 @@ function VisualCard({ categoryId, children, className = '' }: VisualCardProps) {
 }
 
 function formatItemPrice(item: TourPackage): string {
-  if (item.price === 0) return 'Gratis'
-  if (item.max_price) return `${formatPrice(item.price)} - ${formatPrice(item.max_price)}`
-  return formatPrice(item.price)
+  return item.price_label || formatPrice(item.price)
 }
 
 const sectionCategories: Record<string, string[]> = {
-  tiket: ['tiket'],
-  aktivitas: ['aktivitas'],
-  'paket-edukasi': ['paket-edukasi', 'gratis'],
-  'sewa-tempat': ['sewa-tempat', 'camping', 'homestay', 'fishing'],
+  aktivitas: ['aktivitas', 'gratis', 'fishing'],
+  'paket-edukasi': ['paket-edukasi', 'paket-kegiatan'],
+  'sewa-tempat': ['area-kegiatan', 'tempat-pertemuan', 'homestay'],
 }
 
 function isSectionVisible(activeCategory: string, sectionKey: string): boolean {
@@ -130,7 +121,6 @@ export default function WisataPage() {
   }, [])
 
   const packagesBySection: Record<string, TourPackage[]> = {
-    tiket: [],
     aktivitas: [],
     'paket-edukasi': [],
     'sewa-tempat': [],
@@ -146,10 +136,14 @@ export default function WisataPage() {
     }
   }
 
-  const ticketPackages = packagesBySection.tiket
-  const activityPackages = packagesBySection.aktivitas
-  const educationPackages = packagesBySection['paket-edukasi']
-  const rentalPackages = packagesBySection['sewa-tempat']
+  const filterActiveCategory = (items: TourPackage[]) =>
+    activeCategory === 'semua'
+      ? items
+      : items.filter((item) => item.category === activeCategory)
+
+  const activityPackages = filterActiveCategory(packagesBySection.aktivitas)
+  const educationPackages = filterActiveCategory(packagesBySection['paket-edukasi'])
+  const rentalPackages = filterActiveCategory(packagesBySection['sewa-tempat'])
 
   const homestayPackages = rentalPackages.filter((p) => p.category === 'homestay')
 
@@ -203,40 +197,23 @@ export default function WisataPage() {
         </Section>
       ) : (
         <>
-          {isSectionVisible(activeCategory, 'tiket') && ticketPackages.length > 0 && (
-            <Section title="Tiket & Wahana" subtitle="Tiket masuk dan wahana permainan" className="nature-pattern">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {ticketPackages.map((item) => (
-                  <VisualCard key={item.id} categoryId="tiket">
-                    <h3 className="mb-1 font-semibold text-gray-900">{item.name}</h3>
-                    <p className="font-medium text-emerald-700">{formatItemPrice(item)}</p>
-                  </VisualCard>
-                ))}
-              </div>
-              <div className="mt-6 text-center">
-                <Link
-                  href="/booking/wisata?category=tiket"
-                  className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-                >
-                  Booking Tiket & Wahana
-                </Link>
-              </div>
-            </Section>
-          )}
-
           {isSectionVisible(activeCategory, 'aktivitas') && activityPackages.length > 0 && (
-            <Section title="Aktivitas Wisata" subtitle="Berbagai aktivitas seru" className="bg-[#f3f0e6]">
+            <Section title="Wahana & Aktivitas" subtitle="Wahana keluarga, aktivitas alam, dan kolam pancing" className="bg-[#f3f0e6]">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {activityPackages.map((item) => (
-                  <VisualCard key={item.id} categoryId="aktivitas">
+                  <VisualCard key={item.id} categoryId={item.category}>
                     <h3 className="mb-1 font-semibold text-gray-900">{item.name}</h3>
-                    <p className="font-medium text-emerald-700">{formatItemPrice(item)}</p>
+                    <p className="font-medium text-emerald-700">
+                      {formatItemPrice(item)}
+                      {item.unit && item.pricing_type === 'fixed' ? `/${item.unit}` : ''}
+                    </p>
+                    {item.note && <p className="mt-1 text-xs text-gray-600">{item.note}</p>}
                   </VisualCard>
                 ))}
               </div>
               <div className="mt-6 text-center">
                 <Link
-                  href="/booking/wisata?category=aktivitas"
+                  href="/booking/wisata"
                   className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
                 >
                   Booking Aktivitas
@@ -249,7 +226,7 @@ export default function WisataPage() {
             <Section title="Paket Edukasi & Edu Trip" subtitle="Paket lengkap untuk studi wisata" className="nature-pattern">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {educationPackages.map((item) => (
-                  <VisualCard key={item.id} categoryId="paket-edukasi">
+                  <VisualCard key={item.id} categoryId={item.category}>
                     <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:gap-4">
                       <div>
                         <h3 className="font-semibold text-gray-900">{item.name}</h3>
@@ -259,12 +236,17 @@ export default function WisataPage() {
                       </div>
                       <p className="font-bold text-emerald-700 sm:whitespace-nowrap">{formatItemPrice(item)}</p>
                     </div>
+                    {item.facilities.length > 0 && (
+                      <p className="mt-3 text-xs leading-5 text-gray-600">
+                        <strong>Fasilitas:</strong> {item.facilities.join(', ')}
+                      </p>
+                    )}
                   </VisualCard>
                 ))}
               </div>
               <div className="mt-6 text-center">
                 <Link
-                  href="/booking/wisata?category=paket-edukasi"
+                  href="/booking/wisata"
                   className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
                 >
                   Booking Paket Edukasi
@@ -277,10 +259,22 @@ export default function WisataPage() {
             <Section title="Sewa Tempat & Aula" subtitle="Berbagai pilihan ruangan untuk acara Anda" className="bg-[#f3f0e6]">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {rentalPackages.map((item) => (
-                  <VisualCard key={item.id} categoryId="sewa-tempat" className="text-center">
+                  <VisualCard key={item.id} categoryId={item.category} className="text-center">
                     <h3 className="mb-1 font-semibold text-gray-900">{item.name}</h3>
                     {item.capacity && <p className="mb-1 text-xs text-gray-600">Kapasitas {item.capacity}</p>}
-                    <p className="font-medium text-emerald-700">{formatItemPrice(item)}</p>
+                    <p className="font-medium text-emerald-700">
+                      {formatItemPrice(item)}
+                      {item.unit && item.pricing_type === 'fixed' ? `/${item.unit}` : ''}
+                    </p>
+                    {item.rate_options.length > 0 && (
+                      <div className="mt-2 flex flex-wrap justify-center gap-1">
+                        {item.rate_options.map((rate) => (
+                          <span key={rate.label} className="rounded-full bg-white/80 px-2 py-1 text-[10px] text-gray-700">
+                            {rate.label}: {formatPrice(rate.price)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </VisualCard>
                 ))}
               </div>
@@ -296,7 +290,7 @@ export default function WisataPage() {
 
               <div className="mt-6 text-center">
                 <Link
-                  href="/booking/wisata?category=sewa-tempat"
+                  href="/booking/wisata"
                   className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
                 >
                   Booking Sewa Tempat

@@ -8,51 +8,47 @@ import {
 } from '@heroicons/react/24/outline'
 import HomeHero from '@/components/HomeHero'
 import Section from '@/components/Section'
+import {
+  formatRupiah,
+  getTourPriceLabel,
+  getTourService,
+  tourServices,
+} from '@/data/pricing'
 
-const wisataItems = [
-  {
-    name: 'Berkuda',
-    image: '/images/wisata-berkuda.jpg',
-    price: 'Rp15.000',
-    href: '/wisata',
-  },
-  {
-    name: 'Menanam Padi',
-    image: '/images/village-panen.jpg',
-    price: 'Rp15.000',
-    href: '/wisata',
-  },
-  {
-    name: 'Keceh Air',
-    image: '/images/wisata-keceh-air.jpg',
-    price: 'Gratis',
-    href: '/wisata',
-  },
-  {
-    name: 'Terapi Ikan',
-    image: '/images/wisata-sungai.jpg',
-    price: 'Gratis',
-    href: '/wisata',
-  },
-  {
-    name: 'Pemandangan Alam',
-    image: '/images/village-landscape.jpg',
-    price: 'Jelajahi',
-    href: '/wisata',
-  },
-  {
-    name: 'Kolam Renang',
-    image: '/images/village-sign.jpg',
-    price: 'Rp5.000',
-    href: '/wisata',
-  },
-  {
-    name: 'Gula Aren',
-    image: '/images/wisata-jelajah.jpg',
-    price: 'Eduwisata',
-    href: '/eduwisata-gula-aren',
-  },
+const featuredServiceIds = [
+  'berkuda',
+  'keceh-kali',
+  'terapi-ikan',
+  'kolam-renang',
+  'kereta-sawah',
+  'rainbow-slide',
+  'taman-kelinci',
 ]
+
+const wisataItems = featuredServiceIds.flatMap((id) => {
+  const service = getTourService(id)
+  return service
+    ? [
+        {
+          name: service.name,
+          image: service.image,
+          price: getTourPriceLabel(service),
+          href: `/booking/wisata?category=${service.category}`,
+        },
+      ]
+    : []
+})
+
+const homestayServices = tourServices.filter(
+  (service) => service.category === 'homestay' && service.capacity && service.rates
+)
+const homestayCapacityNumbers = homestayServices.flatMap((service) =>
+  service.capacity?.match(/\d+/g)?.map(Number) || []
+)
+const homestayMinimumPrice = Math.min(
+  ...homestayServices.flatMap((service) => service.rates?.map((rate) => rate.price) || [])
+)
+const homestayCapacityLabel = `${Math.min(...homestayCapacityNumbers)}–${Math.max(...homestayCapacityNumbers)} orang`
 
 const upgradeFeatures = [
   {
@@ -146,7 +142,7 @@ export default function HomePage() {
 
       <section id="layanan-digital" className="bg-[#f3f0e6] py-16 md:py-20">
         <div className="container-page">
-          <div className="mx-auto max-w-2xl text-center">
+          <div className="mx-auto max-w-2xl text-center" data-reveal="up">
             <p className="eyebrow">Pembaruan layanan</p>
             <h2 className="font-script mt-2 text-5xl leading-none text-orange-500 md:text-6xl">
               Lebih Mudah Merencanakan Kunjungan
@@ -156,7 +152,7 @@ export default function HomePage() {
               yang langsung dapat digunakan pengunjung.
             </p>
           </div>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="mt-10 grid gap-5 md:grid-cols-3" data-reveal="up" data-reveal-delay="1">
             {upgradeFeatures.map((feature) => {
               const Icon = feature.icon
               return (
@@ -183,14 +179,14 @@ export default function HomePage() {
 
       <section id="paket-gula-aren" className="relative overflow-hidden bg-[#173822] text-white">
         <div className="grid lg:min-h-[620px] lg:grid-cols-2">
-          <div className="relative min-h-[320px] sm:min-h-[390px] lg:order-2 lg:min-h-full">
+          <div className="relative min-h-[320px] sm:min-h-[390px] lg:order-2 lg:min-h-full" data-reveal="scale">
             <div
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: 'url(/images/village-tradition.jpg)' }}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[#173822]/45 to-transparent" />
           </div>
-          <div className="flex items-center px-5 py-12 sm:px-12 sm:py-16 lg:px-16 xl:pl-[max(4rem,calc((100vw-80rem)/2))]">
+          <div className="flex items-center px-5 py-12 sm:px-12 sm:py-16 lg:px-16 xl:pl-[max(4rem,calc((100vw-80rem)/2))]" data-reveal="left">
             <div className="max-w-xl">
               <p className="eyebrow !text-orange-300">Warisan dari alam</p>
               <h2 className="font-script mt-3 text-5xl leading-none text-orange-400 sm:text-6xl">
@@ -323,7 +319,7 @@ export default function HomePage() {
               <ul className="mt-6 space-y-4 text-sm text-gray-600">
                 <li className="flex flex-col gap-1 border-b border-gray-100 pb-3 min-[380px]:flex-row min-[380px]:justify-between">
                   <span>Kapasitas</span>
-                  <strong className="text-gray-900">2–10 orang</strong>
+                  <strong className="text-gray-900">{homestayCapacityLabel}</strong>
                 </li>
                 <li className="flex flex-col gap-1 border-b border-gray-100 pb-3 min-[380px]:flex-row min-[380px]:justify-between">
                   <span>Check-in</span>
@@ -331,7 +327,7 @@ export default function HomePage() {
                 </li>
                 <li className="flex flex-col gap-1 border-b border-gray-100 pb-3 min-[380px]:flex-row min-[380px]:justify-between">
                   <span>Harga</span>
-                  <strong className="text-gray-900">Mulai Rp200rb</strong>
+                  <strong className="text-gray-900">Mulai {formatRupiah(homestayMinimumPrice)}</strong>
                 </li>
               </ul>
             </div>

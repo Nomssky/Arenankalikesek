@@ -12,19 +12,19 @@ export default function CategoryVisualHeader({
   return (
     <div
       key={category.id}
-      className={`relative isolate mb-8 overflow-hidden rounded-[1.75rem] bg-emerald-950 shadow-[0_20px_55px_-34px_rgba(12,54,27,0.75)] ${
+      className={`category-visual-enter relative isolate mb-8 overflow-hidden rounded-[1.75rem] bg-emerald-950 shadow-[0_20px_55px_-34px_rgba(12,54,27,0.75)] ${
         compact ? 'min-h-[190px]' : 'min-h-[240px] sm:min-h-[280px]'
       }`}
     >
       <div
-        className="absolute inset-0 -z-20 bg-cover transition-all duration-500"
+        className="category-visual-bg absolute inset-0 -z-20 bg-cover"
         style={{
           backgroundImage: `url(${category.image})`,
           backgroundPosition: category.position || 'center',
         }}
       />
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-emerald-950/90 via-emerald-950/62 to-emerald-950/20" />
-      <div className="absolute inset-0 flex items-end p-6 text-white sm:p-8">
+      <div className="category-visual-copy absolute inset-0 flex items-end p-6 text-white sm:p-8">
         <div className="max-w-xl">
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-300">
             Pilihan layanan

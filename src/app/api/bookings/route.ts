@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-server'
+import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase-server'
 import { createXenditInvoice, isXenditConfigured } from '@/lib/xendit'
 import { sendBookingNotification } from '@/lib/wa'
 import { generateId } from '@/lib/utils'
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       bookingDate,
       timeStart,
       timeEnd,
+      participantCount,
       notes,
       items,
       totalAmount,
@@ -58,6 +59,12 @@ export async function POST(request: NextRequest) {
 
     const bookingId = generateId()
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const bookingNotes = [
+      participantCount ? `Jumlah peserta: ${Math.max(1, Number(participantCount) || 1)} orang` : '',
+      notes || '',
+    ]
+      .filter(Boolean)
+      .join('\n')
 
     const bookingData = {
       id: bookingId,
@@ -75,8 +82,31 @@ export async function POST(request: NextRequest) {
       total_amount: parsedTotal,
       status: 'pending',
       payment_status: 'unpaid',
-      notes: notes || null,
+      notes: bookingNotes || null,
       expires_at: expiresAt,
+    }
+
+    if (!isSupabaseConfigured()) {
+      const now = new Date().toISOString()
+      const localBooking = {
+        ...bookingData,
+        status: 'confirmed',
+        payment_status: 'unpaid',
+        payment_method: null,
+        payment_url: null,
+        assigned_pic: null,
+        created_at: now,
+        updated_at: now,
+      }
+
+      return NextResponse.json({
+        bookingId,
+        bookingCode: bookingData.booking_code,
+        paymentUrl: null,
+        local: true,
+        booking: localBooking,
+        info: 'Booking tersimpan pada perangkat untuk mode localhost',
+      })
     }
 
     const supabase = getSupabaseAdmin()

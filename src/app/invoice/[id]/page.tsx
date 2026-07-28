@@ -18,7 +18,7 @@ interface InvoiceData {
   payment_status: string
   payment_method?: string
   total_amount: number
-  items: string
+  items: string | { id: string; name: string; quantity: number; price: number }[]
   booking_date?: string
   created_at: string
   notes?: string
@@ -49,6 +49,9 @@ export default function InvoicePage() {
         if (res.ok) {
           const json = await res.json()
           setData(json)
+        } else {
+          const stored = localStorage.getItem(`invoice_${id}`)
+          if (stored) setData(JSON.parse(stored))
         }
       } catch {
         const stored = localStorage.getItem(`invoice_${id}`)
@@ -63,9 +66,10 @@ export default function InvoicePage() {
   const statusInfo = data ? statusLabel[data.status] || statusLabel.pending : statusLabel.pending
   const paymentInfo = data ? paymentLabel[data.payment_status] || paymentLabel.unpaid : paymentLabel.unpaid
 
-  const parseItems = (itemsStr: string) => {
+  const parseItems = (itemsValue: InvoiceData['items']) => {
+    if (Array.isArray(itemsValue)) return itemsValue
     try {
-      return JSON.parse(itemsStr) as { id: string; name: string; quantity: number; price: number }[]
+      return JSON.parse(itemsValue) as { id: string; name: string; quantity: number; price: number }[]
     } catch {
       return []
     }

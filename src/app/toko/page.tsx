@@ -1,10 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
+import CartToast from '@/components/CartToast'
 import { formatPrice } from '@/lib/utils'
-import { ShoppingCartIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import {
+  CheckIcon,
+  MinusIcon,
+  PlusIcon,
+  ShoppingCartIcon,
+  TrashIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline'
 
 interface CartItem {
   id: string
@@ -17,36 +25,87 @@ interface Product {
   id: string
   name: string
   price: number
+  price_label: string
   category: string
   image: string
   description: string
   unit: string
+  purchasable: boolean
 }
 
 const categories = [
   { id: 'semua', name: 'Semua' },
-  { id: 'paket-makanan', name: 'Paket Makanan' },
-  { id: 'pupuk', name: 'Pupuk & Pertanian' },
-  { id: 'fishing', name: 'Fishing' },
-  { id: 'oleh-oleh', name: 'Oleh-oleh' },
+  { id: 'paket-makanan', name: 'Paket Menu Makanan' },
 ]
 
 export default function TokoPage() {
+  const toastTimerRef = useRef<number | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
+  const [cartReady, setCartReady] = useState(false)
   const [showCart, setShowCart] = useState(false)
+  const [toastProduct, setToastProduct] = useState<Product | null>(null)
   const [activeCategory, setActiveCategory] = useState('semua')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      try {
+        const storedCart = sessionStorage.getItem('toko-cart')
+        if (storedCart) setCart(JSON.parse(storedCart))
+      } catch {
+        sessionStorage.removeItem('toko-cart')
+      } finally {
+        setCartReady(true)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!cartReady) return
+    sessionStorage.setItem('toko-cart', JSON.stringify(cart))
+  }, [cart, cartReady])
+
+  useEffect(() => {
+    if (!showCart) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [showCart])
+
+  useEffect(() => {
     async function fetchProducts() {
       try {
         const res = await fetch('/api/products')
         if (res.ok) {
-          const data = await res.json()
+          const data: Product[] = await res.json()
           setProducts(data)
+          setCart((currentCart) =>
+            currentCart.flatMap((cartItem) => {
+              const product = data.find((item) => item.id === cartItem.id)
+              return product?.purchasable
+                ? [
+                    {
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      quantity: cartItem.quantity,
+                    },
+                  ]
+                : []
+            })
+          )
         } else {
           setError('Gagal memuat produk')
         }
@@ -67,6 +126,7 @@ export default function TokoPage() {
   })
 
   const addToCart = (product: Product) => {
+    if (!product.purchasable) return
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id)
       if (existing) {
@@ -76,6 +136,9 @@ export default function TokoPage() {
       }
       return [...prev, { id: product.id, name: product.name, price: product.price, quantity: 1 }]
     })
+    setToastProduct(product)
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = window.setTimeout(() => setToastProduct(null), 4200)
   }
 
   const updateQuantity = (id: string, quantity: number) => {
@@ -90,6 +153,10 @@ export default function TokoPage() {
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
   const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const openCart = () => {
+    setToastProduct(null)
+    setShowCart(true)
+  }
 
   return (
     <>
@@ -121,13 +188,14 @@ export default function TokoPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <button
-              onClick={() => setShowCart(!showCart)}
-              className="btn-primary text-sm relative"
+              type="button"
+              onClick={openCart}
+              className="btn-primary relative shrink-0 text-sm"
             >
               <ShoppingCartIcon className="h-5 w-5" />
-              {totalItems}
+              <span className="hidden min-[420px]:inline">Keranjang</span>
               {totalItems > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-xs text-white">
                   {totalItems}
                 </span>
               )}
@@ -153,8 +221,15 @@ export default function TokoPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="card group">
+            {filteredProducts.map((product) => {
+              const selectedQuantity =
+                cart.find((item) => item.id === product.id)?.quantity || 0
+
+              return (
+              <article
+                key={product.id}
+                className={`card group ${selectedQuantity > 0 ? 'ring-2 ring-emerald-500/25' : ''}`}
+              >
                 <div className="aspect-[4/3] bg-gradient-to-br from-emerald-50 to-amber-50 flex items-center justify-center overflow-hidden relative">
                   <div
                     className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-300"
@@ -165,6 +240,12 @@ export default function TokoPage() {
                   <span className="absolute top-2 right-2 text-xs bg-white/90 px-2 py-1 rounded-full font-medium text-gray-600">
                     {product.unit}
                   </span>
+                  {selectedQuantity > 0 && (
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow">
+                      <CheckIcon className="h-3.5 w-3.5" />
+                      Di keranjang {selectedQuantity}
+                    </span>
+                  )}
                 </div>
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-1">
@@ -172,30 +253,92 @@ export default function TokoPage() {
                   </div>
                     <p className="text-xs text-gray-500 mb-2">{product.description}</p>
                   <div className="flex items-center justify-between">
-                    <p className="text-emerald-600 font-bold">{formatPrice(product.price)}</p>
-                    <button
-                      onClick={() => addToCart(product)}
-                      className="w-8 h-8 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 flex items-center justify-center font-bold text-lg flex-shrink-0"
-                    >
-                      +
-                    </button>
+                    <p className="font-bold text-emerald-600">{product.price_label}</p>
+                    {product.purchasable ? (
+                      <button
+                        type="button"
+                        onClick={() => addToCart(product)}
+                        aria-label={`Tambahkan ${product.name} ke keranjang`}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-orange-500 active:scale-95"
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                        Tambah
+                      </button>
+                    ) : (
+                      <a
+                        href={`https://wa.me/6285741171957?text=${encodeURIComponent(`Halo, saya ingin menanyakan harga ${product.name}.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-10 items-center rounded-full bg-orange-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"
+                      >
+                        Hubungi Pengelola
+                      </a>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
+              </article>
+              )
+            })}
           </div>
         )}
       </Section>
 
+      {cart.length > 0 && (
+        <button
+          type="button"
+          onClick={openCart}
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl bg-emerald-900 px-4 py-3.5 text-left text-white shadow-[0_18px_55px_-18px_rgba(6,78,59,0.8)] transition hover:bg-emerald-800 sm:left-auto sm:right-6 sm:w-auto sm:min-w-80 sm:translate-x-0"
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">
+              <ShoppingCartIcon className="h-5 w-5" />
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold">
+                {totalItems}
+              </span>
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs text-white/65">Keranjang belanja</span>
+              <span className="block truncate text-sm font-semibold">Lihat & checkout</span>
+            </span>
+          </span>
+          <strong className="shrink-0 text-sm">{formatPrice(totalPrice)}</strong>
+        </button>
+      )}
+
+      {toastProduct && (
+        <CartToast
+          title="Produk ditambahkan"
+          message={`${toastProduct.name} sudah masuk ke keranjang belanja.`}
+          actionLabel="Lihat keranjang"
+          onAction={openCart}
+          onClose={() => setToastProduct(null)}
+        />
+      )}
+
       {showCart && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
-          <div className="max-h-[calc(100dvh-1rem)] w-full overflow-auto rounded-t-2xl bg-white p-4 sm:max-h-[80vh] sm:max-w-lg sm:rounded-2xl sm:p-6">
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-emerald-950/55 backdrop-blur-sm sm:items-center sm:p-5"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowCart(false)
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Keranjang belanja"
+            className="max-h-[calc(100dvh-1rem)] w-full overflow-auto rounded-t-[1.75rem] bg-white p-5 sm:max-h-[82vh] sm:max-w-xl sm:rounded-[1.75rem] sm:p-7"
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="flex items-center gap-2 text-xl font-bold text-gray-900">
                 <ShoppingCartIcon className="h-6 w-6 text-emerald-700" />
                 Keranjang
               </h3>
-              <button onClick={() => setShowCart(false)} className="text-gray-400 hover:text-gray-600 text-xl">
+              <button
+                type="button"
+                onClick={() => setShowCart(false)}
+                aria-label="Tutup keranjang"
+                className="rounded-full bg-gray-100 p-2 text-gray-500 transition hover:bg-gray-200"
+              >
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
@@ -213,17 +356,29 @@ export default function TokoPage() {
                       </div>
                       <div className="flex items-center gap-2 self-end min-[380px]:self-auto">
                         <button
+                          type="button"
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 text-sm"
+                          aria-label={`Kurangi ${item.name}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition hover:bg-gray-300"
                         >
-                          -
+                          <MinusIcon className="h-4 w-4" />
                         </button>
                         <span className="font-medium w-6 text-center text-sm">{item.quantity}</span>
                         <button
+                          type="button"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 text-sm"
+                          aria-label={`Tambah ${item.name}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition hover:bg-gray-300"
                         >
-                          +
+                          <PlusIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.id, 0)}
+                          aria-label={`Hapus ${item.name}`}
+                          className="ml-1 rounded-full p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                        >
+                          <TrashIcon className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -236,6 +391,7 @@ export default function TokoPage() {
                     <span className="font-bold text-xl text-emerald-600">{formatPrice(totalPrice)}</span>
                   </div>
                   <button
+                    type="button"
                     onClick={() => {
                       sessionStorage.setItem('toko-cart', JSON.stringify(cart))
                       setShowCart(false)
@@ -243,7 +399,7 @@ export default function TokoPage() {
                     }}
                     className="btn-primary w-full"
                   >
-                    Lanjut ke Checkout
+                    Checkout {totalItems} barang
                   </button>
                 </div>
               </>
