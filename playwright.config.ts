@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
   expect: { timeout: 10000 },
-  fullyParallel: true,
+  fullyParallel: false,
   retries: 1,
   use: {
     baseURL: 'https://arenankalikesek.vercel.app',
