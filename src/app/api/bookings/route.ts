@@ -74,6 +74,9 @@ async function createRentalBookings(
 ) {
   if (!bookingDate || !items.length) return
 
+  const startAt = timeStart ? `${bookingDate}T${timeStart}:00+07:00` : `${bookingDate}T00:00:00+07:00`
+  const endAt = timeEnd ? `${bookingDate}T${timeEnd}:00+07:00` : `${bookingDate}T23:59:00+07:00`
+
   const entries: {
     id: string
     booking_id: string
@@ -83,8 +86,11 @@ async function createRentalBookings(
     booking_date: string
     time_start: string | null
     time_end: string | null
+    start_at: string | null
+    end_at: string | null
     total_price: number
     status: string
+    updated_at: string
   }[] = []
 
   for (const item of items) {
@@ -97,8 +103,11 @@ async function createRentalBookings(
       booking_date: bookingDate,
       time_start: timeStart || null,
       time_end: timeEnd || null,
+      start_at: startAt,
+      end_at: endAt,
       total_price: (item.price || 0) * (item.quantity || 1),
       status: 'active',
+      updated_at: new Date().toISOString(),
     })
   }
 
@@ -226,7 +235,9 @@ export async function POST(request: NextRequest) {
       .lt('expires_at', new Date().toISOString())
       .then()
 
-    createRentalBookings(supabase, bookingId, items || [], bookingDate, timeStart, timeEnd)
+    await createRentalBookings(supabase, bookingId, items || [], bookingDate, timeStart, timeEnd).catch((e) => {
+      console.error('Failed to create rental_bookings:', e)
+    })
 
     const safeItems = (items || []).map(
       (item: { id?: string; name: string; quantity?: number; price: number }) => ({

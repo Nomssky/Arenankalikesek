@@ -84,6 +84,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Gagal memproses booking' }, { status: 500 })
     }
 
+    if (updateData.status === 'cancelled') {
+      await supabase
+        .from('rental_bookings')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('booking_id', id)
+        .neq('status', 'returned')
+    }
+
     return NextResponse.json(data)
   } catch (error) {
     console.error('Update booking error:', error)

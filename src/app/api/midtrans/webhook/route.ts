@@ -70,6 +70,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
     }
 
+    if (bookingStatus === 'cancelled') {
+      await supabase
+        .from('rental_bookings')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('booking_id', orderId)
+        .neq('status', 'returned')
+    }
+
     if (bookingStatus === 'paid') {
       const { data: booking } = await supabase
         .from('bookings')

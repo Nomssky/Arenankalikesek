@@ -51,9 +51,13 @@ CREATE TABLE IF NOT EXISTS rental_bookings (
   booking_date DATE NOT NULL,
   time_start TIME,
   time_end TIME,
+  start_at TIMESTAMPTZ,
+  end_at TIMESTAMPTZ,
+  notes TEXT,
   total_price INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'returned', 'cancelled')),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Index untuk performa
