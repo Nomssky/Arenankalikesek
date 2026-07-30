@@ -158,7 +158,7 @@ export default function WisataPage() {
 
       <Section className="relative overflow-hidden bg-[#fbfaf5]">
         <CategoryVisualHeader category={activeCategoryInfo} />
-        <nav aria-label="Kategori wisata" className="flex flex-wrap gap-2">
+        <nav aria-label="Kategori wisata" className="flex flex-nowrap overflow-x-auto pb-2 pt-1 sm:flex-wrap sm:pb-0 gap-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {wisataCategories.map((category) => (
             <button
               key={category.id}
@@ -207,7 +207,9 @@ export default function WisataPage() {
                       {formatItemPrice(item)}
                       {item.unit && item.pricing_type === 'fixed' ? `/${item.unit}` : ''}
                     </p>
-                    {item.note && <p className="mt-1 text-xs text-gray-600">{item.note}</p>}
+                    {item.note && item.note !== item.price_label && (
+                      <p className="mt-1 text-xs text-gray-600">{item.note}</p>
+                    )}
                   </VisualCard>
                 ))}
               </div>

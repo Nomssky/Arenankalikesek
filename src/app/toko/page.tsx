@@ -7,6 +7,7 @@ import CartToast from '@/components/CartToast'
 import { formatPrice } from '@/lib/utils'
 import {
   CheckIcon,
+  InformationCircleIcon,
   MinusIcon,
   PlusIcon,
   ShoppingCartIcon,
@@ -73,7 +74,14 @@ export default function TokoPage() {
   useEffect(() => {
     if (!cartReady) return
     sessionStorage.setItem('toko-cart', JSON.stringify(cart))
+    window.dispatchEvent(new Event('cart-updated'))
   }, [cart, cartReady])
+
+  useEffect(() => {
+    const handleOpenModal = () => setShowCart(true)
+    window.addEventListener('open-cart-modal', handleOpenModal)
+    return () => window.removeEventListener('open-cart-modal', handleOpenModal)
+  }, [])
 
   useEffect(() => {
     if (!showCart) return
@@ -168,6 +176,26 @@ export default function TokoPage() {
       <Hero title="Toko Arenan Kalikesek" subtitle="Belanja produk khas Kalikesek" image="/images/village-tradition.jpg" height="sm" />
 
       <Section>
+        <div
+          className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-emerald-950"
+          role="status"
+          aria-live="polite"
+        >
+          <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">
+              {cart.length > 0
+                ? `${totalItems} barang dari ${cart.length} produk sudah ada di keranjang`
+                : 'Pilih oleh-oleh, makanan, dan produk khas Desa Kalikesek'}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-emerald-800/75">
+              {cart.length > 0
+                ? `Total sementara ${formatPrice(totalPrice)}. Anda dapat mengubah jumlah barang atau langsung checkout.`
+                : 'Produk diolah langsung oleh warga dan UMKM lokal desa.'}
+            </p>
+          </div>
+        </div>
+
         <div className="mb-8 flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex flex-wrap gap-2">
             {categories.map((cat) => (
@@ -225,7 +253,7 @@ export default function TokoPage() {
             <p className="text-sm">Coba ubah kata kunci atau kategori</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className={`grid gap-4 ${cart.length > 0 ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
             {filteredProducts.map((product) => {
               const selectedQuantity =
                 cart.find((item) => item.id === product.id)?.quantity || 0
@@ -286,13 +314,60 @@ export default function TokoPage() {
             })}
           </div>
         )}
+
+        {cart.length > 0 && (
+          <aside className="booking-desktop-summary sticky top-28 hidden rounded-[1.5rem] border border-emerald-950/5 bg-white p-5 shadow-[0_20px_50px_-24px_rgba(12,54,27,0.45)] lg:block">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">
+                  Ringkasan Toko
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-emerald-950">
+                  {totalItems} Barang Pilihan
+                </h3>
+              </div>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                <ShoppingCartIcon className="h-5 w-5" />
+              </span>
+            </div>
+
+            <div className="my-4 max-h-60 space-y-3 overflow-y-auto pr-1 text-sm">
+              {cart.map((item) => (
+                <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{item.name}</p>
+                    <p className="text-gray-500">{item.quantity} x {formatPrice(item.price)}</p>
+                  </div>
+                  <span className="font-semibold text-emerald-700 shrink-0">
+                    {formatPrice(item.price * item.quantity)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-semibold text-gray-500 uppercase">Total</span>
+                <span className="text-lg font-bold text-emerald-700">{formatPrice(totalPrice)}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={openCart}
+                className="btn-primary w-full text-center"
+              >
+                Lihat Keranjang &amp; Checkout
+              </button>
+            </div>
+          </aside>
+        )}
       </Section>
 
       {cart.length > 0 && (
         <button
           type="button"
           onClick={openCart}
-          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl bg-emerald-900 px-4 py-3.5 text-left text-white shadow-[0_18px_55px_-18px_rgba(6,78,59,0.8)] transition hover:bg-emerald-800 sm:left-auto sm:right-6 sm:w-auto sm:min-w-80 sm:translate-x-0"
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl bg-emerald-900 px-4 py-3.5 text-left text-white shadow-[0_18px_55px_-18px_rgba(6,78,59,0.8)] transition hover:bg-emerald-800 lg:hidden"
         >
           <span className="flex min-w-0 items-center gap-3">
             <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">
@@ -302,8 +377,8 @@ export default function TokoPage() {
               </span>
             </span>
             <span className="min-w-0">
-              <span className="block text-xs text-white/65">Keranjang belanja</span>
-              <span className="block truncate text-sm font-semibold">Lihat & checkout</span>
+              <span className="block text-xs text-white/65">Keranjang toko</span>
+              <span className="block truncate text-sm font-semibold">Lihat &amp; checkout</span>
             </span>
           </span>
           <strong className="shrink-0 text-sm">{formatPrice(totalPrice)}</strong>

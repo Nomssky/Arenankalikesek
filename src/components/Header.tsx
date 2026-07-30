@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon, ShoppingCartIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
 const navItems = [
   { label: 'Home', href: '/' },
@@ -31,8 +31,31 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
+  const [cartCount, setCartCount] = useState(0)
   const pathname = usePathname()
   const isHome = pathname === '/'
+
+  useEffect(() => {
+    const syncCartCount = () => {
+      try {
+        const tokoCart = JSON.parse(sessionStorage.getItem('toko-cart') || '[]')
+        const bookingCart = JSON.parse(sessionStorage.getItem('wisata-cart') || '[]')
+        const tokoTotal = tokoCart.reduce((s: number, i: { quantity: number }) => s + i.quantity, 0)
+        const bookingTotal = bookingCart.reduce((s: number, i: { quantity: number }) => s + i.quantity, 0)
+        setCartCount(tokoTotal + bookingTotal)
+      } catch {
+        setCartCount(0)
+      }
+    }
+
+    syncCartCount()
+    window.addEventListener('storage', syncCartCount)
+    window.addEventListener('cart-updated', syncCartCount)
+    return () => {
+      window.removeEventListener('storage', syncCartCount)
+      window.removeEventListener('cart-updated', syncCartCount)
+    }
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 64)
@@ -43,11 +66,16 @@ export default function Header() {
 
   useEffect(() => {
     if (!isOpen) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsOpen(false)
     }
     window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
   }, [isOpen])
 
   useEffect(() => {
@@ -160,33 +188,75 @@ export default function Header() {
             >
               Booking
             </Link>
+
+            {cartCount > 0 && (
+              <Link
+                href={pathname.startsWith('/toko') ? '/toko' : '/booking/wisata'}
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open-cart-modal'))
+                }}
+                className="relative inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3.5 py-2 text-[13px] font-semibold text-white shadow-md transition hover:bg-emerald-800 active:scale-95"
+              >
+                <ShoppingCartIcon className="h-4 w-4" />
+                <span>Keranjang</span>
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white">
+                  {cartCount}
+                </span>
+              </Link>
+            )}
           </div>
 
-          <button
-            type="button"
-            aria-label={isOpen ? 'Tutup menu' : 'Buka menu'}
-            aria-expanded={isOpen}
-            className={`mobile-menu-trigger rounded-full p-2.5 shadow-lg transition lg:hidden ${
-              isOpen
-                ? 'bg-[#f47c12]/80 text-white ring-1 ring-inset ring-orange-200/45 backdrop-blur-xl'
-                : elevated
-                  ? 'bg-emerald-700 text-white hover:bg-emerald-800'
-                  : 'bg-orange-500 text-white hover:bg-orange-600'
-            }`}
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen ? (
-              <XMarkIcon className="w-6 h-6" />
-            ) : (
-              <Bars3Icon className="w-6 h-6" />
+          <div className="flex items-center gap-2 lg:hidden">
+            {cartCount > 0 && (
+              <Link
+                href={pathname.startsWith('/toko') ? '/toko' : '/booking/wisata'}
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open-cart-modal'))
+                }}
+                aria-label="Buka keranjang"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-emerald-700 text-white shadow-md transition hover:bg-emerald-800 active:scale-95"
+              >
+                <ShoppingCartIcon className="h-5 w-5" />
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white">
+                  {cartCount}
+                </span>
+              </Link>
             )}
-          </button>
+
+            <button
+              type="button"
+              aria-label={isOpen ? 'Tutup menu' : 'Buka menu'}
+              aria-expanded={isOpen}
+              className={`mobile-menu-trigger rounded-full p-2.5 shadow-lg transition ${
+                isOpen
+                  ? 'bg-[#f47c12]/80 text-white ring-1 ring-inset ring-orange-200/45 backdrop-blur-xl'
+                  : elevated
+                    ? 'bg-emerald-700 text-white hover:bg-emerald-800'
+                    : 'bg-orange-500 text-white hover:bg-orange-600'
+              }`}
+              onClick={() => setIsOpen(!isOpen)}
+            >
+              {isOpen ? (
+                <XMarkIcon className="w-6 h-6" />
+              ) : (
+                <Bars3Icon className="w-6 h-6" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
+      {isOpen && (
+        <div
+          className="fixed inset-0 top-18 md:top-20 z-40 bg-black/40 backdrop-blur-xs lg:hidden"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <div
         aria-hidden={!isOpen}
-        className={`mobile-nav-shell absolute inset-x-0 top-full grid lg:hidden ${
+        className={`mobile-nav-shell absolute inset-x-0 top-full z-50 grid lg:hidden ${
           isOpen ? 'mobile-nav-shell--open' : ''
         }`}
       >

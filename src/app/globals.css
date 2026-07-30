@@ -146,9 +146,13 @@
 @utility section-title {
   color: var(--color-secondary);
   font-family: "Alex Brush", cursive;
-  font-size: 3.25rem;
+  font-size: clamp(2.2rem, 8.5vw, 4.5rem);
+  line-height: 1.05;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  text-wrap: balance;
+  overflow-wrap: break-word;
   font-weight: 400;
-  line-height: 1;
   text-align: center;
   margin-bottom: 1rem;
 
@@ -189,6 +193,8 @@
 @utility form-input {
   min-width: 0;
   width: 100%;
+  font-size: 16px;
+  min-height: 2.75rem;
   padding: 0.75rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.875rem;
@@ -212,6 +218,8 @@
 @utility form-select {
   min-width: 0;
   width: 100%;
+  font-size: 16px;
+  min-height: 2.75rem;
   padding: 0.75rem 1rem;
   border: 1px solid #d1d5db;
   border-radius: 0.875rem;
@@ -1052,6 +1060,17 @@ html[data-route-transition="active"] body {
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes cart-fab-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(1.5rem) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 

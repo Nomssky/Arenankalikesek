@@ -146,7 +146,14 @@ export default function BookingWisataPage() {
   useEffect(() => {
     if (!cartReady) return
     sessionStorage.setItem('wisata-cart', JSON.stringify(cart))
+    window.dispatchEvent(new Event('cart-updated'))
   }, [cart, cartReady])
+
+  useEffect(() => {
+    const handleOpenModal = () => setCartOpen(true)
+    window.addEventListener('open-cart-modal', handleOpenModal)
+    return () => window.removeEventListener('open-cart-modal', handleOpenModal)
+  }, [])
 
   useEffect(() => {
     if (!cartOpen) return
@@ -371,7 +378,7 @@ export default function BookingWisataPage() {
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
               Pilih kategori
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-nowrap overflow-x-auto pb-1.5 sm:flex-wrap sm:pb-0 gap-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {serviceCategories.map((category) => (
                 <button
                   key={category.id}

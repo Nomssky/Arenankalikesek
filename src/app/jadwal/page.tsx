@@ -198,7 +198,7 @@ export default function JadwalPage() {
             </div>
           </div>
 
-          <div className="mb-6 flex flex-wrap gap-2">
+          <div className="mb-6 flex flex-nowrap overflow-x-auto pb-1.5 sm:flex-wrap sm:pb-0 gap-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categories.map((category) => (
               <button
                 key={category.id}
@@ -219,6 +219,9 @@ export default function JadwalPage() {
 
           {viewMode === 'hari' ? (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="flex items-center gap-1.5 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-800 border-b sm:hidden">
+                <span>👈</span> Geser tabel ke samping untuk melihat slot jam
+              </div>
               <div className="overflow-x-auto overscroll-x-contain">
                 <table className="min-w-[1120px] text-sm">
                   <thead>
