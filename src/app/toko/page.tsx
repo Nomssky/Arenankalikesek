@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import CartToast from '@/components/CartToast'
@@ -236,259 +237,278 @@ export default function TokoPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full" />
-          </div>
-        ) : error ? (
-          <div className="rounded-xl bg-red-50 p-6 text-center text-red-700">
-            <p className="text-lg font-medium mb-1">{error}</p>
-            <button onClick={() => window.location.reload()} className="text-sm text-red-600 underline">
-              Coba lagi
-            </button>
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            <p className="text-lg mb-2">Produk tidak ditemukan</p>
-            <p className="text-sm">Coba ubah kata kunci atau kategori</p>
-          </div>
-        ) : (
-          <div className={`grid gap-4 ${cart.length > 0 ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
-            {filteredProducts.map((product) => {
-              const selectedQuantity =
-                cart.find((item) => item.id === product.id)?.quantity || 0
-
-              return (
-              <article
-                key={product.id}
-                className={`card motion-card group ${selectedQuantity > 0 ? 'ring-2 ring-emerald-500/25' : ''}`}
-              >
-                <div className="aspect-[4/3] bg-gradient-to-br from-emerald-50 to-amber-50 flex items-center justify-center overflow-hidden relative">
-                  <div
-                    className="w-full h-full bg-cover bg-center group-hover:scale-[1.03] transition-transform duration-300"
-                    style={{ backgroundImage: `url(${product.image})` }}
-                  >
-                    <div className="h-full w-full bg-gradient-to-t from-black/20 to-transparent" />
-                  </div>
-                  <span className="absolute top-2 right-2 text-xs bg-white/90 px-2 py-1 rounded-full font-medium text-gray-600">
-                    {product.unit}
-                  </span>
-                  {selectedQuantity > 0 && (
-                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow">
-                      <CheckIcon className="h-3.5 w-3.5" />
-                      Di keranjang {selectedQuantity}
-                    </span>
-                  )}
-                </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-1">
-                    <h3 className="font-semibold text-gray-900 text-sm">{product.name}</h3>
-                  </div>
-                    <p className="text-xs text-gray-500 mb-2">{product.description}</p>
-                  <div className="flex items-center justify-between">
-                    <p className="font-bold text-emerald-600">{product.price_label}</p>
-                    {product.purchasable ? (
-                      <button
-                        type="button"
-                        onClick={() => addToCart(product)}
-                        aria-label={`Tambahkan ${product.name} ke keranjang`}
-                        className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-orange-500 active:scale-95"
-                      >
-                        <PlusIcon className="h-4 w-4" />
-                        Tambah
-                      </button>
-                    ) : (
-                      <a
-                        href={`https://wa.me/6285741171957?text=${encodeURIComponent(`Halo, saya ingin menanyakan harga ${product.name}.`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-10 items-center rounded-full bg-orange-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"
-                      >
-                        Hubungi Pengelola
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </article>
-              )
-            })}
-          </div>
-        )}
-
-        {cart.length > 0 && (
-          <aside className="booking-desktop-summary sticky top-28 hidden rounded-[1.5rem] border border-emerald-950/5 bg-white p-5 shadow-[0_20px_50px_-24px_rgba(12,54,27,0.45)] lg:block">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">
-                  Ringkasan Toko
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-emerald-950">
-                  {totalItems} Barang Pilihan
-                </h3>
-              </div>
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-                <ShoppingCartIcon className="h-5 w-5" />
-              </span>
-            </div>
-
-            <div className="my-4 max-h-60 space-y-3 overflow-y-auto pr-1 text-sm">
-              {cart.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{item.name}</p>
-                    <p className="text-gray-500">{item.quantity} x {formatPrice(item.price)}</p>
-                  </div>
-                  <span className="font-semibold text-emerald-700 shrink-0">
-                    {formatPrice(item.price * item.quantity)}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="border-t border-gray-100 pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-semibold text-gray-500 uppercase">Total</span>
-                <span className="text-lg font-bold text-emerald-700">{formatPrice(totalPrice)}</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={openCart}
-                className="btn-primary w-full text-center"
-              >
-                Lihat Keranjang &amp; Checkout
-              </button>
-            </div>
-          </aside>
-        )}
-      </Section>
-
-      {cart.length > 0 && (
-        <button
-          type="button"
-          onClick={openCart}
-          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl bg-emerald-900 px-4 py-3.5 text-left text-white shadow-[0_18px_55px_-18px_rgba(6,78,59,0.8)] transition hover:bg-emerald-800 lg:hidden"
-        >
-          <span className="flex min-w-0 items-center gap-3">
-            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">
-              <ShoppingCartIcon className="h-5 w-5" />
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold">
-                {totalItems}
-              </span>
-            </span>
-            <span className="min-w-0">
-              <span className="block text-xs text-white/65">Keranjang toko</span>
-              <span className="block truncate text-sm font-semibold">Lihat &amp; checkout</span>
-            </span>
-          </span>
-          <strong className="shrink-0 text-sm">{formatPrice(totalPrice)}</strong>
-        </button>
-      )}
-
-      {toastProduct && (
-        <CartToast
-          title="Produk ditambahkan"
-          message={`${toastProduct.name} sudah masuk ke keranjang belanja.`}
-          actionLabel="Lihat keranjang"
-          onAction={openCart}
-          onClose={() => setToastProduct(null)}
-        />
-      )}
-
-      {showCart && (
         <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-emerald-950/55 backdrop-blur-sm sm:items-center sm:p-5"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setShowCart(false)
-          }}
+          className={`items-start gap-7 ${
+            cart.length > 0 ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_20rem]' : ''
+          }`}
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Keranjang belanja"
-            data-lenis-prevent
-            data-scroll-container
-            className="max-h-[calc(100dvh-1rem)] w-full overflow-auto rounded-t-[1.75rem] bg-white p-5 sm:max-h-[82vh] sm:max-w-xl sm:rounded-[1.75rem] sm:p-7"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                <ShoppingCartIcon className="h-6 w-6 text-emerald-700" />
-                Keranjang
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowCart(false)}
-                aria-label="Tutup keranjang"
-                className="rounded-full bg-gray-100 p-2 text-gray-500 transition hover:bg-gray-200"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
-            </div>
-
-            {cart.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Keranjang kosong</p>
+          <div className="min-w-0">
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <div className="animate-spin w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full" />
+              </div>
+            ) : error ? (
+              <div className="rounded-xl bg-red-50 p-6 text-center text-red-700">
+                <p className="text-lg font-medium mb-1">{error}</p>
+                <button onClick={() => window.location.reload()} className="text-sm text-red-600 underline">
+                  Coba lagi
+                </button>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-16 text-gray-500">
+                <p className="text-lg mb-2">Produk tidak ditemukan</p>
+                <p className="text-sm">Coba ubah kata kunci atau kategori</p>
+              </div>
             ) : (
-              <>
-                <div className="space-y-3 mb-6">
-                  {cart.map((item) => (
-                    <div key={item.id} className="flex flex-col gap-3 rounded-lg bg-gray-50 p-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900 text-sm">{item.name}</p>
-                        <p className="text-xs text-gray-500">{formatPrice(item.price)}</p>
+              <div className={`grid gap-4 ${cart.length > 0 ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
+                {filteredProducts.map((product) => {
+                  const selectedQuantity =
+                    cart.find((item) => item.id === product.id)?.quantity || 0
+
+                  return (
+                  <article
+                    key={product.id}
+                    className={`card motion-card group ${selectedQuantity > 0 ? 'ring-2 ring-emerald-500/25' : ''}`}
+                  >
+                    <div className="aspect-[4/3] bg-gradient-to-br from-emerald-50 to-amber-50 flex items-center justify-center overflow-hidden relative">
+                      <div
+                        className="w-full h-full bg-cover bg-center group-hover:scale-[1.03] transition-transform duration-300"
+                        style={{ backgroundImage: `url(${product.image})` }}
+                      >
+                        <div className="h-full w-full bg-gradient-to-t from-black/20 to-transparent" />
                       </div>
-                      <div className="flex items-center gap-2 self-end min-[380px]:self-auto">
-                        <button
-                          type="button"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          aria-label={`Kurangi ${item.name}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition hover:bg-gray-300"
-                        >
-                          <MinusIcon className="h-4 w-4" />
-                        </button>
-                        <span className="font-medium w-6 text-center text-sm">{item.quantity}</span>
-                        <button
-                          type="button"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          aria-label={`Tambah ${item.name}`}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition hover:bg-gray-300"
-                        >
-                          <PlusIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateQuantity(item.id, 0)}
-                          aria-label={`Hapus ${item.name}`}
-                          className="ml-1 rounded-full p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
+                      <span className="absolute top-2 right-2 text-xs bg-white/90 px-2 py-1 rounded-full font-medium text-gray-600">
+                        {product.unit}
+                      </span>
+                      {selectedQuantity > 0 && (
+                        <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-white shadow">
+                          <CheckIcon className="h-3.5 w-3.5" />
+                          Di keranjang {selectedQuantity}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-1">
+                        <h3 className="font-semibold text-gray-900 text-sm">{product.name}</h3>
+                      </div>
+                        <p className="text-xs text-gray-500 mb-2">{product.description}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-emerald-600">{product.price_label}</p>
+                        {product.purchasable ? (
+                          <button
+                            type="button"
+                            onClick={() => addToCart(product)}
+                            aria-label={`Tambahkan ${product.name} ke keranjang`}
+                            className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-orange-500 active:scale-95"
+                          >
+                            <PlusIcon className="h-4 w-4" />
+                            Tambah
+                          </button>
+                        ) : (
+                          <a
+                            href={`https://wa.me/6285741171957?text=${encodeURIComponent(`Halo, saya ingin menanyakan harga ${product.name}.`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex min-h-10 items-center rounded-full bg-orange-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"
+                          >
+                            Hubungi Pengelola
+                          </a>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="font-semibold text-gray-900">Total</span>
-                    <span className="font-bold text-xl text-emerald-600">{formatPrice(totalPrice)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sessionStorage.setItem('toko-cart', JSON.stringify(cart))
-                      setShowCart(false)
-                      window.location.href = '/toko/checkout'
-                    }}
-                    className="btn-primary w-full"
-                  >
-                    Checkout {totalItems} barang
-                  </button>
-                </div>
-              </>
+                  </article>
+                  )
+                })}
+              </div>
             )}
           </div>
+
+          {cart.length > 0 && (
+            <aside className="booking-desktop-summary sticky top-28 hidden rounded-[1.5rem] border border-emerald-950/5 bg-white p-5 shadow-[0_20px_50px_-24px_rgba(12,54,27,0.45)] lg:block">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">
+                    Ringkasan Toko
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-emerald-950">
+                    {totalItems} Barang Pilihan
+                  </h3>
+                </div>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                  <ShoppingCartIcon className="h-5 w-5" />
+                </span>
+              </div>
+
+              <div className="my-4 max-h-[min(42vh,20rem)] space-y-3 overflow-y-auto pr-1 text-sm">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-gray-900">{item.name}</p>
+                      <p className="text-gray-500">{item.quantity} × {formatPrice(item.price)}</p>
+                    </div>
+                    <span className="shrink-0 font-semibold text-emerald-700">
+                      {formatPrice(item.price * item.quantity)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase text-gray-500">Total</span>
+                  <span className="text-lg font-bold text-emerald-700">{formatPrice(totalPrice)}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={openCart}
+                  className="btn-primary w-full text-center"
+                >
+                  Lihat Keranjang &amp; Checkout
+                </button>
+              </div>
+            </aside>
+          )}
         </div>
-      )}
+
+        {cart.length > 0 && <div className="h-24 lg:hidden" aria-hidden="true" />}
+      </Section>
+
+      {cartReady &&
+        cart.length > 0 &&
+        createPortal(
+          <button
+            type="button"
+            onClick={openCart}
+            className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl bg-emerald-900 px-4 py-3.5 text-left text-white shadow-[0_18px_55px_-18px_rgba(6,78,59,0.8)] transition hover:bg-emerald-800 lg:hidden"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <ShoppingCartIcon className="h-5 w-5" />
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold">
+                  {totalItems}
+                </span>
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs text-white/65">Keranjang toko</span>
+                <span className="block truncate text-sm font-semibold">Lihat &amp; checkout</span>
+              </span>
+            </span>
+            <strong className="shrink-0 text-sm">{formatPrice(totalPrice)}</strong>
+          </button>,
+          document.body
+        )}
+
+      {cartReady &&
+        toastProduct &&
+        createPortal(
+          <CartToast
+            title="Produk ditambahkan"
+            message={`${toastProduct.name} sudah masuk ke keranjang belanja.`}
+            actionLabel="Lihat keranjang"
+            onAction={openCart}
+            onClose={() => setToastProduct(null)}
+          />,
+          document.body
+        )}
+
+      {cartReady &&
+        showCart &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[70] flex items-end justify-center bg-emerald-950/55 backdrop-blur-sm sm:items-center sm:p-5"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setShowCart(false)
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Keranjang belanja"
+              data-lenis-prevent
+              data-scroll-container
+              className="max-h-[calc(100dvh-1rem)] w-full overflow-auto rounded-t-[1.75rem] bg-white p-5 sm:max-h-[82vh] sm:max-w-xl sm:rounded-[1.75rem] sm:p-7"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+                  <ShoppingCartIcon className="h-6 w-6 text-emerald-700" />
+                  Keranjang
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowCart(false)}
+                  aria-label="Tutup keranjang"
+                  className="rounded-full bg-gray-100 p-2 text-gray-500 transition hover:bg-gray-200"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              {cart.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Keranjang kosong</p>
+              ) : (
+                <>
+                  <div className="space-y-3 mb-6">
+                    {cart.map((item) => (
+                      <div key={item.id} className="flex flex-col gap-3 rounded-lg bg-gray-50 p-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 text-sm">{item.name}</p>
+                          <p className="text-xs text-gray-500">{formatPrice(item.price)}</p>
+                        </div>
+                        <div className="flex items-center gap-2 self-end min-[380px]:self-auto">
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            aria-label={`Kurangi ${item.name}`}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition hover:bg-gray-300"
+                          >
+                            <MinusIcon className="h-4 w-4" />
+                          </button>
+                          <span className="font-medium w-6 text-center text-sm">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            aria-label={`Tambah ${item.name}`}
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 transition hover:bg-gray-300"
+                          >
+                            <PlusIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(item.id, 0)}
+                            aria-label={`Hapus ${item.name}`}
+                            className="ml-1 rounded-full p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="font-semibold text-gray-900">Total</span>
+                      <span className="font-bold text-xl text-emerald-600">{formatPrice(totalPrice)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sessionStorage.setItem('toko-cart', JSON.stringify(cart))
+                        setShowCart(false)
+                        window.location.href = '/toko/checkout'
+                      }}
+                      className="btn-primary w-full"
+                    >
+                      Checkout {totalItems} barang
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   )
 }
