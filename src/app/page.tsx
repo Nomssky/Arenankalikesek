@@ -14,6 +14,7 @@ import {
   getTourService,
   tourServices,
 } from '@/data/pricing'
+import { getAllPosts } from '@/lib/content'
 
 const featuredServiceIds = [
   'berkuda',
@@ -74,31 +75,18 @@ const upgradeFeatures = [
   },
 ]
 
-const newsItems = [
-  {
-    title: 'Desa Wisata Arenan Kalikesek',
-    excerpt: 'Mengenal pesona alam, kegiatan warga, dan keramahan desa di lereng Gunung Ungaran.',
-    image: '/images/village-landscape.jpg',
-    href: '/blog/desa-wisata-arenan-kalikesek',
-    category: 'Cerita Desa',
-  },
-  {
-    title: 'Pengalaman Eduwisata yang Dekat dengan Warga',
-    excerpt: 'Belajar menanam padi dan memahami kehidupan pertanian bersama masyarakat Kalikesek.',
-    image: '/images/village-panen.jpg',
-    href: '/blog',
-    category: 'Eduwisata',
-  },
-  {
-    title: 'Keceh Air, Kesegaran Alami untuk Keluarga',
-    excerpt: 'Bermain di aliran air yang jernih menjadi pengalaman sederhana yang paling berkesan.',
-    image: '/images/wisata-keceh-air.jpg',
-    href: '/blog',
-    category: 'Wisata',
-  },
-]
-
 export default function HomePage() {
+  const newsItems = getAllPosts()
+    .filter((post) => post.published !== false)
+    .slice(0, 3)
+    .map((post) => ({
+      title: post.title,
+      excerpt: post.excerpt,
+      image: post.image ?? '/images/village-landscape.jpg',
+      href: `/blog/${post.slug}`,
+      category: post.category ?? 'Artikel',
+    }))
+
   return (
     <>
       <HomeHero />
@@ -271,7 +259,7 @@ export default function HomePage() {
           {newsItems.map((item) => (
             <article
               key={item.title}
-              className="motion-card group overflow-hidden rounded-[1.5rem] bg-white shadow-[0_18px_42px_-28px_rgba(12,54,27,0.5)]"
+              className="motion-card group flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-white shadow-[0_18px_42px_-28px_rgba(12,54,27,0.5)]"
             >
               <Link
                 href={item.href}
@@ -284,15 +272,15 @@ export default function HomePage() {
                   style={{ backgroundImage: `url(${item.image})` }}
                 />
               </Link>
-              <div className="p-6">
+              <div className="flex flex-1 flex-col p-6">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">
                   {item.category}
                 </p>
-                <h3 className="mt-3 text-lg font-semibold leading-7 text-emerald-950">
+                <h3 className="mt-3 line-clamp-3 text-lg font-semibold leading-7 text-emerald-950">
                   <Link href={item.href}>{item.title}</Link>
                 </h3>
-                <p className="mt-3 text-sm leading-6 text-gray-600">{item.excerpt}</p>
-                <Link href={item.href} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600">{item.excerpt}</p>
+                <Link href={item.href} className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-semibold text-emerald-700">
                   Baca selengkapnya
                   <ArrowRightIcon className="h-4 w-4" />
                 </Link>

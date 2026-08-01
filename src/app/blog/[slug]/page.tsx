@@ -1,4 +1,4 @@
-import { getPostBySlug, getAllSlugs } from '@/lib/content'
+import { getPostBySlug, getAllPostSlugs } from '@/lib/content'
 import { notFound } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 
 export async function generateStaticParams() {
-  const slugs = getAllSlugs('posts')
+  const slugs = getAllPostSlugs()
   return slugs.map((slug) => ({ slug }))
 }
 
