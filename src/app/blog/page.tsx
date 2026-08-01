@@ -3,30 +3,10 @@ import Link from 'next/link'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import { formatDate } from '@/lib/utils'
-import {
-  ArrowRightIcon,
-  MagnifyingGlassIcon,
-  NewspaperIcon,
-} from '@heroicons/react/24/outline'
+import { ArrowRightIcon, NewspaperIcon } from '@heroicons/react/24/outline'
 
-type BlogPageProps = {
-  searchParams: Promise<{ q?: string | string[] }>
-}
-
-export default async function BlogPage({ searchParams }: BlogPageProps) {
-  const params = await searchParams
-  const query = Array.isArray(params.q) ? params.q[0] : (params.q ?? '')
-  const normalizedQuery = query.trim().toLocaleLowerCase('id-ID')
-  const publishedPosts = getAllPosts().filter((post) => post.published !== false)
-  const posts = normalizedQuery
-    ? publishedPosts.filter((post) =>
-        [post.title, post.excerpt, post.category, post.author, post.content]
-          .filter(Boolean)
-          .join(' ')
-          .toLocaleLowerCase('id-ID')
-          .includes(normalizedQuery),
-      )
-    : publishedPosts
+export default function BlogPage() {
+  const posts = getAllPosts().filter((post) => post.published !== false)
 
   return (
     <>
@@ -38,52 +18,9 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
       />
 
       <Section>
-        <form
-          action="/blog"
-          method="get"
-          className="mx-auto mb-10 flex max-w-3xl flex-col gap-3 rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:flex-row"
-          role="search"
-        >
-          <label className="relative flex-1">
-            <span className="sr-only">Cari artikel</span>
-            <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="search"
-              name="q"
-              defaultValue={query}
-              placeholder="Cari judul atau isi artikel..."
-              className="h-12 w-full rounded-xl border border-gray-200 bg-gray-50 pl-11 pr-4 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-            />
-          </label>
-          <button
-            type="submit"
-            className="h-12 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-300"
-          >
-            Cari Artikel
-          </button>
-          {normalizedQuery && (
-            <Link
-              href="/blog"
-              className="inline-flex h-12 items-center justify-center rounded-xl px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
-            >
-              Reset
-            </Link>
-          )}
-        </form>
-
-        {normalizedQuery && (
-          <p className="mb-6 text-sm text-gray-600">
-            {posts.length} hasil untuk &ldquo;{query.trim()}&rdquo;
-          </p>
-        )}
-
         {posts.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-gray-500">
-              {normalizedQuery
-                ? 'Artikel yang Anda cari belum ditemukan.'
-                : 'Belum ada artikel.'}
-            </p>
+            <p className="text-gray-500">Belum ada artikel.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
