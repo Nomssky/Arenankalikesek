@@ -2,7 +2,7 @@ interface HeroProps {
   title: string
   subtitle?: string
   image?: string
-  height?: 'sm' | 'md' | 'lg'
+  height?: 'sm' | 'md' | 'lg' | 'full'
   children?: React.ReactNode
 }
 
@@ -11,9 +11,11 @@ export default function Hero({ title, subtitle, image, height = 'md', children }
     sm: 'min-h-[min(520px,62svh)] sm:min-h-[46vh]',
     md: 'min-h-[min(640px,72svh)] sm:min-h-[66vh]',
     lg: 'min-h-[max(640px,88svh)]',
+    full: 'min-h-[max(640px,100svh)] md:min-h-[820px] lg:min-h-[max(760px,100svh)]',
   }
 
   const heroImage = image || '/images/village-landscape.jpg'
+  const isLargeHero = height === 'lg' || height === 'full'
 
   return (
     <section
@@ -26,9 +28,9 @@ export default function Hero({ title, subtitle, image, height = 'md', children }
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#102d20]/70 via-[#102d20]/45 to-[#102d20]/75" />
       <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/30 to-transparent" />
-      <div className={`page-hero__content relative z-10 container-page text-center ${height === 'lg' ? 'pb-14 pt-24' : 'pb-12 pt-24'}`}>
+      <div className={`page-hero__content relative z-10 container-page text-center ${isLargeHero ? 'pb-14 pt-24' : 'pb-12 pt-24'}`}>
         <p className="page-hero__eyebrow mb-3 text-xs font-semibold tracking-[0.34em] text-orange-300 uppercase">Desa Wisata Sriwulan</p>
-        <h1 className={`font-script mx-auto w-full max-w-full whitespace-normal text-orange-400 leading-[0.82] drop-shadow-lg ${height === 'lg' ? 'text-[clamp(3.5rem,16vw,8rem)]' : 'text-[clamp(3rem,15vw,4.5rem)]'}`}>
+        <h1 className={`font-script mx-auto w-full max-w-full whitespace-normal text-orange-400 leading-[0.82] drop-shadow-lg ${isLargeHero ? 'text-[clamp(3.5rem,16vw,8rem)]' : 'text-[clamp(3rem,15vw,4.5rem)]'}`}>
           {title.split(' ').map((word, index) => (
             <span key={`${word}-${index}`}>
               {index > 0 && (

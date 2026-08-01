@@ -14,16 +14,11 @@ export async function GET(
   try {
     const supabase = getSupabaseAdmin()
 
-    await supabase
-      .from('bookings')
-      .update({ status: 'cancelled', payment_status: 'unpaid', updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('status', 'pending')
-      .lt('expires_at', new Date().toISOString())
+    await supabase.rpc('expire_stale_booking_holds')
 
     const { data, error } = await supabase
       .from('bookings')
-      .select('id, booking_code, customer_name, customer_phone, customer_email, customer_address, type, status, payment_status, payment_method, total_amount, items, booking_date, created_at, notes')
+      .select('id, booking_code, customer_name, customer_phone, customer_email, customer_address, type, status, payment_status, payment_method, total_amount, items, booking_date, created_at, notes, booking_mode, check_in_date, check_out_date, nights, guest_count, accommodation_type, pricing_details')
       .eq('id', id)
       .single()
 

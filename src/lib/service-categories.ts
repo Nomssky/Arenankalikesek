@@ -70,6 +70,20 @@ export const serviceCategories: ServiceCategory[] = [
     description: 'Homestay keluarga dengan Wi-Fi gratis dan pilihan harga weekday hingga holiday.',
     position: 'center 58%',
   },
+  {
+    id: 'camping',
+    name: 'Camping Ground',
+    image: '/images/booking-camping.png',
+    description: 'Area camping dengan pilihan tenda kecil atau besar per malam.',
+    position: 'center',
+  },
+  {
+    id: 'glamping',
+    name: 'Glamping',
+    image: '/images/booking-camping.png',
+    description: 'Pilihan menginap bernuansa alam dengan fasilitas glamping.',
+    position: 'center',
+  },
 ]
 
 export function getServiceCategory(id: string) {

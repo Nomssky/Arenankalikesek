@@ -1,3 +1,5 @@
+-- Tabel dasar. Setelah file ini, jalankan semua file supabase/migrations/001-007
+-- secara berurutan; migration 007 menambahkan sistem penginapan, kuota, dan storage privat.
 -- Tabel: bookings (untuk booking wisata, toko & persewaan)
 CREATE TABLE IF NOT EXISTS bookings (
   id TEXT PRIMARY KEY,

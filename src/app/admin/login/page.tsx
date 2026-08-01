@@ -24,10 +24,14 @@ function LoginForm() {
 
       if (res.ok) {
         const redirect = searchParams.get('redirect') || '/admin'
-        router.push(redirect)
+        const safeRedirect = redirect.startsWith('/admin') && !redirect.startsWith('//')
+          ? redirect
+          : '/admin'
+        router.replace(safeRedirect)
         router.refresh()
       } else {
-        setError('Password salah')
+        const data = await res.json().catch(() => null)
+        setError(data?.error || 'Kata sandi salah')
       }
     } catch {
       setError('Terjadi kesalahan')
@@ -46,13 +50,14 @@ function LoginForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="form-label">Password</label>
+            <label className="form-label">Kata sandi</label>
             <input
               type="password"
               className="form-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoFocus
+              autoComplete="current-password"
               required
             />
           </div>

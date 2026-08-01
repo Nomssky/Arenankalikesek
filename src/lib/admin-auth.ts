@@ -3,6 +3,10 @@ import { cookies } from 'next/headers'
 const COOKIE_NAME = 'admin_token'
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || ''
 
+export function isAdminAuthConfigured(): boolean {
+  return ADMIN_PASSWORD.trim().length > 0
+}
+
 async function hmacSha256(message: string, key: string): Promise<string> {
   const enc = new TextEncoder()
   const cryptoKey = await crypto.subtle.importKey(
@@ -46,7 +50,7 @@ export async function verifySessionToken(token: string): Promise<boolean> {
 }
 
 export async function verifyPassword(password: string): Promise<boolean> {
-  if (!ADMIN_PASSWORD) return false
+  if (!isAdminAuthConfigured()) return false
   const hash = await sha256(password)
   const expected = await sha256(ADMIN_PASSWORD)
   return hash === expected

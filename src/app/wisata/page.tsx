@@ -8,7 +8,18 @@ import Section from '@/components/Section'
 import { getServiceCategory, serviceCategories } from '@/lib/service-categories'
 import { formatPrice } from '@/lib/utils'
 
-const wisataCategories = serviceCategories
+const accommodationCategory = {
+  id: 'penginapan-camping',
+  name: 'Penginapan & Camping',
+  image: '/images/booking-homestay.jpg',
+  description: 'Homestay, camping ground, dan glamping dengan jadwal menginap per malam.',
+  position: 'center 58%',
+}
+
+const wisataCategories = [
+  ...serviceCategories.filter((category) => !['homestay', 'camping', 'glamping'].includes(category.id)),
+  accommodationCategory,
+]
 
 interface TourPackage {
   id: string
@@ -58,7 +69,8 @@ function formatItemPrice(item: TourPackage): string {
 const sectionCategories: Record<string, string[]> = {
   aktivitas: ['aktivitas', 'gratis', 'fishing'],
   'paket-edukasi': ['paket-edukasi', 'paket-kegiatan'],
-  'sewa-tempat': ['area-kegiatan', 'tempat-pertemuan', 'homestay'],
+  'sewa-tempat': ['area-kegiatan', 'tempat-pertemuan'],
+  'penginapan-camping': ['homestay', 'camping', 'glamping'],
 }
 
 function isSectionVisible(activeCategory: string, sectionKey: string): boolean {
@@ -96,7 +108,9 @@ export default function WisataPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const activeCategoryInfo = getServiceCategory(activeCategory)
+  const activeCategoryInfo = activeCategory === accommodationCategory.id
+    ? accommodationCategory
+    : getServiceCategory(activeCategory)
 
   async function fetchPackages() {
     setLoading(true)
@@ -124,10 +138,12 @@ export default function WisataPage() {
     aktivitas: [],
     'paket-edukasi': [],
     'sewa-tempat': [],
+    'penginapan-camping': [],
   }
 
   for (const pkg of packages) {
     if (!pkg.available) continue
+    if (['extra-bed', 'tambahan-tamu'].includes(pkg.id)) continue
     for (const [sectionKey, cats] of Object.entries(sectionCategories)) {
       if (cats.includes(pkg.category)) {
         packagesBySection[sectionKey].push(pkg)
@@ -144,8 +160,10 @@ export default function WisataPage() {
   const activityPackages = filterActiveCategory(packagesBySection.aktivitas)
   const educationPackages = filterActiveCategory(packagesBySection['paket-edukasi'])
   const rentalPackages = filterActiveCategory(packagesBySection['sewa-tempat'])
-
-  const homestayPackages = rentalPackages.filter((p) => p.category === 'homestay')
+  const accommodationPackages = activeCategory === 'semua' || activeCategory === 'penginapan-camping'
+    ? packagesBySection['penginapan-camping']
+    : packagesBySection['penginapan-camping'].filter((item) => item.category === activeCategory)
+  const homestayPackages = accommodationPackages.filter((p) => p.category === 'homestay')
 
   return (
     <>
@@ -153,7 +171,7 @@ export default function WisataPage() {
         title="Wisata Kalikesek"
         subtitle="Temukan berbagai pilihan aktivitas wisata seru"
         image="/images/wisata-keceh-air.jpg"
-        height="sm"
+        height="full"
       />
 
       <Section className="relative overflow-hidden bg-[#fbfaf5]">
@@ -281,15 +299,6 @@ export default function WisataPage() {
                 ))}
               </div>
 
-              {homestayPackages.length > 0 && (
-                <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/90 p-4 text-sm text-gray-700">
-                  <p className="font-medium">Informasi Penginapan</p>
-                  <p>Check-in: 14.00 | Check-out: 12.00</p>
-                  <p>Extra bed (100x220): Rp25.000 | Over kapasitas: Rp10.000/orang</p>
-                  <p className="mt-1 text-xs text-gray-500">Harga weekday, weekend, dan hari libur dapat berbeda.</p>
-                </div>
-              )}
-
               <div className="mt-6 text-center">
                 <Link
                   href="/booking/wisata"
@@ -298,6 +307,35 @@ export default function WisataPage() {
                   Booking Sewa Tempat
                 </Link>
               </div>
+            </Section>
+          )}
+
+          {isSectionVisible(activeCategory, 'penginapan-camping') && accommodationPackages.length > 0 && (
+            <Section title="Penginapan & Camping" subtitle="Homestay, camping ground, dan glamping dengan booking per malam" className="bg-[#f3f0e6]">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {accommodationPackages.map((item) => (
+                  <VisualCard key={item.id} categoryId={item.category} className="text-center">
+                    <h3 className="mb-1 font-semibold text-gray-900">{item.name}</h3>
+                    {item.capacity && <p className="mb-1 text-xs text-gray-600">Kapasitas {item.capacity}</p>}
+                    <p className="font-medium text-emerald-700">{formatItemPrice(item)}{item.unit ? `/${item.unit}` : ''}</p>
+                    {item.rate_options.length > 0 && (
+                      <div className="mt-2 flex flex-wrap justify-center gap-1">
+                        {item.rate_options.map((rate) => <span key={rate.label} className="rounded-full bg-white/80 px-2 py-1 text-[10px] text-gray-700">{rate.label}: {formatPrice(rate.price)}</span>)}
+                      </div>
+                    )}
+                    {!item.bookable && <p className="mt-2 text-xs text-orange-600">Harga belum ditetapkan oleh admin.</p>}
+                  </VisualCard>
+                ))}
+              </div>
+              {homestayPackages.length > 0 && (
+                <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/90 p-4 text-sm text-gray-700">
+                  <p className="font-medium">Informasi Penginapan</p>
+                  <p>Check-in: 14.00 | Check-out: 12.00</p>
+                  <p>Aren 1/2: kapasitas dasar 5 orang, tambahan Rp10.000/orang/malam.</p>
+                  <p className="mt-1 text-xs text-gray-500">Tarif weekday, weekend, dan Holiday dihitung dari tanggal yang dipilih.</p>
+                </div>
+              )}
+              <div className="mt-6 text-center"><Link href="/booking/wisata?category=penginapan-camping" className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700">Booking Penginapan & Camping</Link></div>
             </Section>
           )}
 

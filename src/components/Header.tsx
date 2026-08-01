@@ -22,6 +22,17 @@ const mobileNavItems = [
   ...navItems.slice(2),
 ]
 
+const transparentHeroRoutes = new Set([
+  '/',
+  '/wisata',
+  '/booking/wisata',
+  '/jadwal',
+  '/toko',
+  '/blog',
+  '/kontak',
+  '/webgis',
+])
+
 function isNavPathActive(pathname: string, href: string) {
   if (href === '/') return pathname === '/'
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -33,7 +44,7 @@ export default function Header() {
   const [pendingHref, setPendingHref] = useState<string | null>(null)
   const [cartCount, setCartCount] = useState(0)
   const pathname = usePathname()
-  const isHome = pathname === '/'
+  const hasTransparentHero = transparentHeroRoutes.has(pathname)
 
   useEffect(() => {
     const syncCartCount = () => {
@@ -90,7 +101,7 @@ export default function Header() {
     }
   }, [pathname])
 
-  const elevated = !isHome || isScrolled
+  const elevated = !hasTransparentHero || isScrolled
   const isSelected = (href: string) =>
     pendingHref ? pendingHref === href : isNavPathActive(pathname, href)
   const selectMenu = (href: string, closeMobile = false) => {

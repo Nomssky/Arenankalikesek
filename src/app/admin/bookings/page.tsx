@@ -15,6 +15,12 @@ interface BookingRow {
   customer_address: string
   event_name: string
   booking_date: string
+  booking_mode: string
+  check_in_date: string | null
+  check_out_date: string | null
+  nights: number | null
+  guest_count: number | null
+  document_type: string | null
   time_start: string
   time_end: string
   total_amount: number
@@ -54,6 +60,29 @@ export default function AdminBookingsPage() {
     paymentStatus: 'paid' as string,
   })
   const [saveError, setSaveError] = useState('')
+
+  async function openIdentityDocument(id: string) {
+    setUpdateError('')
+    try {
+      const response = await fetch(`/api/admin/bookings/${id}/document`)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Gagal membuka dokumen')
+      window.open(data.url, '_blank', 'noopener,noreferrer')
+    } catch (documentError) {
+      setUpdateError(documentError instanceof Error ? documentError.message : 'Gagal membuka dokumen')
+    }
+  }
+
+  async function deleteIdentityDocument(id: string) {
+    if (!window.confirm('Hapus permanen dokumen identitas privat booking ini?')) return
+    const response = await fetch(`/api/admin/bookings/${id}/document`, { method: 'DELETE' })
+    if (response.ok) {
+      setBookings((current) => current.map((booking) => booking.id === id ? { ...booking, document_type: null } : booking))
+    } else {
+      const data = await response.json()
+      setUpdateError(data.error || 'Gagal menghapus dokumen')
+    }
+  }
 
   const fetchBookings = useCallback(async () => {
     setLoading(true)
@@ -264,9 +293,11 @@ export default function AdminBookingsPage() {
                     </a>
                   </td>
                   <td className="px-4 py-3 text-gray-500">
-                    {b.booking_date
-                      ? new Date(b.booking_date).toLocaleDateString('id-ID')
-                      : '-'}
+                    {b.booking_mode === 'stay' && b.check_in_date
+                      ? <><span className="block">{new Date(b.check_in_date).toLocaleDateString('id-ID')}–{b.check_out_date ? new Date(b.check_out_date).toLocaleDateString('id-ID') : '-'}</span><span className="text-xs text-gray-400">{b.nights} malam · {b.guest_count} tamu</span></>
+                      : b.booking_date
+                        ? new Date(b.booking_date).toLocaleDateString('id-ID')
+                        : '-'}
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900">
                     {formatPrice(b.total_amount)}
@@ -350,6 +381,14 @@ export default function AdminBookingsPage() {
                       >
                         WA
                       </a>
+                      {b.document_type && (
+                        <>
+                          <button type="button" onClick={() => openIdentityDocument(b.id)} className="text-sm font-medium text-orange-600 hover:text-orange-700">
+                            {b.document_type.replace('_', ' ').toUpperCase()}
+                          </button>
+                          <button type="button" onClick={() => deleteIdentityDocument(b.id)} className="text-xs font-medium text-red-500 hover:text-red-600">Hapus dok.</button>
+                        </>
+                      )}
                     </div>
                     )}
                   </td>

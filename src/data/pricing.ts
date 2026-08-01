@@ -7,6 +7,8 @@ export type ServiceCategoryId =
   | 'area-kegiatan'
   | 'tempat-pertemuan'
   | 'homestay'
+  | 'camping'
+  | 'glamping'
 
 export type PricingType =
   | 'fixed'
@@ -338,9 +340,22 @@ export const tourServices: TourService[] = [
   {
     id: 'camping-ground',
     name: 'Camping Ground',
-    category: 'area-kegiatan',
+    category: 'camping',
+    priceType: 'range',
+    price: 20000,
+    maxPrice: 50000,
+    unit: 'tenda/malam',
+    note: 'Tenda kecil Rp20.000/malam atau tenda besar Rp50.000/malam.',
+    image: '/images/booking-camping.png',
+    bookable: true,
+  },
+  {
+    id: 'glamping',
+    name: 'Glamping',
+    category: 'glamping',
     priceType: 'contact',
     price: null,
+    note: 'Harga belum ditetapkan dan dapat diatur oleh admin.',
     image: '/images/booking-camping.png',
     bookable: false,
   },

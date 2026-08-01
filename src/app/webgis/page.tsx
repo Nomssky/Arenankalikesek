@@ -40,7 +40,7 @@ export default function WebGISPage() {
         title="WebGIS"
         subtitle="Peta interaktif kawasan Arenan Kalikesek"
         image="/images/village-sign.jpg"
-        height="sm"
+        height="full"
       />
 
       <Section title="Peta Wisata" subtitle="Jelajahi kawasan Arenan Kalikesek melalui peta interaktif">

@@ -14,7 +14,7 @@ export default function BlogPage() {
         title="Blog & Berita"
         subtitle="Artikel dan berita terbaru dari Arenan Kalikesek"
         image="/images/village-landscape.jpg"
-        height="sm"
+        height="full"
       />
 
       <Section>

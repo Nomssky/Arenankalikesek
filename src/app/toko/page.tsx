@@ -174,7 +174,7 @@ export default function TokoPage() {
 
   return (
     <>
-      <Hero title="Toko Arenan Kalikesek" subtitle="Belanja produk khas Kalikesek" image="/images/village-tradition.jpg" height="sm" />
+      <Hero title="Toko Arenan Kalikesek" subtitle="Belanja produk khas Kalikesek" image="/images/village-tradition.jpg" height="full" />
 
       <Section>
         <div

@@ -96,6 +96,8 @@ const inventoryCategoryIds = new Set([
   'area-kegiatan',
   'tempat-pertemuan',
   'homestay',
+  'camping',
+  'glamping',
 ])
 
 export const fallbackInventoryItems: FallbackInventoryItem[] = tourServices
@@ -109,7 +111,7 @@ export const fallbackInventoryItems: FallbackInventoryItem[] = tourServices
     price_type:
       service.unit === 'jam'
         ? 'per_jam'
-        : service.category === 'homestay'
+        : ['homestay', 'camping', 'glamping'].includes(service.category)
           ? 'per_malam'
           : 'flat',
     price_label: getTourPriceLabel(service),

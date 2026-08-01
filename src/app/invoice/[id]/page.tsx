@@ -21,6 +21,20 @@ interface InvoiceData {
   total_amount: number
   items: string | { id: string; name: string; quantity: number; price: number }[]
   booking_date?: string
+  booking_mode?: string
+  check_in_date?: string
+  check_out_date?: string
+  nights?: number
+  guest_count?: number
+  accommodation_type?: string
+  pricing_details?: {
+    kind?: string
+    tentSize?: string
+    tentCount?: number
+    tentOption?: string
+    extraGuestTotal?: number
+    addOns?: { id: string; name: string; quantity: number; price: number | null }[]
+  }
   created_at: string
   notes?: string
 }
@@ -173,6 +187,27 @@ export default function InvoicePage() {
                 </div>
               </div>
             </div>
+
+            {data.booking_mode === 'stay' && data.check_in_date && data.check_out_date && (
+              <div className="invoice-keep mb-6 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 print:mb-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Detail Penginapan & Camping</h3>
+                <dl className="mt-3 grid gap-3 text-sm min-[420px]:grid-cols-2">
+                  <div><dt className="text-gray-500">Check-in</dt><dd className="font-semibold text-gray-900">{formatDate(data.check_in_date)}</dd></div>
+                  <div><dt className="text-gray-500">Check-out</dt><dd className="font-semibold text-gray-900">{formatDate(data.check_out_date)}</dd></div>
+                  <div><dt className="text-gray-500">Durasi</dt><dd className="font-semibold text-gray-900">{data.nights} malam</dd></div>
+                  <div><dt className="text-gray-500">Jumlah tamu</dt><dd className="font-semibold text-gray-900">{data.guest_count} orang</dd></div>
+                  {data.pricing_details?.tentSize && <div><dt className="text-gray-500">Tenda</dt><dd className="font-semibold capitalize text-gray-900">{data.pricing_details.tentCount} tenda {data.pricing_details.tentSize === 'small' ? 'kecil' : 'besar'}</dd></div>}
+                  {data.pricing_details?.tentOption && <div><dt className="text-gray-500">Opsi tenda</dt><dd className="font-semibold text-gray-900">{data.pricing_details.tentOption === 'own' ? 'Bawa sendiri' : 'Sewa tenda'}</dd></div>}
+                  {Boolean(data.pricing_details?.extraGuestTotal) && <div><dt className="text-gray-500">Tamu tambahan</dt><dd className="font-semibold text-gray-900">{formatPrice(data.pricing_details?.extraGuestTotal || 0)}</dd></div>}
+                </dl>
+                {Boolean(data.pricing_details?.addOns?.length) && (
+                  <div className="mt-3 border-t border-emerald-100 pt-3 text-sm">
+                    <p className="text-gray-500">Add-on</p>
+                    <p className="font-semibold text-gray-900">{data.pricing_details?.addOns?.map((item) => `${item.name} × ${item.quantity}`).join(', ')}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="invoice-table-wrap -mx-4 mb-6 overflow-x-auto px-4 sm:mx-0 sm:px-0 print:mx-0 print:mb-4 print:overflow-visible print:px-0">
             <table className="invoice-table min-w-[560px] w-full print:min-w-0">

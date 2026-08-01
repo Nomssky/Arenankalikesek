@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyPassword, setSessionCookie } from '@/lib/admin-auth'
+import { isAdminAuthConfigured, verifyPassword, setSessionCookie } from '@/lib/admin-auth'
 
 const MAX_ATTEMPTS = 5
 const BLOCK_DURATION = 15_000
@@ -7,6 +7,12 @@ const attempts = new Map<string, { count: number; blockedUntil: number }>()
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isAdminAuthConfigured()) {
+      return NextResponse.json(
+        { error: 'Login admin belum dikonfigurasi. Isi ADMIN_PASSWORD pada .env.local atau Environment Variables Vercel.' },
+        { status: 503 },
+      )
+    }
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
     const now = Date.now()
     const record = attempts.get(ip)
