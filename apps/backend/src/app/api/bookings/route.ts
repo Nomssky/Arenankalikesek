@@ -68,6 +68,9 @@ function optionalQuantity(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0
 }
 
+const digits = (value: unknown) => String(value ?? '').replace(/\D/g, '')
+const MAX_PENDING_PER_PHONE = 3
+
 function safeClientItems(value: unknown): ClientBookingItem[] | null {
   if (!Array.isArray(value)) return null
   const result: ClientBookingItem[] = []
@@ -473,6 +476,22 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin()
+    // Anti slot-hold spam: satu nomor maksimal 3 booking pending aktif.
+    // Berbasis DB sehingga tetap otoritatif lintas instance serverless.
+    const { data: pendingRows } = await supabase
+      .from('bookings')
+      .select('customer_phone')
+      .eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString())
+    const pendingCount = (pendingRows || []).filter(
+      (row) => digits(row.customer_phone) === digits(customerPhone),
+    ).length
+    if (pendingCount >= MAX_PENDING_PER_PHONE) {
+      return NextResponse.json(
+        { error: 'Terlalu banyak booking yang belum dibayar. Selesaikan pembayaran atau batalkan booking sebelumnya.' },
+        { status: 429 },
+      )
+    }
     const rentals = isStay
       ? []
       : rentalEntries(finalItems, bookingId, bookingDate || undefined, payload.timeStart, payload.timeEnd)

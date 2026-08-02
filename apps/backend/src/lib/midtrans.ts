@@ -7,6 +7,24 @@ export function isMidtransConfigured(): boolean {
   return SERVER_KEY.length > 0 && !SERVER_KEY.includes('your_midtrans')
 }
 
+// Refund penuh transaksi. refundKey dipakai Midtrans sebagai idempotency key:
+// pengulangan dengan key yang sama tidak membuat refund ganda.
+export async function refundTransaction(orderId: string, amount: number, refundKey: string): Promise<void> {
+  const res = await fetch(`${MIDTRANS_API_URL}/v2/${orderId}/refund`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: getAuthHeader(),
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ refund_amount: amount, refund_key: refundKey }),
+  })
+  if (!res.ok) {
+    const error = await res.text().catch(() => 'unknown')
+    throw new Error(`Midtrans refund error: ${error}`)
+  }
+}
+
 function getAuthHeader(): string {
   return `Basic ${Buffer.from(SERVER_KEY + ':').toString('base64')}`
 }

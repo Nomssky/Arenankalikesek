@@ -22,6 +22,15 @@ async function hmacSha256(message: string, key: string): Promise<string> {
     .join('')
 }
 
+// Constant-time hex compare murni JS (Edge runtime tidak punya node:crypto,
+// dan file ini diimpor middleware). Panjang sudah dicek dulu oleh pemanggil.
+function hexEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
 async function sha256(message: string): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message))
   return Array.from(new Uint8Array(hash))
@@ -45,7 +54,7 @@ export async function verifySessionToken(token: string): Promise<boolean> {
     const payload = decoded.slice(0, dot)
     const signature = decoded.slice(dot + 1)
     const expected = await hmacSha256(payload, ADMIN_PASSWORD)
-    if (signature !== expected) return false
+    if (!hexEqual(signature, expected)) return false
     const parsed = JSON.parse(payload)
     if (typeof parsed?.created !== 'number') return false
     return Date.now() - parsed.created < SESSION_TTL_MS
@@ -58,7 +67,7 @@ export async function verifyPassword(password: string): Promise<boolean> {
   if (!isAdminAuthConfigured()) return false
   const hash = await sha256(password)
   const expected = await sha256(ADMIN_PASSWORD)
-  return hash === expected
+  return hexEqual(hash, expected)
 }
 
 export async function setSessionCookie() {

@@ -17,8 +17,8 @@ async function createRentalBookings(
   bookingDate?: string,
   timeStart?: string,
   timeEnd?: string,
-) {
-  if (!bookingDate || !items.length) return
+): Promise<{ error: unknown } | null> {
+  if (!bookingDate || !items.length) return null
 
   const startAt = timeStart ? `${bookingDate}T${timeStart}:00+07:00` : `${bookingDate}T00:00:00+07:00`
   const endAt = timeEnd ? `${bookingDate}T${timeEnd}:00+07:00` : `${bookingDate}T23:59:00+07:00`
@@ -57,7 +57,12 @@ async function createRentalBookings(
     })
   }
 
-  await supabase.from('rental_bookings').insert(entries)
+  const { error } = await supabase.from('rental_bookings').insert(entries)
+  if (error) {
+    console.error('Admin rental insert error:', error)
+    return { error }
+  }
+  return null
 }
 
 export async function POST(request: NextRequest) {
@@ -81,11 +86,16 @@ export async function POST(request: NextRequest) {
       timeEnd,
       items,
       totalAmount,
-      paymentStatus,
     } = body
 
     if (!customerName || !customerPhone) {
       return NextResponse.json({ error: 'Nama dan nomor telepon harus diisi' }, { status: 400 })
+    }
+    const validPaymentStatus = ['unpaid', 'paid', 'refunded'].includes(String(body.paymentStatus || 'unpaid'))
+      ? String(body.paymentStatus || 'unpaid')
+      : null
+    if (validPaymentStatus === null) {
+      return NextResponse.json({ error: 'Status pembayaran tidak valid' }, { status: 400 })
     }
 
     const bookingId = generateId()
@@ -104,11 +114,11 @@ export async function POST(request: NextRequest) {
       time_end: timeEnd || null,
       items: items || [],
       total_amount: Math.max(0, Number(totalAmount) || 0),
-      status: paymentStatus === 'paid' ? 'confirmed' : 'pending',
-      payment_status: paymentStatus || 'unpaid',
+      status: validPaymentStatus === 'paid' ? 'confirmed' : 'pending',
+      payment_status: validPaymentStatus,
       payment_method: 'offline',
       notes: 'Booking offline (via admin)',
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      expires_at: null,
     })
 
     if (error) {
@@ -116,7 +126,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gagal menyimpan booking' }, { status: 500 })
     }
 
-    await createRentalBookings(supabase, bookingId, items || [], bookingDate, timeStart, timeEnd)
+    const rentalResult = await createRentalBookings(supabase, bookingId, items || [], bookingDate, timeStart, timeEnd)
+    if (rentalResult) {
+      await supabase.from('bookings').delete().eq('id', bookingId)
+      return NextResponse.json(
+        { error: 'Tanggal atau jadwal yang dipilih sudah dibooking' },
+        { status: 409 },
+      )
+    }
 
     return NextResponse.json({ bookingId, success: true })
   } catch (error) {
