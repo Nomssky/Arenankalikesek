@@ -98,9 +98,9 @@ export default function AdminBookingsPage() {
         if (search) {
           const q = search.toLowerCase()
           data = data.filter(
-            (b: BookingRow) =>
-              b.customer_name.toLowerCase().includes(q) ||
-              b.customer_phone.includes(q) ||
+              (b: BookingRow) =>
+                b.customer_name.toLowerCase().includes(q) ||
+                (b.customer_phone || '').includes(q) ||
               (b.booking_code && b.booking_code.toLowerCase().includes(q))
           )
         }
@@ -285,7 +285,7 @@ export default function AdminBookingsPage() {
                   <td className="px-4 py-3 text-gray-900">{b.customer_name}</td>
                   <td className="px-4 py-3 text-gray-500">
                     <a
-                      href={`https://wa.me/${b.customer_phone.replace(/[^0-9]/g, '')}`}
+                      href={`https://wa.me/${(b.customer_phone || '').replace(/[^0-9]/g, '')}`}
                       target="_blank"
                       className="text-emerald-600 hover:underline"
                     >
@@ -369,13 +369,13 @@ export default function AdminBookingsPage() {
                     ) : (
                     <div className="flex gap-2">
                       <Link
-                        href={`/invoice/${b.id}?phone=${encodeURIComponent(b.customer_phone)}`}
+                        href={`/invoice/${b.id}?phone=${encodeURIComponent(b.customer_phone || '')}`}
                         className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
                       >
                         Invoice
                       </Link>
                       <a
-                        href={`https://wa.me/${b.customer_phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Halo ${b.customer_name}, booking ${b.booking_code || ''} di Arenan Kalikesek.`)}`}
+                        href={`https://wa.me/${(b.customer_phone || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Halo ${b.customer_name}, booking ${b.booking_code || ''} di Arenan Kalikesek.`)}`}
                         target="_blank"
                         className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
                       >
