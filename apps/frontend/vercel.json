@@ -1,5 +1,4 @@
 {
-  "rootDirectory": "apps/frontend",
   "installCommand": "pnpm install",
   "buildCommand": "pnpm build:frontend"
 }
