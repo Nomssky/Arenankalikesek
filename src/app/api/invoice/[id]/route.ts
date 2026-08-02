@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase-server'
 
+const digits = (value: unknown) => String(value ?? '').replace(/\D/g, '')
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
+  const phone = digits(request.nextUrl.searchParams.get('phone'))
 
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: 'Invoice tidak ditemukan' }, { status: 404 })
@@ -27,6 +30,10 @@ export async function GET(
         return NextResponse.json({ error: 'Invoice tidak ditemukan' }, { status: 404 })
       }
       return NextResponse.json({ error: 'Gagal memuat invoice' }, { status: 500 })
+    }
+
+    if (!phone || phone !== digits(data.customer_phone)) {
+      return NextResponse.json({ error: 'Nomor telepon tidak cocok' }, { status: 403 })
     }
 
     return NextResponse.json(data)

@@ -56,14 +56,24 @@ export default function InvoicePage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<InvoiceData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [locked, setLocked] = useState(false)
+  const [phone, setPhone] = useState('')
 
   useEffect(() => {
-    async function fetchInvoice() {
+    async function fetchInvoice(phoneToUse?: string) {
       try {
-        const res = await fetch(`/api/invoice/${id}`)
+        const query = phoneToUse ? `?phone=${encodeURIComponent(phoneToUse)}` : ''
+        const res = await fetch(`/api/invoice/${id}${query}`)
         if (res.ok) {
           const json = await res.json()
           setData(json)
+        } else if (res.status === 403) {
+          const stored = localStorage.getItem(`invoice_${id}`)
+          if (stored) {
+            setData(JSON.parse(stored))
+          } else {
+            setLocked(true)
+          }
         } else {
           const stored = localStorage.getItem(`invoice_${id}`)
           if (stored) setData(JSON.parse(stored))
@@ -75,8 +85,25 @@ export default function InvoicePage() {
         setLoading(false)
       }
     }
-    fetchInvoice()
+
+    const storedPhone = sessionStorage.getItem(`invoice_phone_${id}`)
+    fetchInvoice(storedPhone || undefined)
   }, [id])
+
+  const unlock = () => {
+    if (!phone.trim()) return
+    sessionStorage.setItem(`invoice_phone_${id}`, phone.trim())
+    setLocked(false)
+    setLoading(true)
+    setData(null)
+    fetch(`/api/invoice/${id}?phone=${encodeURIComponent(phone.trim())}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json) setData(json)
+        else setLocked(true)
+      })
+      .finally(() => setLoading(false))
+  }
 
   const statusInfo = data ? statusLabel[data.status] || statusLabel.pending : statusLabel.pending
   const paymentInfo = data ? paymentLabel[data.payment_status] || paymentLabel.unpaid : paymentLabel.unpaid
@@ -96,6 +123,35 @@ export default function InvoicePage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full" />
+      </div>
+    )
+  }
+
+  if (locked) {
+    return (
+      <div className="invoice-page min-h-screen bg-gray-100 pb-8 pt-28">
+        <div className="mx-auto max-w-md px-4">
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <h1 className="text-lg font-bold text-gray-900">Verifikasi Invoice</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Masukkan nomor telepon yang dipakai saat booking untuk melihat invoice.
+            </p>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Contoh: 081234567890"
+              className="mt-4 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+              autoFocus
+            />
+            <button onClick={unlock} className="btn-primary mt-3 w-full">
+              Lihat Invoice
+            </button>
+            <Link href="/" className="mt-3 block text-center text-sm text-gray-500 hover:text-gray-700">
+              Kembali
+            </Link>
+          </div>
+        </div>
       </div>
     )
   }

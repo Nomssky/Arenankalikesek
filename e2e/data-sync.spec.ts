@@ -46,7 +46,7 @@ test.describe('Data Sync & Integrity', () => {
 
   test('3. Invoice matches booking data', async ({ request }) => {
     if (!bookingId) test.skip()
-    const invoiceRes = await request.get(`/api/invoice/${bookingId}`)
+    const invoiceRes = await request.get(`/api/invoice/${bookingId}?phone=081234567893`)
     expect(invoiceRes.status()).toBe(200)
     const invoice = await invoiceRes.json()
     expect(invoice.booking_code).toBe(bookingCode)

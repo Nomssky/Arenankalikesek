@@ -57,7 +57,7 @@ test.describe('API Contract Tests', () => {
 
   test('GET /api/invoice/[id] returns valid booking', async ({ request }) => {
     if (!bookingId) test.skip()
-    const res = await request.get(`/api/invoice/${bookingId}`)
+    const res = await request.get(`/api/invoice/${bookingId}?phone=081234567890`)
     expect(res.status()).toBe(200)
     const body = await res.json()
     expect(body).toHaveProperty('id', bookingId)
