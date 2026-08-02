@@ -1,0 +1,9 @@
+# Developer frontend (ganti dengan username GitHub yang sesuai)
+/apps/frontend/ @frontend-developer
+
+# Developer backend (ganti dengan username GitHub yang sesuai)
+/apps/backend/ @backend-developer
+
+# Kode bersama frontend + backend
+/packages/shared-types/ @frontend-developer @backend-developer
+/packages/shared-utils/ @frontend-developer @backend-developer
