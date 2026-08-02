@@ -33,7 +33,7 @@ test.describe('API Contract Tests', () => {
     expect(body.bookingCode).toMatch(/^BKK-/)
     expect(typeof body.snapToken).toBe('string')
     expect(body.snapToken.length).toBeGreaterThan(0)
-    expect(body.paymentUrl).toContain('app.midtrans.com')
+    expect(body.paymentUrl).toMatch(/app\.(sandbox\.)?midtrans\.com/)
 
     bookingId = body.bookingId
     bookingCode = body.bookingCode
@@ -77,7 +77,7 @@ test.describe('API Contract Tests', () => {
     expect(body).toHaveProperty('status', 'cancelled')
   })
 
-  test('POST /api/bookings conflict detection — creates then conflicts', async ({ request }) => {
+  test('POST /api/bookings conflict detection — second booking on same slot conflicts', async ({ request }) => {
     const futureDate = new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]
     const conflictItem = { id: 'atv-anak', name: 'ATV Anak', quantity: 1, price: 5000 }
 
@@ -87,13 +87,15 @@ test.describe('API Contract Tests', () => {
         customerName: 'Conflict Test',
         customerPhone: '081234567891',
         items: [conflictItem],
-        totalAmount: 50000,
+        totalAmount: 5000,
         bookingDate: futureDate,
         timeStart: '10:00',
         timeEnd: '12:00',
       },
     })
     expect(res.status()).toBe(200)
+    const first = await res.json()
+    expect(first).toHaveProperty('bookingId')
 
     const secondBooking = await request.post('/api/bookings', {
       data: {
@@ -101,23 +103,20 @@ test.describe('API Contract Tests', () => {
         customerName: 'Conflict Test 2',
         customerPhone: '081234567892',
         items: [conflictItem],
-        totalAmount: 50000,
+        totalAmount: 5000,
         bookingDate: futureDate,
         timeStart: '10:00',
         timeEnd: '12:00',
       },
     })
+    expect(secondBooking.status()).toBe(409)
+    const body = await secondBooking.json()
+    expect(body).toHaveProperty('error')
+    expect(body.error).toContain('sudah dibooking')
 
-    if (secondBooking.status() === 200) {
-      const body = await secondBooking.json()
-      expect(body).toHaveProperty('bookingId')
-      expect(body).toHaveProperty('snapToken')
-    } else {
-      expect(secondBooking.status()).toBe(409)
-      const body = await secondBooking.json()
-      expect(body).toHaveProperty('error')
-      expect(body.error).toContain('sudah dibooking')
-    }
+    await request.patch(`/api/bookings/${first.bookingId}/cancel`, {
+      data: { phone: '081234567891' },
+    })
   })
 
   test('Availability endpoint returns expected shape', async ({ request }) => {
