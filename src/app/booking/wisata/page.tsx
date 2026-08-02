@@ -712,7 +712,11 @@ export default function BookingWisataPage() {
           onError: () => { setSubmitError('Pembayaran gagal, silakan hubungi admin') },
           onClose: () => {
             if (!window.confirm('Pembayaran belum selesai. Batalkan booking?')) return
-            fetch(`/api/bookings/${data.bookingId}/cancel`, { method: 'PATCH' }).catch(() => {})
+            fetch(`/api/bookings/${data.bookingId}/cancel`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phone: customerPhone }),
+            }).catch(() => {})
             router.push('/booking/wisata')
           },
         })

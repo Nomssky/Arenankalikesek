@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase-server'
 import { createSnapTransaction, isMidtransConfigured } from '@/lib/midtrans'
-import { sendBookingNotification } from '@/lib/wa'
 import { generateId } from '@/lib/utils'
 import { requireAdmin } from '@/lib/admin-guard'
-import { getTourService } from '@/data/pricing'
+import { getTourService, storeProducts } from '@/data/pricing'
 import { loadBookingSettings } from '@/lib/booking-settings'
 import {
   accommodationTypeForItem,
@@ -87,6 +86,27 @@ function safeClientItems(value: unknown): ClientBookingItem[] | null {
     })
   }
   return result
+}
+
+function authoritativeItemPrice(item: ClientBookingItem): number | null {
+  const id = item.id
+  if (!id) return null
+  const service = getTourService(id)
+  if (service) {
+    if (service.priceType === 'free') return 0
+    if (service.priceType === 'fixed') return service.price
+    if (service.priceType === 'range') {
+      const low = service.price ?? 0
+      const high = service.maxPrice ?? low
+      return item.price >= low && item.price <= high ? item.price : null
+    }
+    if (service.priceType === 'rates') {
+      return service.rates?.some((rate) => rate.price === item.price) ? item.price : null
+    }
+    return null
+  }
+  const product = storeProducts.find((p) => p.id === id)
+  return product && product.priceType === 'fixed' && product.price !== null ? product.price : null
 }
 
 async function parseBookingRequest(request: NextRequest): Promise<{
@@ -388,6 +408,22 @@ export async function POST(request: NextRequest) {
     }
 
     if (!Number.isFinite(parsedTotal)) return NextResponse.json({ error: 'Total booking tidak valid' }, { status: 400 })
+
+    if (!isStay) {
+      let computedTotal = 0
+      const validated: ClientBookingItem[] = []
+      for (const item of items) {
+        const price = authoritativeItemPrice(item)
+        if (price === null) {
+          return NextResponse.json({ error: `Harga untuk "${item.name}" tidak valid` }, { status: 400 })
+        }
+        validated.push({ ...item, price })
+        computedTotal += price * (item.quantity ?? 1)
+      }
+      finalItems = validated
+      parsedTotal = computedTotal
+    }
+
     const conflictError = isStay ? null : await checkRentalAvailability(finalItems, bookingDate || undefined, payload.timeStart, payload.timeEnd)
     if (conflictError) return NextResponse.json({ error: conflictError }, { status: 409 })
 
@@ -455,20 +491,6 @@ export async function POST(request: NextRequest) {
       const friendly = rpcErrorMessage(reservationError.message)
       return NextResponse.json({ error: friendly.message }, { status: friendly.status })
     }
-
-    await sendBookingNotification({
-      customerName,
-      customerPhone,
-      type: bookingType,
-      items: finalItems.map((item) => ({
-        id: item.id || `item-${crypto.randomUUID()}`,
-        name: item.name,
-        quantity: item.quantity || 1,
-        price: item.price,
-      })),
-      totalAmount: parsedTotal,
-      bookingDate: bookingDate || '',
-    })
 
     if (parsedTotal > 0 && isMidtransConfigured()) {
       try {

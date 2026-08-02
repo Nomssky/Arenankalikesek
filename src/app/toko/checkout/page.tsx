@@ -119,7 +119,11 @@ function CheckoutForm() {
           onPending: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
           onError: () => { setSubmitError('Pembayaran gagal, silakan hubungi admin') },
           onClose: () => {
-            fetch(`/api/bookings/${data.bookingId}/cancel`, { method: 'PATCH' }).catch(() => {})
+            fetch(`/api/bookings/${data.bookingId}/cancel`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phone: customerPhone }),
+            }).catch(() => {})
             router.push('/toko/checkout')
           },
         })

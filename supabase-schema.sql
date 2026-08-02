@@ -123,15 +123,12 @@ ALTER TABLE inventory_rentals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rental_bookings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS anon_insert_bookings ON bookings;
-CREATE POLICY anon_insert_bookings ON bookings FOR INSERT TO anon WITH CHECK (true);
 DROP POLICY IF EXISTS anon_select_bookings ON bookings;
-CREATE POLICY anon_select_bookings ON bookings FOR SELECT TO anon USING (true);
 DROP POLICY IF EXISTS anon_select_inventory ON inventory_rentals;
 CREATE POLICY anon_select_inventory ON inventory_rentals FOR SELECT TO anon USING (true);
 DROP POLICY IF EXISTS anon_select_rentals ON rental_bookings;
 CREATE POLICY anon_select_rentals ON rental_bookings FOR SELECT TO anon USING (true);
 DROP POLICY IF EXISTS anon_insert_rentals ON rental_bookings;
-CREATE POLICY anon_insert_rentals ON rental_bookings FOR INSERT TO anon WITH CHECK (true);
 
 -- Harga publik tidak disimpan ulang di schema ini.
 -- Sumber data terpusat: src/data/pricing.ts

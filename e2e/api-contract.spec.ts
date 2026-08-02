@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const testItem = { id: `e2e-test-${Date.now()}`, name: 'E2E Test Item', quantity: 1, price: 25000 }
+const testItem = { id: 'atv-anak', name: 'ATV Anak', quantity: 1, price: 5000 }
 const testDate = new Date(Date.now() + 86400000).toISOString().split('T')[0]
 let bookingId = ''
 let bookingCode = ''
@@ -69,7 +69,9 @@ test.describe('API Contract Tests', () => {
 
   test('PATCH /api/bookings/[id]/cancel cancels booking', async ({ request }) => {
     if (!bookingId) test.skip()
-    const res = await request.patch(`/api/bookings/${bookingId}/cancel`)
+    const res = await request.patch(`/api/bookings/${bookingId}/cancel`, {
+      data: { phone: '081234567890' },
+    })
     expect(res.status()).toBe(200)
     const body = await res.json()
     expect(body).toHaveProperty('status', 'cancelled')
@@ -77,7 +79,7 @@ test.describe('API Contract Tests', () => {
 
   test('POST /api/bookings conflict detection — creates then conflicts', async ({ request }) => {
     const futureDate = new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]
-    const conflictItem = { id: `e2e-conflict-${Date.now()}`, name: `E2E Conflict ${Date.now()}`, quantity: 1, price: 50000 }
+    const conflictItem = { id: 'atv-anak', name: 'ATV Anak', quantity: 1, price: 5000 }
 
     const res = await request.post('/api/bookings', {
       data: {

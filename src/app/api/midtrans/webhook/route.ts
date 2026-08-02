@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase-server'
 import { verifyMidtransNotification, mapMidtransStatus } from '@/lib/midtrans'
-import { sendPaymentNotification } from '@/lib/wa'
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,12 +32,17 @@ export async function POST(request: NextRequest) {
 
     const { data: existing } = await supabase
       .from('bookings')
-      .select('payment_status')
+      .select('payment_status, total_amount')
       .eq('id', orderId)
       .single()
 
     if (!existing) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+    }
+
+    const webhookAmount = Math.round(Number(grossAmount))
+    if (!Number.isFinite(webhookAmount) || webhookAmount !== Math.round(Number(existing.total_amount))) {
+      return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 })
     }
 
     if (existing.payment_status === 'paid' && transactionStatus !== 'refund') {
@@ -76,23 +80,6 @@ export async function POST(request: NextRequest) {
         .update({ status: 'cancelled', updated_at: new Date().toISOString() })
         .eq('booking_id', orderId)
         .neq('status', 'returned')
-    }
-
-    if (bookingStatus === 'paid') {
-      const { data: booking } = await supabase
-        .from('bookings')
-        .select('customer_name, customer_phone, type, items, total_amount')
-        .eq('id', orderId)
-        .single()
-
-      if (booking) {
-        sendPaymentNotification({
-          customerName: booking.customer_name,
-          customerPhone: booking.customer_phone,
-          type: booking.type,
-          totalAmount: booking.total_amount,
-        })
-      }
     }
 
     return NextResponse.json({ status: 'ok' })

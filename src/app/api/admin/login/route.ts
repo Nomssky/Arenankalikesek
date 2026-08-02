@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdminAuthConfigured, verifyPassword, setSessionCookie } from '@/lib/admin-auth'
 
-const MAX_ATTEMPTS = 5
-const BLOCK_DURATION = 15_000
+const BLOCK_STAGES = [
+  { after: 5, duration: 15_000 },
+  { after: 8, duration: 5 * 60_000 },
+  { after: 12, duration: 30 * 60_000 },
+  { after: 16, duration: 60 * 60_000 },
+]
+// ponytail: in-memory per-instance rate limit — a multi-instance deploy or
+// distributed attacker bypasses it. Upgrade: move counters to Supabase/Redis.
 const attempts = new Map<string, { count: number; blockedUntil: number }>()
 
 export async function POST(request: NextRequest) {
@@ -18,8 +24,9 @@ export async function POST(request: NextRequest) {
     const record = attempts.get(ip)
 
     if (record && record.blockedUntil > now) {
+      const remaining = Math.max(1, Math.ceil((record.blockedUntil - now) / 1000))
       return NextResponse.json(
-        { error: 'Terlalu banyak percobaan. Coba lagi dalam 15 detik.' },
+        { error: `Terlalu banyak percobaan. Coba lagi dalam ${remaining} detik.` },
         { status: 429 }
       )
     }
@@ -28,11 +35,11 @@ export async function POST(request: NextRequest) {
 
     if (!password || !(await verifyPassword(password))) {
       const nextCount = (record?.count || 0) + 1
-      if (nextCount >= MAX_ATTEMPTS) {
-        attempts.set(ip, { count: nextCount, blockedUntil: now + BLOCK_DURATION })
-      } else {
-        attempts.set(ip, { count: nextCount, blockedUntil: 0 })
+      let blockedUntil = 0
+      for (const stage of BLOCK_STAGES) {
+        if (nextCount >= stage.after) blockedUntil = now + stage.duration
       }
+      attempts.set(ip, { count: nextCount, blockedUntil })
 
       return NextResponse.json(
         { error: 'Password salah' },

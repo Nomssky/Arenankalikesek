@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase-server'
 
+function digits(value: unknown): string {
+  return String(value ?? '').replace(/\D/g, '')
+}
+
 export async function PATCH(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -16,7 +20,7 @@ export async function PATCH(
 
     const { data: existing, error: fetchError } = await supabase
       .from('bookings')
-      .select('id, status, payment_status')
+      .select('id, status, payment_status, customer_phone')
       .eq('id', id)
       .single()
 
@@ -29,6 +33,12 @@ export async function PATCH(
         { error: 'Booking sudah diproses dan tidak bisa dibatalkan' },
         { status: 400 }
       )
+    }
+
+    const body = await request.json().catch(() => null)
+    const phone = digits(body?.phone)
+    if (!phone || phone !== digits(existing.customer_phone)) {
+      return NextResponse.json({ error: 'Nomor WhatsApp tidak cocok dengan data booking' }, { status: 403 })
     }
 
     const { error: updateError } = await supabase

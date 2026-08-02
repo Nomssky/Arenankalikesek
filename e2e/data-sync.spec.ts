@@ -13,7 +13,7 @@ test.describe('Data Sync & Integrity', () => {
         type: 'wisata',
         customerName: `${testPrefix} User`,
         customerPhone: '081234567893',
-        items: [{ id: testPrefix, name: testPrefix, quantity: 1, price: 35000 }],
+        items: [{ id: 'edu-trip-kesek-1', name: 'Edu Trip Kesek 1', quantity: 1, price: 35000 }],
         totalAmount: 35000,
         bookingDate: testDate,
         timeStart: '09:00',
@@ -56,7 +56,9 @@ test.describe('Data Sync & Integrity', () => {
 
   test('4. Cancel booking cascades to rental_bookings', async ({ request }) => {
     if (!bookingId) test.skip()
-    const cancelRes = await request.patch(`/api/bookings/${bookingId}/cancel`)
+    const cancelRes = await request.patch(`/api/bookings/${bookingId}/cancel`, {
+      data: { phone: '081234567893' },
+    })
     expect(cancelRes.status()).toBe(200)
   })
 

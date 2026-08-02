@@ -35,6 +35,8 @@ export async function generateSessionToken(): Promise<string> {
   return btoa(`${payload}.${signature}`).replace(/=+$/, '')
 }
 
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000
+
 export async function verifySessionToken(token: string): Promise<boolean> {
   try {
     const decoded = atob(token)
@@ -43,7 +45,10 @@ export async function verifySessionToken(token: string): Promise<boolean> {
     const payload = decoded.slice(0, dot)
     const signature = decoded.slice(dot + 1)
     const expected = await hmacSha256(payload, ADMIN_PASSWORD)
-    return signature === expected
+    if (signature !== expected) return false
+    const parsed = JSON.parse(payload)
+    if (typeof parsed?.created !== 'number') return false
+    return Date.now() - parsed.created < SESSION_TTL_MS
   } catch {
     return false
   }
