@@ -556,6 +556,53 @@ Jangan dijalankan kecuali memang diperlukan.
 
 ---
 
+# Import Jadwal Manual (Spreadsheet Pengelola)
+
+Jadwal sewa tempat dicatat manual oleh pengelola di Google Sheets, diimpor ke database
+untuk jadi sumber halaman jadwal. Script: `apps/backend/scripts/import-jadwal.cjs`.
+
+Perintah (dari root repo):
+
+```bash
+node apps/backend/scripts/import-jadwal.cjs            # import + clean replace
+node apps/backend/scripts/import-jadwal.cjs --dry      # parse saja, tidak menulis DB
+node apps/backend/scripts/import-jadwal.cjs --check    # parse + assert, exit 0/1 (CI-friendly)
+node apps/backend/scripts/import-jadwal.cjs /path/dir  # override lokasi file HTML
+```
+
+Sumber: export HTML tiap tab bulan (`File → Simpan Halaman`) di
+`/home/kresna/Downloads/JADWAL SEWA TEMPAT 2026/<BULAN>.html` (nama file
+`JANUARI.html`..`DESEMBER.html`). Kolom wajib: `TANGGAL, TEMPAT, JAM, PENYEWA,
+ALAMAT, KETERANGAN, NOMOR HP, PIC`. Desember/November boleh kosong.
+
+Idempoten: semua `bookings` ber-`booking_code LIKE 'SPR-%'` dan `edu_trip_reservations`
+ber-`booking_id LIKE 'SPR-%'` dihapus, lalu diimpor ulang. Aman dijalankan kapan saja.
+
+Perilaku impor yang sudah diputus (jangan dirubah tanpa instruksi):
+
+- Tanggal baris lanjutan (merged cells) diisi dari baris sebelumnya; venue kosong juga diwarisi.
+- Typo di sheet: `GASEBO→GAZEBO`, `JGLO→JOGO`, tanggal `21/01/25` & `25/01/25` → 2026 (map `TYPO_YEAR_FIX`).
+- `JAM`: `10.00`→mulai; `10-12.00`→mulai–selesai; `-`/`FULL DAY`/`PER ORANG`/`MENGINAP`/kosong→null.
+  `...-SELESAI` → status rental `returned` (badge Selesai). HP nyasar di kolom JAM dipindah ke NOMOR HP.
+- Double-book slot sama (venue+tanggal+jam) → baris kedua `cancelled` + jam null (ponytail:
+  trigger overlap tidak memeriksa `NEW.status`; jam asli tetap ada di `bookings`).
+- `payment_status = paid` jika KETERANGAN menyebut lunas/tf/dp/cash/qris.
+- Baris berpenanda EDU (`edutrip|outing|study tour`) juga di-insert ke `edu_trip_reservations`
+  agar kuota Edu Trip online tahu hari itu sudah ada grup (booking utama tetap `type 'sewa'`).
+- Venue tanpa katalog (Area Dukoh, Teras, dll) dibuat `item_id` slug + `item_name` baru
+  — muncul di admin jadwal, tidak divalidasi katalog.
+
+`--check` membandingkan hitungan per bulan dengan `EXPECTED_ROWS` di script.
+Saat bulan baru mulai terisi data, **perbarui `EXPECTED_ROWS`** (dan runbook ini).
+
+Verifikasi setelah impor:
+
+- Periksa ringkasan (count bookings/rentals, baris `CANCELLED`, `FAIL`).
+- Buka `/admin/jadwal` (pengelola) untuk 1-2 tanggal dengan data,
+  dan `/jadwal` publik untuk tanggal dengan slot terisi.
+
+---
+
 # Workflow Saat Menambah Feature
 
 Ikuti urutan berikut:

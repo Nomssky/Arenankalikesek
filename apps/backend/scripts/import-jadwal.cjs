@@ -2,7 +2,9 @@
 // Import jadwal sewa tempat dari export HTML Google Sheets ke database.
 // Sumber: /home/kresna/Downloads/JADWAL SEWA TEMPAT 2026/<BULAN>.html (tiap file = 1 tab bulan).
 // Repeatable: setiap jalan, semua booking ber-prefix "SPR-" dihapus lalu diimpor ulang (clean replace).
-// Gunakan: node apps/backend/scripts/import-jadwal.cjs [--dry] [DIR]
+// Gunakan: node apps/backend/scripts/import-jadwal.cjs [--dry|--check] [DIR]
+//   --dry   : parse saja, tidak menulis DB
+//   --check : parse + assert hitungan (EXPECTED_ROWS), exit 0/1 — tanpa menulis DB
 const fs = require('fs')
 const path = require('path')
 const { createClient } = require('@supabase/supabase-js')
@@ -10,8 +12,21 @@ const { createClient } = require('@supabase/supabase-js')
 const DIR = process.argv.filter((a, i) => i > 1 && !a.startsWith('--'))[0]
   || '/home/kresna/Downloads/JADWAL SEWA TEMPAT 2026'
 const DRY = process.argv.includes('--dry')
+const CHECK = process.argv.includes('--check')
 
 const MONTHS = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
+
+// Hitungan baris data per bulan (hasil terverifikasi saat impor perdana 2026).
+// Ponytail: berubah saat pengelola mengisi bulan baru — bump map ini (lihat runbook AGENTS.md).
+const EXPECTED_ROWS = {
+  JANUARI: 67, FEBRUARI: 43, MARET: 20, APRIL: 85, MEI: 103, JUNI: 107,
+  JULI: 82, AGUSTUS: 22, SEPTEMBER: 5, OKTOBER: 1, NOVEMBER: 0, DESEMBER: 0,
+}
+const EXPECTED_TOTAL = Object.values(EXPECTED_ROWS).reduce((a, b) => a + b, 0)
+
+// Penanda baris EDU (outing/edutrip) → selain rental, di-insert juga ke edu_trip_reservations
+// agar kuota Edu Trip online tahu hari itu sudah ada grup.
+const EDU_MARK = /edutrip|outing\s?class|outing|study\s?tour|edtrip/i
 
 // Tempat yang tidak ada di katalog inventory_rentals: slug + nama tampilan.
 const EXTRA_PLACES = {
@@ -190,8 +205,9 @@ async function main() {
     const shiftedPhone = !phone && jamPhone.length >= 9 ? jamPhone : null
     const jam = parseJam(shiftedPhone ? '' : r.jam)
     const paid = PAYMENT_MARK.test(r.keterangan || '')
+    const edu = EDU_MARK.test(`${r.tempat} ${r.penyewa} ${r.keterangan}`)
     bk.push({
-      code, date: r.date, venues, r,
+      code, date: r.date, venues, r, edu,
       customer_name: r.penyewa || venues[0].item_name, phone: shiftedPhone || phone,
       jam, paid, pic: r.pic || null,
     })
@@ -201,8 +217,6 @@ async function main() {
   for (const s of skipLog) console.log(`SKIP ${s}`)
   console.log(`rows di-skip: ${stats.skips}, returned: ${stats.returned}`)
   console.log(`booking siap: ${bk.length}`)
-
-  if (DRY) { console.log('DRY RUN — tidak menulis DB'); return }
 
   // Bangun semua baris dulu, cek overlap di JS (replika trigger DB: item+date sama,
   // interval bertabrakan, baris 'cancelled' tidak ikut menghalangi). Baris yang kalah
@@ -257,7 +271,38 @@ async function main() {
   }
   for (const r of cancelled) console.log(`CANCELLED (double-book) ${r.booking_id} ${r.item_name} ${r.booking_date}`)
 
+  // Baris EDU → selain rental sewa, juga tercatat di edu_trip_reservations (kuota online).
+  // Booking utamanya tetap type 'sewa' — file ini hanya menambahkan entri kuota.
+  const eduRows = bk.filter(b => b.edu).map(b => ({
+    id: `${b.code}-EDU`, booking_id: b.code, booking_date: b.date, status: 'active',
+  }))
+
+  if (CHECK) {
+    // Ponytail: returned/cancelled di bawah adalah patokan data terverifikasi (2026-07)
+    // — bump bersama EXPECTED_ROWS saat sheet mulai berisi data baru (liat runbook AGENTS.md).
+    const problems = []
+    for (const [m, n] of months) {
+      if (EXPECTED_ROWS[m] !== n) problems.push(`${m}: hitung ${n} ≠ expected ${EXPECTED_ROWS[m]}`)
+    }
+    if (total !== EXPECTED_TOTAL) problems.push(`total: ${total} ≠ ${EXPECTED_TOTAL}`)
+    if (stats.skips !== 0) problems.push(`skip: ${stats.skips} baris`)
+    if (stats.unresolvedVenues.size) problems.push(`venue unresolved: ${[...stats.unresolvedVenues].join(', ')}`)
+    const returned = rentalRows.filter(r => r.status === 'returned').length
+    if (returned !== 102) problems.push(`returned: ${returned} ≠ 102`)
+    if (cancelled.length !== 3) problems.push(`cancelled double-book: ${cancelled.length} ≠ 3`)
+    if (problems.length) {
+      console.log('CHECK GAGAL:')
+      for (const p of problems) console.log('  -', p)
+      process.exit(1)
+    }
+    console.log(`CHECK PASS — ${total} baris, ${rentalRows.length} rental, ${returned} returned, ${cancelled.length} cancelled, ${eduRows.length} edu`)
+    process.exit(0)
+  }
+  if (DRY) { console.log(`DRY RUN — tidak menulis DB (${eduRows.length} edu di-skip)`); return }
+
   // Hapus lama (clean replace) lalu insert dalam batch.
+  const { error: delEdu } = await sb.from('edu_trip_reservations').delete().like('booking_id', 'SPR-%')
+  if (delEdu) throw new Error(`hapus edu SPR lama: ${delEdu.message}`)
   const { error: delR } = await sb.from('rental_bookings').delete().like('booking_id', 'SPR-%')
   if (delR) throw new Error(`hapus rental SPR lama: ${delR.message}`)
   const { error: delErr } = await sb.from('bookings').delete().like('booking_code', 'SPR-%')
@@ -272,7 +317,11 @@ async function main() {
     const { error } = await sb.from('rental_bookings').insert(rentalRows.slice(i, i + 100))
     if (error) { failed += rentalRows.slice(i, i + 100).length; console.log(`FAIL batch rentals @${i}: ${error.message}`) }
   }
-  console.log(`SELESAI. bookings: ${bookingRows.length}, rentals: ${rentalRows.length} (${cancelled.length} cancelled double-book), error: ${failed}`)
+  for (let i = 0; i < eduRows.length; i += 100) {
+    const { error } = await sb.from('edu_trip_reservations').insert(eduRows.slice(i, i + 100))
+    if (error) { failed += eduRows.slice(i, i + 100).length; console.log(`FAIL batch edu @${i}: ${error.message}`) }
+  }
+  console.log(`SELESAI. bookings: ${bookingRows.length}, rentals: ${rentalRows.length} (${cancelled.length} cancelled double-book), edu: ${eduRows.length}, error: ${failed}`)
 }
 
 main().catch(e => { console.error('FAIL:', e.message); process.exit(1) })
