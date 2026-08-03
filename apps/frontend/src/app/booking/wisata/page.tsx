@@ -299,6 +299,11 @@ export default function BookingWisataPage() {
   const [nestingQuantity, setNestingQuantity] = useState(0)
   const [chairQuantity, setChairQuantity] = useState(0)
   const [extraBedQuantity, setExtraBedQuantity] = useState(0)
+  const [extraGuestEnabled, setExtraGuestEnabled] = useState(false)
+  const [extraGuestQuantity, setExtraGuestQuantity] = useState(1)
+  const [rentalChairQuantity, setRentalChairQuantity] = useState(0)
+  const [rentalSoundSystem, setRentalSoundSystem] = useState(false)
+  const [rentalMatQuantity, setRentalMatQuantity] = useState(0)
   const [documentType, setDocumentType] = useState<'ktp' | 'kk' | 'buku_nikah' | ''>('')
   const [identityDocument, setIdentityDocument] = useState<File | null>(null)
   const [eduTripQuota, setEduTripQuota] = useState<{ date: string; quota: number; used: number; remaining: number } | null>(null)
@@ -309,6 +314,28 @@ export default function BookingWisataPage() {
   const selectedAccommodation = cart.find((item) => isAccommodationItem(item.id))
   const isAccommodationBooking = Boolean(selectedAccommodation)
   const isCampingBooking = selectedAccommodation?.id === 'camping-ground'
+  const isHomestayBooking = selectedAccommodation?.category === 'homestay'
+  const isRentalVenueBooking = cart.some((item) => ['area-kegiatan', 'tempat-pertemuan'].includes(item.category))
+  const supportsExtraGuestAddOn = Boolean(
+    selectedAccommodation && ['aren-1', 'aren-2'].includes(selectedAccommodation.id),
+  )
+  const homestaySettingPrefix = selectedAccommodation?.id.replace('-', '_') || ''
+  const homestayBaseCapacity = supportsExtraGuestAddOn
+    ? bookingSettings[`homestay.${homestaySettingPrefix}.base_capacity`] ?? 5
+    : null
+  const homestayExtraGuestFee = supportsExtraGuestAddOn
+    ? bookingSettings[`homestay.${homestaySettingPrefix}.extra_guest_fee`] ?? 10000
+    : 0
+  const appliedExtraGuestQuantity = supportsExtraGuestAddOn && extraGuestEnabled
+    ? extraGuestQuantity
+    : 0
+  const bookingGuestCount = participantCount + appliedExtraGuestQuantity
+  const campingTentRentalPrice = bookingSettings[
+    tentSize === 'small'
+      ? 'camping.small_tent_rental_price'
+      : 'camping.large_tent_rental_price'
+  ] ?? bookingSettings['camping.tent_rental_price']
+  const campingTentRentalAvailable = campingTentRentalPrice !== null && campingTentRentalPrice !== undefined
   const hasEduTrip = cart.some((item) => isEduTripItem(item))
   const blockedDates = Object.values(blockedDatesByMonth).flat()
   const holidayDates = Object.values(holidayDatesByMonth).flat()
@@ -362,7 +389,8 @@ export default function BookingWisataPage() {
 
       setMinimumDate(new Date().toISOString().split('T')[0])
 
-      const requestedCategory = new URLSearchParams(window.location.search).get('category')
+      const searchParams = new URLSearchParams(window.location.search)
+      const requestedCategory = searchParams.get('category')
       if (requestedCategory) {
         const requestedGroup = bookingCategoryOptions.some(
           (category) => category.id === requestedCategory
@@ -370,6 +398,29 @@ export default function BookingWisataPage() {
           ? requestedCategory
           : getBookingCategoryIdFromServiceCategory(requestedCategory)
         setActiveCategory(requestedGroup)
+      }
+
+      const requestedCheckIn = searchParams.get('checkIn') || ''
+      const requestedCheckOut = searchParams.get('checkOut') || ''
+      if (/^\d{4}-\d{2}-\d{2}$/.test(requestedCheckIn)) {
+        setCheckInDate(requestedCheckIn)
+        setCalendarMonth(requestedCheckIn.slice(0, 7))
+        if (/^\d{4}-\d{2}-\d{2}$/.test(requestedCheckOut) && requestedCheckOut > requestedCheckIn) {
+          setCheckOutDate(requestedCheckOut)
+        }
+      }
+
+      const requestedBookingDate = searchParams.get('bookingDate') || ''
+      const requestedTimeStart = searchParams.get('timeStart') || ''
+      const requestedTimeEnd = searchParams.get('timeEnd') || ''
+      if (/^\d{4}-\d{2}-\d{2}$/.test(requestedBookingDate)) {
+        setBookingDate(requestedBookingDate)
+      }
+      if (/^(0[7-9]|1[0-6]):00$/.test(requestedTimeStart)) {
+        setTimeStart(requestedTimeStart)
+      }
+      if (/^(0[7-9]|1[0-6]):00$/.test(requestedTimeStart) && /^(0[8-9]|1[0-7]):00$/.test(requestedTimeEnd) && requestedTimeEnd > requestedTimeStart) {
+        setTimeEnd(requestedTimeEnd)
       }
 
       try {
@@ -421,18 +472,33 @@ export default function BookingWisataPage() {
         if (res.ok) {
           const data: TourPackage[] = await res.json()
           setPackages(data)
-          const requestedItemId = new URLSearchParams(window.location.search).get('item')
+          const searchParams = new URLSearchParams(window.location.search)
+          const requestedItemId = searchParams.get('item')
           const requestedItem = requestedItemId
             ? data.find((item) => item.id === requestedItemId && item.bookable)
             : null
+          const requestedTimeStart = searchParams.get('timeStart') || ''
+          const requestedTimeEnd = searchParams.get('timeEnd') || ''
+          const requestedDuration = requestedTimeStart && requestedTimeEnd && requestedTimeEnd > requestedTimeStart
+            ? Math.max(1, Number(requestedTimeEnd.slice(0, 2)) - Number(requestedTimeStart.slice(0, 2)))
+            : 1
           setCart((currentCart) =>
-            requestedItem ? [{ ...requestedItem, quantity: 1 }] : currentCart.flatMap((cartItem) => {
+            requestedItem ? [{
+              ...requestedItem,
+              quantity: ['area-kegiatan', 'tempat-pertemuan'].includes(requestedItem.category)
+                ? requestedDuration
+                : 1,
+            }] : currentCart.flatMap((cartItem) => {
               const currentPackage = data.find((item) => item.id === cartItem.id)
               return currentPackage
                 ? [{ ...currentPackage, quantity: cartItem.quantity }]
                 : []
             })
           )
+          if (requestedItem && searchParams.get('directBooking') === '1') {
+            setCheckoutStep('details')
+            setCartOpen(true)
+          }
         } else {
           setFetchError('Gagal memuat paket wisata')
         }
@@ -502,7 +568,7 @@ export default function BookingWisataPage() {
         stayBaseTotal = base.baseTotal
         stayExtraGuestTotal = calculateExtraGuestTotal(
           selectedAccommodation.id,
-          participantCount,
+          bookingGuestCount,
           stayNights,
           bookingSettings,
         )
@@ -528,9 +594,28 @@ export default function BookingWisataPage() {
       stayNights = 0
     }
   }
+  const rentalVenueAddOnTotal = isRentalVenueBooking
+    ? (rentalChairQuantity * (bookingSettings['rental.chair_price'] ?? 3000))
+      + (rentalSoundSystem ? bookingSettings['rental.sound_system_price'] ?? 300000 : 0)
+      + (rentalMatQuantity * (bookingSettings['rental.mat_price'] ?? 10000))
+    : 0
   const totalPrice = isAccommodationBooking
     ? stayBaseTotal + stayExtraGuestTotal + stayAddOnTotal
-    : cartBasePrice
+    : cartBasePrice + rentalVenueAddOnTotal
+
+  const syncRentalDuration = (nextStart: string, nextEnd: string) => {
+    if (!isRentalVenueBooking || !nextStart || !nextEnd || nextEnd <= nextStart) return
+    const [startHour, startMinute] = nextStart.split(':').map(Number)
+    const [endHour, endMinute] = nextEnd.split(':').map(Number)
+    const durationInMinutes = ((endHour * 60) + endMinute) - ((startHour * 60) + startMinute)
+    if (durationInMinutes <= 0 || durationInMinutes % 60 !== 0) return
+    const durationHours = durationInMinutes / 60
+    setCart((currentCart) => currentCart.map((item) =>
+      ['area-kegiatan', 'tempat-pertemuan'].includes(item.category)
+        ? { ...item, quantity: durationHours }
+        : item
+    ))
+  }
 
   const showAddedToast = (item: TourPackage) => {
     setToastItem(item)
@@ -547,6 +632,10 @@ export default function BookingWisataPage() {
       setCheckOutDate('')
       setBlockedDatesByMonth({})
       setHolidayDatesByMonth({})
+      setParticipantCount(1)
+      setExtraGuestEnabled(false)
+      setExtraGuestQuantity(1)
+      setExtraBedQuantity(0)
     }
     if (cartHasAccommodation && !itemIsAccommodation) {
       setIdentityDocument(null)
@@ -624,6 +713,10 @@ export default function BookingWisataPage() {
         setSubmitError('Lengkapi tanggal dan jam kedatangan.')
         return
       }
+      if (isRentalVenueBooking && (!timeEnd || !timeStart.endsWith(':00') || !timeEnd.endsWith(':00') || timeStart < '07:00' || timeStart >= '17:00' || timeEnd > '17:00')) {
+        setSubmitError('Pilih jam sewa dalam jam operasional 07.00–17.00 WIB.')
+        return
+      }
       if (timeEnd && timeEnd <= timeStart) {
         setSubmitError('Jam selesai harus lebih akhir dari jam mulai.')
         return
@@ -657,7 +750,7 @@ export default function BookingWisataPage() {
         form.set('items', JSON.stringify(commonItems))
         form.set('checkInDate', checkInDate)
         form.set('checkOutDate', checkOutDate)
-        form.set('guestCount', String(participantCount))
+        form.set('guestCount', String(bookingGuestCount))
         form.set('documentType', documentType)
         form.set('identityDocument', identityDocument)
         form.set('tentSize', tentSize)
@@ -681,6 +774,9 @@ export default function BookingWisataPage() {
           timeStart,
           timeEnd: timeEnd || undefined,
           participantCount,
+          rentalChairQuantity,
+          rentalSoundSystem,
+          rentalMatQuantity,
           notes: notes.trim(),
           items: commonItems,
           totalAmount: totalPrice,
@@ -959,7 +1055,7 @@ export default function BookingWisataPage() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-gray-500">Peserta</dt>
-                  <dd className="font-semibold text-gray-900">{participantCount} orang</dd>
+                  <dd className="font-semibold text-gray-900">{isAccommodationBooking ? bookingGuestCount : participantCount} orang</dd>
                 </div>
               </dl>
 
@@ -1211,46 +1307,110 @@ export default function BookingWisataPage() {
                       }}
                       onError={setSubmitError}
                     />
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-xl bg-emerald-50 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Check-in</p>
-                        <p className="mt-1 text-sm font-bold text-emerald-950">{checkInDate || 'Pilih tanggal'}</p>
+                    <div className="flex flex-col gap-3 rounded-xl border border-orange-100 bg-orange-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-orange-950">Ketentuan waktu menginap</p>
+                        <p className="mt-1 text-xs leading-5 text-orange-800/75">Check-in mulai 14.00 · check-out sebelum 12.00. Hari check-out tidak dihitung sebagai malam.</p>
                       </div>
-                      <div className="rounded-xl bg-emerald-50 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Check-out</p>
-                        <p className="mt-1 text-sm font-bold text-emerald-950">{checkOutDate || 'Pilih tanggal'}</p>
-                      </div>
-                      <div className="rounded-xl bg-orange-50 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">Durasi</p>
-                        <p className="mt-1 text-sm font-bold text-orange-950">{stayNights ? `${stayNights} malam` : 'Belum lengkap'}</p>
-                      </div>
+                      <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-orange-700 shadow-sm">
+                        {stayNights ? `${stayNights} malam` : 'Pilih rentang tanggal'}
+                      </span>
                     </div>
 
                     <div>
-                      <label className="form-label">Jumlah tamu *</label>
+                      <label className="form-label">{isHomestayBooking ? 'Jumlah tamu utama *' : 'Jumlah tamu *'}</label>
                       <div className="relative">
                         <UserGroupIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                         <input
                           type="number"
                           min={1}
+                          max={homestayBaseCapacity ?? undefined}
                           className="form-input !pl-10"
                           value={participantCount}
-                          onChange={(event) => setParticipantCount(Math.max(1, Number(event.target.value) || 1))}
+                          onChange={(event) => {
+                            const nextCount = Math.max(1, Number(event.target.value) || 1)
+                            setParticipantCount(homestayBaseCapacity ? Math.min(nextCount, homestayBaseCapacity) : nextCount)
+                          }}
                           required
                         />
                       </div>
-                      {selectedAccommodation && ['aren-1', 'aren-2'].includes(selectedAccommodation.id) && (
+                      {supportsExtraGuestAddOn && homestayBaseCapacity && (
                         <p className="mt-2 text-xs leading-5 text-gray-500">
-                          Kapasitas dasar {bookingSettings[`homestay.${selectedAccommodation.id.replace('-', '_')}.base_capacity`] ?? 5} orang. Tamu berikutnya dikenai {formatPrice(bookingSettings[`homestay.${selectedAccommodation.id.replace('-', '_')}.extra_guest_fee`] ?? 10000)}/orang/malam tanpa batas maksimum yang dibuat oleh sistem.
+                          Harga kamar mencakup maksimal {homestayBaseCapacity} tamu. Gunakan add-on di bawah jika jumlah tamu lebih banyak.
                         </p>
                       )}
                     </div>
 
-                    {selectedAccommodation?.category === 'homestay' && (
-                      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                        <label className="form-label">Extra bed 100 × 220 cm</label>
-                        <input type="number" min={0} className="form-input bg-white" value={extraBedQuantity} onChange={(event) => setExtraBedQuantity(Math.max(0, Number(event.target.value) || 0))} />
-                        <p className="mt-1 text-xs text-gray-500">Rp25.000/unit, dihitung sebagai add-on booking.</p>
+                    {isHomestayBooking && (
+                      <div className="space-y-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                        <div>
+                          <p className="font-semibold text-emerald-950">Add-on homestay</p>
+                          <p className="mt-1 text-xs text-gray-500">Tambahkan hanya fasilitas atau kapasitas yang Anda perlukan.</p>
+                        </div>
+
+                        {supportsExtraGuestAddOn && (
+                          <div className={`rounded-xl border bg-white p-3 transition ${extraGuestEnabled ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-200'}`}>
+                            <label className="flex cursor-pointer items-start gap-3">
+                              <input
+                                type="checkbox"
+                                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                                checked={extraGuestEnabled}
+                                onChange={(event) => {
+                                  setExtraGuestEnabled(event.target.checked)
+                                  if (!event.target.checked) setExtraGuestQuantity(1)
+                                }}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-semibold text-gray-900">Tambahkan tamu di atas kapasitas</span>
+                                <span className="mt-0.5 block text-xs leading-5 text-gray-500">
+                                  {formatPrice(homestayExtraGuestFee)}/orang/malam setelah {homestayBaseCapacity} tamu utama.
+                                </span>
+                              </span>
+                            </label>
+
+                            {extraGuestEnabled && (
+                              <div className="mt-3 flex flex-col gap-3 border-t border-gray-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <label htmlFor="extra-guest-quantity" className="text-xs font-semibold text-gray-700">Jumlah tamu tambahan</label>
+                                  <p className="mt-0.5 text-xs text-gray-500">Total menjadi {bookingGuestCount} tamu.</p>
+                                </div>
+                                <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
+                                  <button
+                                    type="button"
+                                    aria-label="Kurangi tamu tambahan"
+                                    onClick={() => setExtraGuestQuantity((current) => Math.max(1, current - 1))}
+                                    disabled={extraGuestQuantity <= 1}
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-30"
+                                  >
+                                    <MinusIcon className="h-4 w-4" />
+                                  </button>
+                                  <input
+                                    id="extra-guest-quantity"
+                                    type="number"
+                                    min={1}
+                                    value={extraGuestQuantity}
+                                    onChange={(event) => setExtraGuestQuantity(Math.max(1, Number(event.target.value) || 1))}
+                                    className="h-9 w-12 border-0 bg-transparent p-0 text-center text-sm font-bold text-emerald-950 focus:ring-0"
+                                  />
+                                  <button
+                                    type="button"
+                                    aria-label="Tambah tamu tambahan"
+                                    onClick={() => setExtraGuestQuantity((current) => current + 1)}
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-white"
+                                  >
+                                    <PlusIcon className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="form-label">Extra bed 100 × 220 cm</label>
+                          <input type="number" min={0} className="form-input bg-white" value={extraBedQuantity} onChange={(event) => setExtraBedQuantity(Math.max(0, Number(event.target.value) || 0))} />
+                          <p className="mt-1 text-xs text-gray-500">Rp25.000/unit, dihitung sebagai add-on booking.</p>
+                        </div>
                       </div>
                     )}
 
@@ -1275,8 +1435,8 @@ export default function BookingWisataPage() {
                               <label className={`rounded-xl border bg-white p-3 text-sm ${tentOption === 'own' ? 'border-orange-400 ring-1 ring-orange-200' : 'border-gray-200'}`}>
                                 <input type="radio" name="tent-option" value="own" checked={tentOption === 'own'} onChange={() => setTentOption('own')} className="mr-2" />Bawa tenda sendiri
                               </label>
-                              <label className={`rounded-xl border bg-white p-3 text-sm ${bookingSettings['camping.tent_rental_price'] === null ? 'cursor-not-allowed opacity-55' : tentOption === 'rent' ? 'border-orange-400 ring-1 ring-orange-200' : 'border-gray-200'}`}>
-                                <input type="radio" name="tent-option" value="rent" disabled={bookingSettings['camping.tent_rental_price'] === null} checked={tentOption === 'rent'} onChange={() => setTentOption('rent')} className="mr-2" />Sewa tenda — {bookingSettings['camping.tent_rental_price'] === null ? 'hubungi pengelola' : formatPrice(bookingSettings['camping.tent_rental_price'] || 0)}
+                              <label className={`rounded-xl border bg-white p-3 text-sm ${!campingTentRentalAvailable ? 'cursor-not-allowed opacity-55' : tentOption === 'rent' ? 'border-orange-400 ring-1 ring-orange-200' : 'border-gray-200'}`}>
+                                <input type="radio" name="tent-option" value="rent" disabled={!campingTentRentalAvailable} checked={tentOption === 'rent'} onChange={() => setTentOption('rent')} className="mr-2" />Sewa tenda — {campingTentRentalAvailable ? `${formatPrice(campingTentRentalPrice ?? 0)}/tenda/malam` : 'Harga belum tersedia'}
                               </label>
                             </div>
                           </div>
@@ -1323,12 +1483,36 @@ export default function BookingWisataPage() {
                         <label className="form-label">Jam kedatangan *</label>
                         <div className="relative">
                           <ClockIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                          <input type="time" className="form-input !pl-10" value={timeStart} onChange={(event) => setTimeStart(event.target.value)} required />
+                          <input
+                            type="time"
+                            min={isRentalVenueBooking ? '07:00' : undefined}
+                            max={isRentalVenueBooking ? '16:00' : undefined}
+                            step={isRentalVenueBooking ? 3600 : undefined}
+                            className="form-input !pl-10"
+                            value={timeStart}
+                            onChange={(event) => {
+                              setTimeStart(event.target.value)
+                              syncRentalDuration(event.target.value, timeEnd)
+                            }}
+                            required
+                          />
                         </div>
                       </div>
                       <div>
                         <label className="form-label">Perkiraan selesai</label>
-                        <input type="time" className="form-input" value={timeEnd} onChange={(event) => setTimeEnd(event.target.value)} />
+                        <input
+                          type="time"
+                          min={isRentalVenueBooking ? '08:00' : undefined}
+                          max={isRentalVenueBooking ? '17:00' : undefined}
+                          step={isRentalVenueBooking ? 3600 : undefined}
+                          className="form-input"
+                          value={timeEnd}
+                          onChange={(event) => {
+                            setTimeEnd(event.target.value)
+                            syncRentalDuration(timeStart, event.target.value)
+                          }}
+                          required={isRentalVenueBooking}
+                        />
                       </div>
                       <div className="sm:col-span-2">
                         <label className="form-label">Jumlah peserta *</label>
@@ -1338,6 +1522,59 @@ export default function BookingWisataPage() {
                         </div>
                       </div>
                     </div>
+                    {isRentalVenueBooking && (
+                      <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                          <div>
+                            <h3 className="font-semibold text-emerald-950">Add-on sewa tempat</h3>
+                            <p className="mt-1 text-xs text-gray-500">Pilih perlengkapan tambahan sesuai kebutuhan acara.</p>
+                          </div>
+                          {rentalVenueAddOnTotal > 0 && (
+                            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-orange-700 shadow-sm">
+                              Add-on {formatPrice(rentalVenueAddOnTotal)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                          <label className="rounded-xl border border-gray-200 bg-white p-3">
+                            <span className="block text-sm font-semibold text-gray-900">Kursi</span>
+                            <span className="mt-0.5 block text-xs text-gray-500">{formatPrice(bookingSettings['rental.chair_price'] ?? 3000)}/kursi</span>
+                            <input
+                              type="number"
+                              min={0}
+                              className="form-input mt-3"
+                              value={rentalChairQuantity}
+                              onChange={(event) => setRentalChairQuantity(Math.max(0, Number(event.target.value) || 0))}
+                            />
+                          </label>
+
+                          <label className={`flex cursor-pointer items-start gap-3 rounded-xl border bg-white p-3 transition ${rentalSoundSystem ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-200'}`}>
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                              checked={rentalSoundSystem}
+                              onChange={(event) => setRentalSoundSystem(event.target.checked)}
+                            />
+                            <span>
+                              <span className="block text-sm font-semibold text-gray-900">Sound system</span>
+                              <span className="mt-0.5 block text-xs text-gray-500">{formatPrice(bookingSettings['rental.sound_system_price'] ?? 300000)}/paket</span>
+                            </span>
+                          </label>
+
+                          <label className="rounded-xl border border-gray-200 bg-white p-3">
+                            <span className="block text-sm font-semibold text-gray-900">Tikar</span>
+                            <span className="mt-0.5 block text-xs text-gray-500">{formatPrice(bookingSettings['rental.mat_price'] ?? 10000)}/tikar</span>
+                            <input
+                              type="number"
+                              min={0}
+                              className="form-input mt-3"
+                              value={rentalMatQuantity}
+                              onChange={(event) => setRentalMatQuantity(Math.max(0, Number(event.target.value) || 0))}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    )}
                   </fieldset>
                 )}
 
@@ -1473,7 +1710,7 @@ export default function BookingWisataPage() {
                     <div>
                       <p className="text-xs text-gray-500">
                         {isAccommodationBooking
-                          ? `${stayNights || 0} malam · ${participantCount} tamu`
+                          ? `${stayNights || 0} malam · ${bookingGuestCount} tamu`
                           : `${cart.length} layanan · ${participantCount} peserta`}
                       </p>
                       <p className="font-semibold text-gray-950">Total booking</p>

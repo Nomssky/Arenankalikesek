@@ -34,12 +34,42 @@ interface AccommodationItem {
 
 type ScheduleType = 'rental' | 'accommodation'
 
+const rentalHourlySlots = Array.from({ length: 10 }, (_, index) => {
+  const startHour = index + 7
+  const endHour = startHour + 1
+  return {
+    start: `${String(startHour).padStart(2, '0')}:00`,
+    end: `${String(endHour).padStart(2, '0')}:00`,
+  }
+})
+
+function timeToMinutes(value: string) {
+  const [hours, minutes] = value.slice(0, 5).split(':').map(Number)
+  return (hours * 60) + minutes
+}
+
+function slotIsBooked(slot: { start: string; end: string }, bookings: RentalBooking[]) {
+  const slotStart = timeToMinutes(slot.start)
+  const slotEnd = timeToMinutes(slot.end)
+  return bookings.some((booking) => {
+    if (!booking.time_start) return true
+    const bookingStart = timeToMinutes(booking.time_start)
+    const bookingEnd = booking.time_end
+      ? timeToMinutes(booking.time_end)
+      : bookingStart + 60
+    return slotStart < bookingEnd && slotEnd > bookingStart
+  })
+}
+
 export default function JadwalPage() {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
   const [scheduleType, setScheduleType] = useState<ScheduleType>('rental')
   const [selectedDate, setSelectedDate] = useState(today)
   const [rentalItems, setRentalItems] = useState<InventoryItem[]>([])
   const [rentalBookings, setRentalBookings] = useState<RentalBooking[]>([])
+  const [selectedRentalItemId, setSelectedRentalItemId] = useState('')
+  const [selectedRentalSlotIndexes, setSelectedRentalSlotIndexes] = useState<number[]>([])
+  const [rentalSelectionError, setRentalSelectionError] = useState('')
   const [accommodationItems, setAccommodationItems] = useState<AccommodationItem[]>([])
   const [selectedAccommodationId, setSelectedAccommodationId] = useState('')
   const [calendarMonth, setCalendarMonth] = useState(today.slice(0, 7))
@@ -82,6 +112,14 @@ export default function JadwalPage() {
 
   const blockedDates = Object.values(blockedByMonth).flat()
   const selectedAccommodation = accommodationItems.find((item) => item.id === selectedAccommodationId)
+  const canContinueAccommodationBooking = Boolean(selectedAccommodation?.bookable && checkIn && checkOut)
+  const accommodationBookingHref = selectedAccommodation
+    ? `/booking/wisata?item=${encodeURIComponent(selectedAccommodation.id)}${
+        checkIn && checkOut
+          ? `&checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&directBooking=1`
+          : ''
+      }`
+    : '/booking/wisata?category=penginapan-camping'
 
   const itemBookings = (item: InventoryItem) => rentalBookings.filter((booking) => {
     if (booking.status === 'cancelled') return false
@@ -92,6 +130,31 @@ export default function JadwalPage() {
       )
     )
   })
+
+  const selectRentalSlot = (item: InventoryItem, slotIndex: number) => {
+    const bookings = itemBookings(item)
+    if (slotIsBooked(rentalHourlySlots[slotIndex], bookings)) return
+    if (selectedRentalItemId !== item.id || selectedRentalSlotIndexes.length === 0) {
+      setRentalSelectionError('')
+      setSelectedRentalItemId(item.id)
+      setSelectedRentalSlotIndexes([slotIndex])
+      return
+    }
+    if (selectedRentalSlotIndexes.includes(slotIndex)) {
+      setRentalSelectionError('')
+      setSelectedRentalSlotIndexes(selectedRentalSlotIndexes.length === 1 ? [] : [slotIndex])
+      return
+    }
+    const firstIndex = Math.min(slotIndex, ...selectedRentalSlotIndexes)
+    const lastIndex = Math.max(slotIndex, ...selectedRentalSlotIndexes)
+    const nextIndexes = Array.from({ length: lastIndex - firstIndex + 1 }, (_, index) => firstIndex + index)
+    if (nextIndexes.some((index) => slotIsBooked(rentalHourlySlots[index], bookings))) {
+      setRentalSelectionError('Rentang tersebut melewati slot yang sudah terisi. Pilih rentang lain tanpa melewati slot merah.')
+      return
+    }
+    setRentalSelectionError('')
+    setSelectedRentalSlotIndexes(nextIndexes)
+  }
 
   return (
     <>
@@ -119,40 +182,94 @@ export default function JadwalPage() {
             <div>
               <div className="mb-6 max-w-sm">
                 <label className="form-label">Tanggal sewa</label>
-                <input type="date" min={today} className="form-input" value={selectedDate} onChange={(event) => { setLoading(true); setError(''); setSelectedDate(event.target.value) }} />
+                <input type="date" min={today} className="form-input" value={selectedDate} onChange={(event) => { setLoading(true); setError(''); setRentalSelectionError(''); setSelectedRentalItemId(''); setSelectedRentalSlotIndexes([]); setSelectedDate(event.target.value) }} />
+                <p className="mt-2 text-xs leading-5 text-gray-500">Jam operasional 07.00–17.00 WIB. Pilih satu atau beberapa slot yang berurutan.</p>
               </div>
+              {rentalSelectionError && (
+                <div className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+                  {rentalSelectionError}
+                </div>
+              )}
               {loading ? (
                 <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" /></div>
               ) : rentalItems.length === 0 ? (
                 <p className="rounded-2xl bg-gray-50 p-8 text-center text-gray-500">Belum ada data sewa tempat.</p>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-5 lg:grid-cols-2">
                   {rentalItems.map((item) => {
                     const bookings = itemBookings(item)
-                    const available = bookings.length === 0
+                    const bookedSlots = rentalHourlySlots.map((slot) => slotIsBooked(slot, bookings))
+                    const availableSlotCount = bookedSlots.filter((isBooked) => !isBooked).length
+                    const itemIsSelected = selectedRentalItemId === item.id && selectedRentalSlotIndexes.length > 0
+                    const selectedIndexes = itemIsSelected
+                      ? [...selectedRentalSlotIndexes].sort((first, second) => first - second)
+                      : []
+                    const selectedStart = selectedIndexes.length
+                      ? rentalHourlySlots[selectedIndexes[0]].start
+                      : ''
+                    const selectedEnd = selectedIndexes.length
+                      ? rentalHourlySlots[selectedIndexes[selectedIndexes.length - 1]].end
+                      : ''
+                    const bookingHref = itemIsSelected
+                      ? `/booking/wisata?item=${encodeURIComponent(item.id)}&bookingDate=${encodeURIComponent(selectedDate)}&timeStart=${encodeURIComponent(selectedStart)}&timeEnd=${encodeURIComponent(selectedEnd)}&directBooking=1`
+                      : '#'
                     return (
-                      <article key={item.id} className="rounded-2xl border border-emerald-950/5 bg-white p-5 shadow-sm">
+                      <article key={item.id} className={`rounded-2xl border bg-white p-5 shadow-sm transition ${itemIsSelected ? 'border-orange-300 ring-2 ring-orange-100' : 'border-emerald-950/5'}`}>
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">Sewa tempat</p>
                             <h2 className="mt-1 font-bold text-emerald-950">{item.name}</h2>
                           </div>
-                          {available ? <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-500" /> : <XCircleIcon className="h-6 w-6 shrink-0 text-red-500" />}
+                          {availableSlotCount > 0 ? <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-500" /> : <XCircleIcon className="h-6 w-6 shrink-0 text-red-500" />}
                         </div>
-                        <div className={`mt-4 rounded-xl px-3 py-3 text-sm ${available ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                          <p className="font-semibold">{available ? 'Semua slot tersedia' : 'Ada slot yang sudah terisi'}</p>
-                          {!available && (
-                            <div className="mt-2 space-y-1 text-xs">
-                              {bookings.map((booking, index) => (
-                                <p key={`${booking.item_id}-${index}`} className="flex items-center gap-1.5">
-                                  <ClockIcon className="h-4 w-4" />
-                                  {booking.time_start?.slice(0, 5) || 'Seharian'}{booking.time_end ? `–${booking.time_end.slice(0, 5)}` : ''}
-                                </p>
-                              ))}
-                            </div>
-                          )}
+
+                        <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+                          <span className="font-semibold text-emerald-700">{availableSlotCount} slot tersedia</span>
+                          <span className="text-gray-500">Pilih per jam</span>
                         </div>
-                        <Link href={`/booking/wisata?item=${item.id}`} className="btn-outline mt-4 w-full text-sm">Pilih jadwal booking</Link>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                          {rentalHourlySlots.map((slot, slotIndex) => {
+                            const isBooked = bookedSlots[slotIndex]
+                            const isSelected = itemIsSelected && selectedRentalSlotIndexes.includes(slotIndex)
+                            return (
+                              <button
+                                key={slot.start}
+                                type="button"
+                                disabled={isBooked}
+                                aria-pressed={isSelected}
+                                onClick={() => selectRentalSlot(item, slotIndex)}
+                                className={`min-h-14 rounded-xl border px-2 py-2 text-center transition ${
+                                  isSelected
+                                    ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
+                                    : isBooked
+                                      ? 'cursor-not-allowed border-red-100 bg-red-50 text-red-400 line-through'
+                                      : 'border-emerald-100 bg-emerald-50/60 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50'
+                                }`}
+                              >
+                                <span className="block text-xs font-bold">{slot.start}</span>
+                                <span className={`mt-0.5 block text-[10px] ${isSelected ? 'text-white/75' : 'opacity-70'}`}>
+                                  {isBooked ? 'Terisi' : `s.d. ${slot.end}`}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        {itemIsSelected && (
+                          <div className="mt-4 flex items-center gap-2 rounded-xl bg-orange-50 px-3 py-2.5 text-xs text-orange-800">
+                            <ClockIcon className="h-4 w-4 shrink-0" />
+                            <span className="font-semibold">Dipilih {selectedStart}–{selectedEnd} · {selectedIndexes.length} jam</span>
+                          </div>
+                        )}
+
+                        <Link
+                          href={bookingHref}
+                          aria-disabled={!itemIsSelected}
+                          className={`mt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${itemIsSelected ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
+                        >
+                          {itemIsSelected ? 'Lanjut isi data booking' : 'Pilih jam terlebih dahulu'}
+                        </Link>
                       </article>
                     )
                   })}
@@ -203,11 +320,11 @@ export default function JadwalPage() {
                     <p className="font-semibold">{checkIn || 'Check-in belum dipilih'}{checkOut ? ` → ${checkOut}` : ''}</p>
                   </div>
                   <Link
-                    href={selectedAccommodation ? `/booking/wisata?item=${selectedAccommodation.id}` : '/booking/wisata?category=penginapan-camping'}
-                    aria-disabled={!selectedAccommodation?.bookable}
-                    className={`rounded-full px-5 py-3 text-center text-sm font-bold ${selectedAccommodation?.bookable ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-white/10 text-white/40'}`}
+                    href={accommodationBookingHref}
+                    aria-disabled={!canContinueAccommodationBooking}
+                    className={`rounded-full px-5 py-3 text-center text-sm font-bold ${canContinueAccommodationBooking ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-white/10 text-white/40'}`}
                   >
-                    Lanjut booking
+                    {checkIn && checkOut ? 'Lanjut booking' : 'Pilih tanggal dahulu'}
                   </Link>
                 </div>
               </div>

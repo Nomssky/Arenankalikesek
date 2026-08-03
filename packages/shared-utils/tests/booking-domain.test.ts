@@ -36,14 +36,16 @@ test('harga camping mengikuti ukuran, jumlah tenda, malam, dan add-on', () => {
     tentOption: 'own',
     nights: 3,
     firewoodPackages: 2,
+    nestingQuantity: 1,
+    chairQuantity: 2,
   })
   assert.equal(result.groundTotal, 300_000)
-  assert.equal(result.addOnTotal, 50_000)
-  assert.equal(result.total, 350_000)
+  assert.equal(result.addOnTotal, 120_000)
+  assert.equal(result.total, 420_000)
   assert.deepEqual(result.unavailablePrices, [])
 })
 
-test('harga yang belum ditetapkan tidak dibuat-buat', () => {
+test('harga sewa tenda mengikuti ukuran tenda', () => {
   const result = calculateCampingTotal({
     tentSize: 'small',
     tentCount: 1,
@@ -51,8 +53,9 @@ test('harga yang belum ditetapkan tidak dibuat-buat', () => {
     nights: 1,
     nestingQuantity: 1,
   })
-  assert.equal(result.total, 20_000)
-  assert.deepEqual(result.unavailablePrices, ['Sewa tenda', 'Sewa nesting'])
+  assert.equal(result.rentalTotal, 20_000)
+  assert.equal(result.total, 90_000)
+  assert.deepEqual(result.unavailablePrices, [])
 })
 
 test('rentang tanggal mendeteksi tanggal yang sudah terisi', () => {

@@ -4,10 +4,15 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettingMap = {
   'camping.small_tent_price': 20_000,
   'camping.large_tent_price': 50_000,
   'camping.tent_rental_price': null,
+  'camping.small_tent_rental_price': 20_000,
+  'camping.large_tent_rental_price': 50_000,
   'camping.glamping_base_price': null,
   'addon.firewood_price': 25_000,
-  'addon.nesting_price': null,
-  'addon.camping_chair_price': null,
+  'addon.nesting_price': 50_000,
+  'addon.camping_chair_price': 10_000,
+  'rental.chair_price': 3_000,
+  'rental.sound_system_price': 300_000,
+  'rental.mat_price': 10_000,
   'homestay.aren_1.base_capacity': 5,
   'homestay.aren_2.base_capacity': 5,
   'homestay.aren_1.extra_guest_fee': 10_000,
@@ -162,7 +167,10 @@ export function calculateCampingTotal(
   const groundTotal = tentPrice * input.tentCount * input.nights
   let rentalTotal = 0
   if (input.tentOption === 'rent') {
-    const rentalPrice = settings['camping.tent_rental_price']
+    const rentalPriceKey = input.tentSize === 'small'
+      ? 'camping.small_tent_rental_price'
+      : 'camping.large_tent_rental_price'
+    const rentalPrice = settings[rentalPriceKey] ?? settings['camping.tent_rental_price']
     if (rentalPrice === null || rentalPrice === undefined) {
       unavailablePrices.push('Sewa tenda')
     } else {

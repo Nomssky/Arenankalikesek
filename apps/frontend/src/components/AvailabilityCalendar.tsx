@@ -1,6 +1,10 @@
 'use client'
 
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import {
+  CalendarDaysIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@heroicons/react/24/outline'
 import { dateRangeContainsBlockedDate } from '@repo/shared-utils'
 
 interface AvailabilityCalendarProps {
@@ -21,6 +25,23 @@ function shiftMonth(month: string, amount: number) {
   return new Date(Date.UTC(year, monthNumber - 1 + amount, 1)).toISOString().slice(0, 7)
 }
 
+function formatSelectedDate(date: string) {
+  if (!date) return null
+  const parsed = new Date(`${date}T00:00:00.000Z`)
+  return {
+    day: parsed.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }),
+    weekday: parsed.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      timeZone: 'UTC',
+    }),
+  }
+}
+
 export default function AvailabilityCalendar({
   month,
   minimumDate,
@@ -39,6 +60,13 @@ export default function AvailabilityCalendar({
   const monthLabel = firstDay.toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' })
   const previousMonth = shiftMonth(month, -1)
   const canGoPrevious = !minimumDate || `${previousMonth}-31` >= minimumDate
+  const formattedCheckIn = formatSelectedDate(checkIn)
+  const formattedCheckOut = formatSelectedDate(checkOut)
+  const selectionInstruction = !checkIn
+    ? 'Pilih tanggal check-in'
+    : !checkOut
+      ? 'Sekarang pilih tanggal check-out'
+      : 'Tanggal menginap sudah dipilih'
 
   const selectDate = (date: string) => {
     if (!checkIn || checkOut) {
@@ -59,7 +87,61 @@ export default function AvailabilityCalendar({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+      <div className="border-b border-emerald-50 bg-gradient-to-br from-emerald-950 to-emerald-800 p-3 sm:p-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-stretch gap-2">
+          <button
+            type="button"
+            onClick={() => onChange('', '')}
+            className={`min-w-0 rounded-xl border p-3 text-left transition ${
+              !checkIn
+                ? 'border-orange-300 bg-white shadow-sm ring-2 ring-orange-400/30'
+                : 'border-white/15 bg-white/10 text-white hover:bg-white/15'
+            }`}
+          >
+            <span className={`block text-[10px] font-bold uppercase tracking-[0.12em] ${!checkIn ? 'text-orange-600' : 'text-white/60'}`}>
+              Check-in
+            </span>
+            <span className={`mt-1 block truncate text-sm font-bold sm:text-base ${!checkIn ? 'text-emerald-950' : 'text-white'}`}>
+              {formattedCheckIn?.day || 'Pilih tanggal'}
+            </span>
+            <span className={`mt-0.5 block truncate text-[11px] ${!checkIn ? 'text-gray-500' : 'text-white/65'}`}>
+              {formattedCheckIn ? `${formattedCheckIn.weekday} · mulai 14.00` : 'Tanggal kedatangan'}
+            </span>
+          </button>
+
+          <div className="flex items-center justify-center text-white/60" aria-hidden="true">
+            <span className="h-px w-full bg-white/25" />
+            <ChevronRightIcon className="h-4 w-4 shrink-0" />
+          </div>
+
+          <button
+            type="button"
+            disabled={!checkIn}
+            onClick={() => onChange(checkIn, '')}
+            className={`min-w-0 rounded-xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              checkIn && !checkOut
+                ? 'border-orange-300 bg-white shadow-sm ring-2 ring-orange-400/30'
+                : 'border-white/15 bg-white/10 text-white hover:bg-white/15'
+            }`}
+          >
+            <span className={`block text-[10px] font-bold uppercase tracking-[0.12em] ${checkIn && !checkOut ? 'text-orange-600' : 'text-white/60'}`}>
+              Check-out
+            </span>
+            <span className={`mt-1 block truncate text-sm font-bold sm:text-base ${checkIn && !checkOut ? 'text-emerald-950' : 'text-white'}`}>
+              {formattedCheckOut?.day || 'Pilih tanggal'}
+            </span>
+            <span className={`mt-0.5 block truncate text-[11px] ${checkIn && !checkOut ? 'text-gray-500' : 'text-white/65'}`}>
+              {formattedCheckOut ? `${formattedCheckOut.weekday} · sebelum 12.00` : 'Tanggal kepulangan'}
+            </span>
+          </button>
+        </div>
+        <p className="mt-3 flex items-center justify-center gap-2 text-xs font-semibold text-white/80">
+          <CalendarDaysIcon className="h-4 w-4 text-orange-300" />
+          {selectionInstruction}
+        </p>
+      </div>
+
       <div className="flex items-center justify-between border-b border-emerald-50 px-3 py-3 sm:px-4">
         <button
           type="button"

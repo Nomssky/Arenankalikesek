@@ -17,6 +17,7 @@ const groupLabels: Record<string, string> = {
   addon: 'Add-on Camping',
   homestay: 'Homestay',
   edu_trip: 'Edu Trip',
+  rental: 'Add-on Sewa Tempat',
 }
 
 const nullableKeys = new Set([
@@ -78,7 +79,7 @@ export default function BookingSettingsPage() {
     <div>
       <div className="admin-page-header">
         <h1 className="text-2xl font-bold text-gray-900">Pengaturan Booking</h1>
-        <p className="mt-1 max-w-3xl text-sm text-gray-500">Kelola harga camping, add-on, kapasitas dasar Aren 1/2, biaya tamu tambahan, dan kuota Edu Trip. Nilai kosong berarti harga belum tersedia.</p>
+        <p className="mt-1 max-w-3xl text-sm text-gray-500">Kelola harga camping, add-on sewa tempat, kapasitas dasar Aren 1/2, biaya tamu tambahan, dan kuota Edu Trip. Nilai kosong berarti harga belum tersedia.</p>
       </div>
 
       {error && <div className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</div>}

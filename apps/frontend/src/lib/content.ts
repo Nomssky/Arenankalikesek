@@ -7,12 +7,13 @@ const postsDir = path.join(process.cwd(), 'src', 'content', 'posts')
 export interface Post {
   slug: string
   title: string
-  date: string
+  date?: string
   author?: string
   category?: string
   excerpt: string
   content: string
   image?: string
+  imageAlt?: string
   published?: boolean
   source?: string
 }
@@ -48,7 +49,13 @@ export function getAllPosts() {
     .readdirSync(postsDir)
     .filter(isPostFile)
     .map(readPostFile)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => {
+      if (!a.date && !b.date) return 0
+      if (!a.date) return -1
+      if (!b.date) return 1
+
+      return new Date(b.date).getTime() - new Date(a.date).getTime()
+    })
 }
 
 export function getPostBySlug(slug: string): Post | null {

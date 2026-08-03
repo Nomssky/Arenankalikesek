@@ -49,6 +49,9 @@ interface BookingPayload {
   nestingQuantity?: number | string
   chairQuantity?: number | string
   extraBedQuantity?: number | string
+  rentalChairQuantity?: number | string
+  rentalSoundSystem?: boolean | string
+  rentalMatQuantity?: number | string
 }
 
 function generateBookingCode(): string {
@@ -70,6 +73,11 @@ function optionalQuantity(value: unknown) {
 
 const digits = (value: unknown) => String(value ?? '').replace(/\D/g, '')
 const MAX_PENDING_PER_PHONE = 3
+const RENTAL_VENUE_CATEGORIES = new Set(['area-kegiatan', 'tempat-pertemuan'])
+
+function isRentalVenueItem(item: ClientBookingItem) {
+  return Boolean(item.category && RENTAL_VENUE_CATEGORIES.has(item.category))
+}
 
 function safeClientItems(value: unknown): ClientBookingItem[] | null {
   if (!Array.isArray(value)) return null
@@ -154,6 +162,15 @@ async function parseBookingRequest(request: NextRequest): Promise<{
   return { payload, identityDocument: fileValue instanceof File ? fileValue : null }
 }
 
+function timeToMinutes(value: string) {
+  const match = /^(\d{2}):(\d{2})/.exec(value)
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (hours > 23 || minutes > 59) return null
+  return (hours * 60) + minutes
+}
+
 function timeOverlaps(
   newStart: string,
   newEnd: string | undefined,
@@ -161,7 +178,14 @@ function timeOverlaps(
   existingEnd: string | null,
 ): boolean {
   if (!existingStart) return true
-  return newStart < (existingEnd || existingStart) && (newEnd || newStart) > existingStart
+  const newStartMinutes = timeToMinutes(newStart)
+  const newEndMinutes = newEnd ? timeToMinutes(newEnd) : null
+  const existingStartMinutes = timeToMinutes(existingStart)
+  const existingEndMinutes = existingEnd ? timeToMinutes(existingEnd) : null
+  if (newStartMinutes === null || existingStartMinutes === null) return true
+  const normalizedNewEnd = newEndMinutes ?? newStartMinutes + 60
+  const normalizedExistingEnd = existingEndMinutes ?? existingStartMinutes + 60
+  return newStartMinutes < normalizedExistingEnd && normalizedNewEnd > existingStartMinutes
 }
 
 async function checkRentalAvailability(
@@ -174,15 +198,16 @@ async function checkRentalAvailability(
   const supabase = getSupabaseAdmin()
   for (const item of items) {
     if (!item.id) continue
-    const { data: conflicts } = await supabase
+    const { data: conflicts, error } = await supabase
       .from('rental_bookings')
       .select('time_start, time_end')
       .eq('item_id', item.id)
       .eq('booking_date', bookingDate)
       .neq('status', 'cancelled')
+    if (error) return 'Ketersediaan jadwal gagal diperiksa. Silakan muat ulang dan pilih jadwal kembali.'
     if (!conflicts?.length) continue
     if (!timeStart || conflicts.some((row) => timeOverlaps(timeStart, timeEnd, row.time_start, row.time_end))) {
-      return `“${item.name}” sudah dibooking pada waktu tersebut`
+      return `Ketersediaan jadwal berubah. “${item.name}” sudah dipesan pada rentang tersebut. Silakan pilih jadwal lain.`
     }
   }
   return null
@@ -217,7 +242,7 @@ function rpcErrorMessage(message?: string) {
   const normalized = message || ''
   if (normalized.includes('Kuota Edu Trip')) return { message: 'Kuota Edu Trip pada tanggal tersebut sudah penuh', status: 409 }
   if (normalized.includes('sudah dibooking') || normalized.includes('overlap')) {
-    return { message: 'Tanggal atau jadwal yang dipilih sudah dibooking', status: 409 }
+    return { message: 'Ketersediaan jadwal berubah. Rentang tersebut baru saja dipesan. Silakan pilih jadwal lain.', status: 409 }
   }
   if (normalized.includes('sedang ditutup')) return { message: 'Tanggal tersebut sedang ditutup oleh pengelola', status: 409 }
   return { message: 'Gagal menyimpan booking. Pastikan migrasi database terbaru sudah dijalankan.', status: 500 }
@@ -251,7 +276,25 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
     const accommodationItem = items.find((item) => item.id && isAccommodationItem(item.id))
     const isStay = Boolean(accommodationItem)
+    const isRentalVenue = items.some(isRentalVenueItem)
     const participantCount = positiveInteger(payload.participantCount || payload.guestCount, 1)
+    let rentalDurationHours = 1
+
+    if (isRentalVenue) {
+      const startMinutes = payload.timeStart ? timeToMinutes(payload.timeStart) : null
+      const endMinutes = payload.timeEnd ? timeToMinutes(payload.timeEnd) : null
+      if (!payload.bookingDate || startMinutes === null || endMinutes === null) {
+        return NextResponse.json({ error: 'Tanggal, jam mulai, dan jam selesai sewa wajib diisi' }, { status: 400 })
+      }
+      if (startMinutes < 7 * 60 || endMinutes > 17 * 60 || endMinutes <= startMinutes) {
+        return NextResponse.json({ error: 'Jam sewa harus berada dalam jam operasional 07.00–17.00 WIB' }, { status: 400 })
+      }
+      const durationInMinutes = endMinutes - startMinutes
+      if (durationInMinutes % 60 !== 0) {
+        return NextResponse.json({ error: 'Durasi sewa harus dipilih per satu jam' }, { status: 400 })
+      }
+      rentalDurationHours = durationInMinutes / 60
+    }
 
     let parsedTotal = Math.max(0, Number(payload.totalAmount) || 0)
     let finalItems = items
@@ -420,14 +463,63 @@ export async function POST(request: NextRequest) {
         if (price === null) {
           return NextResponse.json({ error: `Harga untuk "${item.name}" tidak valid` }, { status: 400 })
         }
-        validated.push({ ...item, price })
-        computedTotal += price * (item.quantity ?? 1)
+        const quantity = isRentalVenueItem(item) ? rentalDurationHours : item.quantity ?? 1
+        validated.push({ ...item, quantity, price })
+        computedTotal += price * quantity
+      }
+
+      if (isRentalVenue) {
+        const settings = await loadBookingSettings()
+        const rentalChairQuantity = optionalQuantity(payload.rentalChairQuantity)
+        const rentalSoundQuantity = payload.rentalSoundSystem === true || payload.rentalSoundSystem === 'true' ? 1 : 0
+        const rentalMatQuantity = optionalQuantity(payload.rentalMatQuantity)
+        const rentalAddOns: ClientBookingItem[] = []
+        if (rentalChairQuantity > 0) {
+          rentalAddOns.push({
+            id: 'rental-addon-chair',
+            name: 'Sewa Kursi',
+            category: 'rental-addon',
+            quantity: rentalChairQuantity,
+            price: settings['rental.chair_price'] ?? 3000,
+          })
+        }
+        if (rentalSoundQuantity > 0) {
+          rentalAddOns.push({
+            id: 'rental-addon-sound',
+            name: 'Sewa Sound System',
+            category: 'rental-addon',
+            quantity: rentalSoundQuantity,
+            price: settings['rental.sound_system_price'] ?? 300000,
+          })
+        }
+        if (rentalMatQuantity > 0) {
+          rentalAddOns.push({
+            id: 'rental-addon-mat',
+            name: 'Sewa Tikar',
+            category: 'rental-addon',
+            quantity: rentalMatQuantity,
+            price: settings['rental.mat_price'] ?? 10000,
+          })
+        }
+        const rentalAddOnTotal = rentalAddOns.reduce(
+          (sum, item) => sum + item.price * (item.quantity ?? 1),
+          0,
+        )
+        computedTotal += rentalAddOnTotal
+        validated.push(...rentalAddOns)
+        pricingDetails = {
+          kind: 'rental',
+          durationHours: rentalDurationHours,
+          addOnTotal: rentalAddOnTotal,
+          addOns: rentalAddOns,
+        }
       }
       finalItems = validated
       parsedTotal = computedTotal
     }
 
-    const conflictError = isStay ? null : await checkRentalAvailability(finalItems, bookingDate || undefined, payload.timeStart, payload.timeEnd)
+    const reservableItems = finalItems.filter((item) => item.category !== 'rental-addon')
+    const conflictError = isStay ? null : await checkRentalAvailability(reservableItems, bookingDate || undefined, payload.timeStart, payload.timeEnd)
     if (conflictError) return NextResponse.json({ error: conflictError }, { status: 409 })
 
     const bookingNotes = [
@@ -494,7 +586,7 @@ export async function POST(request: NextRequest) {
     }
     const rentals = isStay
       ? []
-      : rentalEntries(finalItems, bookingId, bookingDate || undefined, payload.timeStart, payload.timeEnd)
+      : rentalEntries(reservableItems, bookingId, bookingDate || undefined, payload.timeStart, payload.timeEnd)
     const { error: reservationError } = await supabase.rpc('reserve_booking', {
       p_booking: bookingData,
       p_rentals: rentals,
