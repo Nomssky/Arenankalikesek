@@ -436,6 +436,16 @@ supabase-schema.sql
 
 Salinan siap-tempel 010-013 untuk dashboard: `scripts/apply-migrations-live.sql`.
 
+## Harga Sewa Tempat (venue)
+
+Sumber harga & ketersediaan venue (`area-kegiatan`/`tempat-pertemuan`) adalah tabel
+`inventory_rentals` (dikelola via `/admin/inventory`). Endpoint publik
+(`tour-packages`, `inventory-rentals`) dan `authoritativeItemPrice` di bookings
+membaca DB langsung; `shared-utils/pricing.ts` hanya fallback saat Supabase tidak
+dikonfigurasi / tabel kosong. Edit harga admin langsung tercermin ke publik.
+Harga homestay/camping/glamping tetap dari `booking_settings` (kategori tersebut
+pricing-nya kompleks: rates/weekend/holiday).
+
 ---
 
 ## reserve_booking RPC

@@ -5,6 +5,7 @@ import { generateId } from '../../../lib/utils'
 import { requireAdmin } from '../../../lib/admin-guard'
 import { getTourService, storeProducts } from '@repo/shared-utils'
 import { loadBookingSettings } from '../../../lib/booking-settings'
+import { inventoryVenuePrice } from '../../../lib/inventory'
 import {
   accommodationTypeForItem,
   calculateCampingTotal,
@@ -103,11 +104,15 @@ function safeClientItems(value: unknown): ClientBookingItem[] | null {
   return result
 }
 
-function authoritativeItemPrice(item: ClientBookingItem): number | null {
+async function authoritativeItemPrice(item: ClientBookingItem): Promise<number | null> {
   const id = item.id
   if (!id) return null
   const service = getTourService(id)
   if (service) {
+    if (RENTAL_VENUE_CATEGORIES.has(service.category)) {
+      const livePrice = await inventoryVenuePrice(id)
+      if (livePrice !== null) return livePrice
+    }
     if (service.priceType === 'free') return 0
     if (service.priceType === 'fixed') return service.price
     if (service.priceType === 'range') {
@@ -227,7 +232,7 @@ async function checkRentalAvailability(
       .neq('status', 'cancelled')
     if (error) return 'Ketersediaan jadwal gagal diperiksa. Silakan muat ulang dan pilih jadwal kembali.'
     if (!conflicts?.length) continue
-    if (!timeStart || conflicts.some((row) => timeOverlaps(timeStart, timeEnd, row.time_start, row.time_end))) {
+    if (!timeStart || conflicts.some((row) => !row.time_start || timeOverlaps(timeStart, timeEnd, row.time_start, row.time_end))) {
       return `Ketersediaan jadwal berubah. “${item.name}” sudah dipesan pada rentang tersebut. Silakan pilih jadwal lain.`
     }
   }
@@ -497,7 +502,7 @@ export async function POST(request: NextRequest) {
       let computedTotal = 0
       const validated: ClientBookingItem[] = []
       for (const item of items) {
-        const price = authoritativeItemPrice(item)
+        const price = await authoritativeItemPrice(item)
         if (price === null) {
           return NextResponse.json({ error: `Harga untuk "${item.name}" tidak valid` }, { status: 400 })
         }
