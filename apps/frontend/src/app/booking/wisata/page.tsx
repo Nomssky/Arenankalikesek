@@ -228,24 +228,26 @@ function BookingServiceCard({
             </span>
           )}
         </p>
-        {item.bookable ? (
-          <button
-            type="button"
-            onClick={() => onAdd(item)}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-orange-500 active:scale-95"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Tambah
-          </button>
-        ) : (
-          <a
-            href={`https://wa.me/6285741171957?text=${encodeURIComponent(`Halo, saya ingin menanyakan ${item.name}.`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"
-          >
-            Hubungi Pengelola
-          </a>
+        {item.pricing_type !== 'free' && (
+          item.bookable ? (
+            <button
+              type="button"
+              onClick={() => onAdd(item)}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-orange-500 active:scale-95"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Tambah
+            </button>
+          ) : (
+            <a
+              href={`https://wa.me/6285741171957?text=${encodeURIComponent(`Halo, saya ingin menanyakan ${item.name}.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"
+            >
+              Hubungi Pengelola
+            </a>
+          )
         )}
       </div>
     </article>
