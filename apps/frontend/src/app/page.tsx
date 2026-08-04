@@ -285,6 +285,13 @@ export default function HomePage() {
             className="h-16 w-auto opacity-65 grayscale transition-all hover:opacity-100 hover:grayscale-0"
           />
           <Image
+            src="/images/logo-bumdes.png"
+            alt="BUMDes"
+            width={320}
+            height={320}
+            className="h-16 w-auto rounded-full opacity-65 transition-all hover:opacity-100"
+          />
+          <Image
             src="/images/logo-karang-taruna.png"
             alt="Karang Taruna"
             width={640}

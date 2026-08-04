@@ -13,6 +13,9 @@ published: true
 
 Kegiatan diawali dengan pemaparan materi mengenai aspek penting dalam manajemen pemeliharaan domba, meliputi biosecurity, manajemen pakan, Body Condition Score (BCS), pengendalian penyakit ternak, serta pengelolaan limbah peternakan. Mahasiswa menjelaskan bahwa penerapan biosecurity menjadi langkah utama dalam mencegah penyebaran penyakit sehingga mampu meningkatkan kesehatan dan produktivitas ternak.
 
+![Focus Group Discussion dengan peternak domba](/images/mono-peternakan1.png)
+![Diskusi interaktif mengenai manajemen peternakan](/images/mono-peternakan2.png)
+
 Pada sesi manajemen pakan, peserta diberikan pemahaman mengenai pemanfaatan bahan pakan lokal yang mudah diperoleh serta penyusunan ransum sesuai kebutuhan nutrisi ternak. Materi mengenai Body Condition Score (BCS) juga disampaikan sebagai indikator penting dalam mengevaluasi kondisi tubuh ternak sehingga peternak dapat menentukan strategi pemberian pakan secara lebih tepat.
 
 FGD berlangsung secara interaktif dengan membahas berbagai permasalahan yang dihadapi peternak, seperti penyakit yang sering menyerang ternak, upaya pencegahan, hingga penanganan yang tepat. Melalui diskusi ini, mahasiswa dan peternak bersama-sama mencari solusi yang sesuai dengan kondisi lapangan sehingga ilmu yang diperoleh dapat langsung diterapkan.

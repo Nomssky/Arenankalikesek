@@ -14,6 +14,9 @@ Program ini digagas oleh Kelompok 2 KKNT IDBU 10 yang diketuai oleh Bagus Kresna
 
 Melalui kegiatan sosialisasi dan pelatihan, mahasiswa memberikan edukasi kepada masyarakat mengenai pentingnya pengelolaan sampah organik yang berkelanjutan. Warga juga memperoleh pelatihan teknis mulai dari persiapan media budidaya, pemberian pakan berbahan limbah organik, hingga proses pemanenan maggot.
 
+![Pelatihan budidaya maggot](/images/multikel2a.png)
+![Proses pemanenan maggot](/images/multikel2b.png)
+
 “Program ini bertujuan membantu masyarakat mengurangi volume sampah organik sekaligus membuka peluang ekonomi baru melalui pemanfaatan maggot sebagai pakan alternatif ternak,” ujar Aldo Budi Christanto selaku wakil ketua Kelompok 2.
 
 Budidaya maggot dipilih karena memiliki kemampuan mengurai sampah organik secara cepat dan efisien. Selain mengurangi pencemaran lingkungan, maggot yang dihasilkan dapat dimanfaatkan sebagai pakan alternatif bagi unggas maupun ikan sehingga mampu menekan biaya produksi peternak dan pembudidaya. Dengan demikian, program ini turut mendukung SDG 12 melalui pengelolaan limbah yang bertanggung jawab serta SDG 13 melalui pengurangan emisi dari penumpukan sampah organik.
