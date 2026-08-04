@@ -129,8 +129,9 @@ export function calculateExtraGuestTotal(
 ): number {
   if (itemId !== 'aren-1' && itemId !== 'aren-2') return 0
   const settingPrefix = itemId.replace('-', '_')
-  const capacity = settings[`homestay.${settingPrefix}.base_capacity`] ?? 5
-  const fee = settings[`homestay.${settingPrefix}.extra_guest_fee`] ?? 10_000
+  const capacity = settings[`homestay.${settingPrefix}.base_capacity`]
+  const fee = settings[`homestay.${settingPrefix}.extra_guest_fee`]
+  if (capacity === null || capacity === undefined || fee === null || fee === undefined) return 0
   return Math.max(0, guestCount - capacity) * fee
 }
 

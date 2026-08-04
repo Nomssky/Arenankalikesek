@@ -66,6 +66,10 @@ export async function createSnapTransaction(params: SnapParams) {
     callbacks: {
       finish: params.finishRedirectUrl || `${process.env.NEXT_PUBLIC_SITE_URL || ''}/booking/sukses?order_id=${params.orderId}`,
     },
+    expiry: {
+      unit: 'minutes',
+      duration: 30,
+    },
   }
 
   const res = await fetch(`${MIDTRANS_API_URL}/snap/v1/transactions`, {
@@ -89,6 +93,40 @@ export async function createSnapTransaction(params: SnapParams) {
   }>
 }
 
+export interface MidtransTransactionStatus {
+  order_id: string
+  transaction_status: string
+  fraud_status?: string
+  gross_amount: string
+  payment_type?: string
+  transaction_id?: string
+}
+
+export async function getTransactionStatus(orderId: string): Promise<MidtransTransactionStatus> {
+  const res = await fetch(`${MIDTRANS_API_URL}/v2/${encodeURIComponent(orderId)}/status`, {
+    headers: {
+      Authorization: getAuthHeader(),
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  })
+  if (!res.ok) {
+    const error = await res.text().catch(() => 'unknown')
+    throw new Error(`Midtrans status error: ${error}`)
+  }
+  return res.json() as Promise<MidtransTransactionStatus>
+}
+
+export function snapTokenFromRedirectUrl(value: string | null | undefined): string | null {
+  if (!value) return null
+  try {
+    const parts = new URL(value).pathname.split('/').filter(Boolean)
+    return parts.at(-1) || null
+  } catch {
+    return null
+  }
+}
+
 export function verifyMidtransNotification(
   orderId: string,
   statusCode: string,
@@ -102,10 +140,16 @@ export function verifyMidtransNotification(
   return hash === signatureKey
 }
 
-export function mapMidtransStatus(midtransStatus: string): {
+export function mapMidtransStatus(midtransStatus: string, fraudStatus?: string): {
   bookingStatus: 'pending' | 'paid' | 'cancelled'
   paymentStatus: 'unpaid' | 'paid' | 'refunded'
 } {
+  if (midtransStatus === 'capture' && fraudStatus === 'deny') {
+    return { bookingStatus: 'cancelled', paymentStatus: 'unpaid' }
+  }
+  if (midtransStatus === 'capture' && fraudStatus === 'challenge') {
+    return { bookingStatus: 'pending', paymentStatus: 'unpaid' }
+  }
   switch (midtransStatus) {
     case 'capture':
     case 'settlement':

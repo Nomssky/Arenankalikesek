@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fallbackInventoryItems } from '../../../lib/fallback-data'
 import { inventoryPriceLabel, inventoryVenues } from '../../../lib/inventory'
+import { isSupabaseConfigured } from '../../../lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -8,7 +9,8 @@ export async function GET(request: NextRequest) {
   const available = searchParams.get('available')
 
   const liveVenues = await inventoryVenues()
-  const sourceItems = liveVenues.length
+  const databaseSource = isSupabaseConfigured()
+  const sourceItems = databaseSource
     ? liveVenues.map((item) => ({
         id: item.id,
         name: item.name,
@@ -33,6 +35,9 @@ export async function GET(request: NextRequest) {
     .sort((a, b) => a.name.localeCompare(b.name, 'id'))
 
   return NextResponse.json(data, {
-    headers: { 'X-Data-Source': liveVenues.length ? 'inventory-db' : 'central-pricing' },
+    headers: {
+      'Cache-Control': 'no-store',
+      'X-Data-Source': databaseSource ? 'inventory-db' : 'fallback',
+    },
   })
 }

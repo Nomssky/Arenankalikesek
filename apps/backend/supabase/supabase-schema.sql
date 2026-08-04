@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS bookings (
   payment_status TEXT DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'paid', 'refunded', 'partial_refund')),
   payment_method TEXT,
   payment_url TEXT,
+  midtrans_status TEXT,
+  payment_last_checked_at TIMESTAMPTZ,
   transaction_id TEXT,
   booking_code TEXT,
   assigned_pic TEXT,

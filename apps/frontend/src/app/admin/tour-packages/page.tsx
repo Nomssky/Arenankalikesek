@@ -58,7 +58,7 @@ export default function AdminTourPackagesPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/tour-packages')
+      const res = await fetch('/api/admin/tour-packages')
       if (res.ok) setPackages(await res.json())
       else setError('Gagal memuat paket wisata')
     } catch (e) {

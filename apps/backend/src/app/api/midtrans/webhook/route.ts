@@ -91,19 +91,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'already_processed' })
     }
 
-    const { bookingStatus, paymentStatus } = mapMidtransStatus(transactionStatus)
+    const { bookingStatus, paymentStatus } = mapMidtransStatus(transactionStatus, fraudStatus)
 
     const updateData: Record<string, unknown> = {
       status: bookingStatus,
       payment_status: paymentStatus,
       payment_method: paymentType || null,
       transaction_id: transactionId || null,
+      midtrans_status: transactionStatus,
+      payment_last_checked_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    }
-
-    if (fraudStatus === 'deny') {
-      updateData.status = 'cancelled'
-      updateData.payment_status = 'unpaid'
     }
 
     const { error } = await supabase

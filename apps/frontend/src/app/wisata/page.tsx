@@ -105,6 +105,7 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
 export default function WisataPage() {
   const [activeCategory, setActiveCategory] = useState('semua')
   const [packages, setPackages] = useState<TourPackage[]>([])
+  const [extraGuestFee, setExtraGuestFee] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -116,11 +117,18 @@ export default function WisataPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/tour-packages?available=true')
+      const [res, settingsRes] = await Promise.all([
+        fetch('/api/tour-packages?available=true'),
+        fetch('/api/booking-config'),
+      ])
       if (res.ok) {
         setPackages(await res.json())
       } else {
         setError('Gagal memuat paket wisata')
+      }
+      if (settingsRes.ok) {
+        const payload = await settingsRes.json() as { settings?: Record<string, number | null> }
+        setExtraGuestFee(payload.settings?.['homestay.aren_1.extra_guest_fee'] ?? null)
       }
     } catch {
       setError('Gagal memuat paket wisata')
@@ -331,8 +339,11 @@ export default function WisataPage() {
                 <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/90 p-4 text-sm text-gray-700">
                   <p className="font-medium">Informasi Penginapan</p>
                   <p>Check-in: 14.00 | Check-out: 12.00</p>
-                  <p>Aren 1/2: kapasitas dasar 5 orang, tambahan Rp10.000/orang untuk satu booking.</p>
-                  <p className="mt-1 text-xs text-gray-500">Tarif weekday, weekend, dan Holiday dihitung dari tanggal yang dipilih.</p>
+                  <p>
+                    Aren 1/2: kapasitas dasar 5 orang
+                    {extraGuestFee === null ? '.' : `, tambahan ${formatPrice(extraGuestFee)}/orang untuk satu booking.`}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">Total akhir dihitung dari harga database dan tanggal yang dipilih.</p>
                 </div>
               )}
               <div className="mt-6 text-center"><Link href="/booking/wisata?category=penginapan-camping" className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700">Booking Penginapan & Camping</Link></div>

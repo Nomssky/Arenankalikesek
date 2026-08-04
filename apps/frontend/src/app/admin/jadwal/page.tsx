@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { isAccommodationItem } from '@repo/shared-utils'
@@ -44,8 +44,39 @@ interface DateBlock {
   reason: string | null
 }
 
-interface StayOption { id: string; name: string }
-interface HolidayDate { holiday_date: string; label: string | null }
+interface StayOption {
+  id: string
+  name: string
+}
+
+interface HolidayDate {
+  holiday_date: string
+  label: string | null
+}
+
+function formatClock(value: string | null) {
+  return value ? value.slice(0, 5) : '-'
+}
+
+function rangeText(start: string, end: string) {
+  return `${formatDate(start)} - ${formatDate(end)}`
+}
+
+function badgeClasses(status: string) {
+  const colors: Record<string, string> = {
+    active: 'bg-blue-100 text-blue-700',
+    returned: 'bg-emerald-100 text-emerald-700',
+    cancelled: 'bg-red-100 text-red-700',
+    paid: 'bg-emerald-100 text-emerald-700',
+    pending: 'bg-yellow-100 text-yellow-800',
+    confirmed: 'bg-blue-100 text-blue-700',
+  }
+  return colors[status] || 'bg-gray-100 text-gray-700'
+}
+
+function orderKey(date: string, time: string | null) {
+  return `${date}T${time || '00:00'}`
+}
 
 export default function AdminJadwalPage() {
   const [tab, setTab] = useState<'rental' | 'accommodation'>('rental')
@@ -65,12 +96,14 @@ export default function AdminJadwalPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     setError('')
+
     const params = new URLSearchParams()
     params.set('_refresh', String(refreshKey))
     if (filterDate) {
       params.set('start_date', filterDate)
       params.set('end_date', filterDate)
     }
+
     try {
       const [rentalsResponse, staysResponse, blocksResponse, packagesResponse, holidaysResponse] = await Promise.all([
         fetch(`/api/admin/rentals?${params}`),
@@ -79,14 +112,24 @@ export default function AdminJadwalPage() {
         fetch('/api/tour-packages?available=true'),
         fetch('/api/admin/booking-holiday-dates'),
       ])
-      if (![rentalsResponse, staysResponse, blocksResponse, packagesResponse, holidaysResponse].every((response) => response.ok)) throw new Error()
+
+      if (![rentalsResponse, staysResponse, blocksResponse, packagesResponse, holidaysResponse].every((response) => response.ok)) {
+        throw new Error('Gagal memuat jadwal')
+      }
+
       const [rentalData, stayData, blockData, packageData, holidayData] = await Promise.all([
-        rentalsResponse.json(), staysResponse.json(), blocksResponse.json(), packagesResponse.json(), holidaysResponse.json(),
+        rentalsResponse.json(),
+        staysResponse.json(),
+        blocksResponse.json(),
+        packagesResponse.json(),
+        holidaysResponse.json(),
       ])
+
       setRentals(rentalData)
       setAccommodations(stayData)
       setBlocks(blockData)
       setHolidayDates(holidayData)
+
       const options = packageData.filter((item: StayOption) => isAccommodationItem(item.id))
       setStayOptions(options)
       setBlockForm((current) => ({ ...current, itemId: current.itemId || options[0]?.id || '' }))
@@ -102,9 +145,31 @@ export default function AdminJadwalPage() {
     loadData()
   }, [loadData])
 
+  const sortedRentals = useMemo(
+    () => [...rentals].sort((a, b) => orderKey(a.booking_date, a.time_start).localeCompare(orderKey(b.booking_date, b.time_start))),
+    [rentals],
+  )
+
+  const sortedAccommodations = useMemo(
+    () => [...accommodations].sort((a, b) => orderKey(a.check_in_date, null).localeCompare(orderKey(b.check_in_date, null))),
+    [accommodations],
+  )
+
+  const sortedBlocks = useMemo(
+    () => [...blocks].sort((a, b) => a.start_date.localeCompare(b.start_date)),
+    [blocks],
+  )
+
+  const sortedHolidayDates = useMemo(
+    () => [...holidayDates].sort((a, b) => a.holiday_date.localeCompare(b.holiday_date)),
+    [holidayDates],
+  )
+
   async function updateRentalStatus(id: string, status: string) {
     const response = await fetch(`/api/admin/rentals/${id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
     })
     if (response.ok) setRefreshKey((value) => value + 1)
   }
@@ -112,12 +177,14 @@ export default function AdminJadwalPage() {
   async function cancelAccommodation(bookingId: string) {
     if (!window.confirm('Batalkan booking ini dan buka kembali tanggalnya?')) return
     const response = await fetch(`/api/bookings/${bookingId}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'cancelled' }),
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'cancelled' }),
     })
     if (response.ok) setRefreshKey((value) => value + 1)
   }
 
-  async function createDateBlock(event: React.FormEvent) {
+  async function createDateBlock(event: FormEvent) {
     event.preventDefault()
     const option = stayOptions.find((item) => item.id === blockForm.itemId)
     const response = await fetch('/api/admin/booking-date-blocks', {
@@ -140,10 +207,12 @@ export default function AdminJadwalPage() {
     if (response.ok) setRefreshKey((value) => value + 1)
   }
 
-  async function saveHolidayDate(event: React.FormEvent) {
+  async function saveHolidayDate(event: FormEvent) {
     event.preventDefault()
     const response = await fetch('/api/admin/booking-holiday-dates', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(holidayForm),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(holidayForm),
     })
     if (response.ok) {
       setHolidayForm({ date: '', label: '' })
@@ -161,80 +230,381 @@ export default function AdminJadwalPage() {
       <div className="admin-page-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Jadwal Booking</h1>
-          <p className="mt-1 text-sm text-gray-500">Sewa per jam dan penginapan per malam dikelola terpisah.</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Hanya booking dengan pembayaran lunas yang tampil sebagai jadwal aktif.
+          </p>
         </div>
-        {tab === 'accommodation' && <button type="button" onClick={() => setShowBlockForm((value) => !value)} className="btn-primary text-sm">{showBlockForm ? 'Tutup form' : '+ Tutup tanggal'}</button>}
+        {tab === 'accommodation' && (
+          <button
+            type="button"
+            onClick={() => setShowBlockForm((value) => !value)}
+            className="btn-primary text-sm"
+          >
+            {showBlockForm ? 'Tutup form' : '+ Tutup tanggal'}
+          </button>
+        )}
       </div>
 
       <div className="mt-5 grid grid-cols-2 rounded-xl bg-white p-1 shadow-sm sm:max-w-lg">
-        <button type="button" onClick={() => setTab('rental')} className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${tab === 'rental' ? 'bg-emerald-700 text-white' : 'text-gray-600'}`}>Sewa Tempat</button>
-        <button type="button" onClick={() => setTab('accommodation')} className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${tab === 'accommodation' ? 'bg-emerald-700 text-white' : 'text-gray-600'}`}>Penginapan & Camping</button>
+        <button
+          type="button"
+          onClick={() => setTab('rental')}
+          className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${tab === 'rental' ? 'bg-emerald-700 text-white' : 'text-gray-600'}`}
+        >
+          Sewa Tempat
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('accommodation')}
+          className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${tab === 'accommodation' ? 'bg-emerald-700 text-white' : 'text-gray-600'}`}
+        >
+          Penginapan & Camping
+        </button>
       </div>
 
       <div className="admin-filterbar mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="w-full sm:max-w-xs">
           <label className="form-label">Filter tanggal</label>
-          <input type="date" className="form-input" value={filterDate} onChange={(event) => setFilterDate(event.target.value)} />
+          <input
+            type="date"
+            className="form-input"
+            value={filterDate}
+            onChange={(event) => setFilterDate(event.target.value)}
+          />
         </div>
-        {filterDate && <button type="button" onClick={() => setFilterDate('')} className="btn-outline text-sm">Reset</button>}
+        {filterDate && (
+          <button
+            type="button"
+            onClick={() => setFilterDate('')}
+            className="btn-outline text-sm"
+          >
+            Reset
+          </button>
+        )}
       </div>
 
       {showBlockForm && tab === 'accommodation' && (
         <form onSubmit={createDateBlock} className="mt-4 grid gap-4 rounded-2xl border border-orange-100 bg-orange-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div><label className="form-label">Unit</label><select className="form-select" value={blockForm.itemId} onChange={(event) => setBlockForm({ ...blockForm, itemId: event.target.value })}>{stayOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-          <div><label className="form-label">Mulai ditutup</label><input required type="date" className="form-input" value={blockForm.startDate} onChange={(event) => setBlockForm({ ...blockForm, startDate: event.target.value })} /></div>
-          <div><label className="form-label">Dibuka kembali</label><input required type="date" min={blockForm.startDate} className="form-input" value={blockForm.endDate} onChange={(event) => setBlockForm({ ...blockForm, endDate: event.target.value })} /></div>
-          <div><label className="form-label">Alasan</label><input className="form-input" value={blockForm.reason} onChange={(event) => setBlockForm({ ...blockForm, reason: event.target.value })} placeholder="Perawatan, acara, dll." /></div>
+          <div>
+            <label className="form-label">Unit</label>
+            <select
+              className="form-select"
+              value={blockForm.itemId}
+              onChange={(event) => setBlockForm({ ...blockForm, itemId: event.target.value })}
+            >
+              {stayOptions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">Mulai ditutup</label>
+            <input
+              required
+              type="date"
+              className="form-input"
+              value={blockForm.startDate}
+              onChange={(event) => setBlockForm({ ...blockForm, startDate: event.target.value })}
+            />
+          </div>
+          <div>
+            <label className="form-label">Dibuka kembali</label>
+            <input
+              required
+              type="date"
+              min={blockForm.startDate}
+              className="form-input"
+              value={blockForm.endDate}
+              onChange={(event) => setBlockForm({ ...blockForm, endDate: event.target.value })}
+            />
+          </div>
+          <div>
+            <label className="form-label">Alasan</label>
+            <input
+              className="form-input"
+              value={blockForm.reason}
+              onChange={(event) => setBlockForm({ ...blockForm, reason: event.target.value })}
+              placeholder="Perawatan, acara, dll."
+            />
+          </div>
           <button className="btn-primary sm:col-span-2 lg:col-span-4">Simpan tanggal tutup</button>
         </form>
       )}
 
       {error && <div className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+
       {loading ? (
-        <div className="flex justify-center py-16"><div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" /></div>
+        <div className="flex justify-center py-16">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+        </div>
       ) : tab === 'rental' ? (
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {rentals.map((row) => (
-            <article key={row.id} className="rounded-2xl bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3"><div><h2 className="font-bold text-gray-900">{row.item_name || row.item_id}</h2><p className="text-xs text-gray-500">{row.bookings?.booking_code}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${row.status === 'active' ? 'bg-blue-50 text-blue-700' : row.status === 'cancelled' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{row.status}</span></div>
-              <dl className="mt-4 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-gray-500">Penyewa</dt><dd className="text-right font-semibold">{row.bookings?.customer_name || '-'}</dd></div><div className="flex justify-between gap-3"><dt className="text-gray-500">Tanggal</dt><dd>{formatDate(row.booking_date)}</dd></div><div className="flex justify-between gap-3"><dt className="text-gray-500">Jam</dt><dd>{row.time_start?.slice(0, 5) || '-'}{row.time_end ? `–${row.time_end.slice(0, 5)}` : ''}</dd></div></dl>
-              {row.status === 'active' && <div className="mt-4 flex gap-2"><button onClick={() => updateRentalStatus(row.id, 'returned')} className="btn-outline flex-1 text-xs">Selesai</button><button onClick={() => updateRentalStatus(row.id, 'cancelled')} className="rounded-full bg-red-50 px-4 py-2 text-xs font-semibold text-red-600">Batal</button></div>}
-            </article>
-          ))}
-          {rentals.length === 0 && <p className="rounded-xl bg-white p-8 text-center text-gray-500 md:col-span-2 xl:col-span-3">Belum ada jadwal sewa.</p>}
+        <div
+          className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl bg-white shadow-sm"
+          data-lenis-prevent
+          data-scroll-container
+        >
+          {sortedRentals.length === 0 ? (
+            <p className="py-12 text-center text-gray-500">Belum ada jadwal sewa.</p>
+          ) : (
+            <table className="min-w-[960px] w-full text-left text-sm">
+              <thead className="border-b bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 font-semibold text-gray-700">Tanggal</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">Waktu</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">Layanan</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">Pemesan</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">Status</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {sortedRentals.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-700">
+                      {formatDate(row.booking_date)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <p className="font-medium">
+                        {formatClock(row.time_start)}
+                        {row.time_end ? ` - ${formatClock(row.time_end)}` : ''}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">{row.quantity} unit</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900">{row.item_name || row.item_id}</p>
+                      <p className="mt-0.5 font-mono text-xs text-gray-400">
+                        {row.bookings?.booking_code || row.booking_id.slice(0, 8)}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-gray-900">{row.bookings?.customer_name || '-'}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">{row.bookings?.customer_phone || '-'}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses(row.status)}`}>
+                        {row.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/invoice/${row.booking_id}?phone=${encodeURIComponent(row.bookings?.customer_phone || '')}`}
+                          className="text-sm font-medium text-emerald-600 hover:underline"
+                        >
+                          Invoice
+                        </Link>
+                        {row.status === 'active' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => updateRentalStatus(row.id, 'returned')}
+                              className="text-sm font-medium text-blue-600 hover:underline"
+                            >
+                              Selesai
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateRentalStatus(row.id, 'cancelled')}
+                              className="text-sm font-medium text-red-600 hover:underline"
+                            >
+                              Batal
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       ) : (
         <>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {accommodations.map((row) => (
-              <article key={row.id} className="rounded-2xl bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">{row.accommodation_type}</p><h2 className="font-bold text-gray-900">{row.item_name}</h2><p className="text-xs text-gray-500">{row.bookings?.booking_code}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${row.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{row.status}</span></div>
-                <dl className="mt-4 space-y-2 text-sm"><div className="flex justify-between gap-3"><dt className="text-gray-500">Pemesan</dt><dd className="text-right font-semibold">{row.bookings?.customer_name || '-'}</dd></div><div className="flex justify-between gap-3"><dt className="text-gray-500">Menginap</dt><dd className="text-right">{formatDate(row.check_in_date)}–{formatDate(row.check_out_date)}</dd></div><div className="flex justify-between gap-3"><dt className="text-gray-500">Durasi/tamu</dt><dd>{row.nights} malam · {row.guest_count} orang</dd></div><div className="flex justify-between gap-3"><dt className="text-gray-500">Total</dt><dd className="font-semibold">{formatPrice(row.total_price)}</dd></div></dl>
-                <div className="mt-4 flex flex-wrap gap-2"><Link href={`/invoice/${row.booking_id}?phone=${encodeURIComponent(row.bookings?.customer_phone || '')}`} className="btn-outline text-xs">Invoice</Link>{row.status === 'active' && <button onClick={() => cancelAccommodation(row.booking_id)} className="rounded-full bg-red-50 px-4 py-2 text-xs font-semibold text-red-600">Batalkan</button>}</div>
-              </article>
-            ))}
-            {accommodations.length === 0 && <p className="rounded-xl bg-white p-8 text-center text-gray-500 md:col-span-2 xl:col-span-3">Belum ada booking penginapan.</p>}
+          <div
+            className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl bg-white shadow-sm"
+            data-lenis-prevent
+            data-scroll-container
+          >
+            {sortedAccommodations.length === 0 ? (
+              <p className="py-12 text-center text-gray-500">Belum ada booking penginapan.</p>
+            ) : (
+              <table className="min-w-[980px] w-full text-left text-sm">
+                <thead className="border-b bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-gray-700">Periode</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700">Unit</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700">Pemesan</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700">Detail</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700">Status</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {sortedAccommodations.map((row) => (
+                    <tr key={row.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-700">
+                        <p className="font-medium">{rangeText(row.check_in_date, row.check_out_date)}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">{row.nights} malam</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900">{row.item_name}</p>
+                        <p className="mt-0.5 text-xs text-gray-500 capitalize">{row.accommodation_type}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-gray-900">{row.bookings?.customer_name || '-'}</p>
+                        <p className="mt-0.5 font-mono text-xs text-gray-400">
+                          {row.bookings?.booking_code || row.booking_id.slice(0, 8)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500">{row.bookings?.customer_phone || '-'}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-gray-900">{row.guest_count} tamu</p>
+                        <p className="mt-0.5 text-xs text-gray-500">{formatPrice(row.total_price)}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          {row.tent_size ? `Tenda ${row.tent_size}` : 'Tanpa tenda'}
+                          {row.tent_count ? ` - ${row.tent_count} unit` : ''}
+                          {row.tent_option ? ` - ${row.tent_option}` : ''}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses(row.status)}`}>
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/invoice/${row.booking_id}?phone=${encodeURIComponent(row.bookings?.customer_phone || '')}`}
+                            className="text-sm font-medium text-emerald-600 hover:underline"
+                          >
+                            Invoice
+                          </Link>
+                          {row.status === 'active' && (
+                            <button
+                              type="button"
+                              onClick={() => cancelAccommodation(row.booking_id)}
+                              className="text-sm font-medium text-red-600 hover:underline"
+                            >
+                              Batalkan
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <section className="mt-7 rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="font-bold text-gray-900">Tanggal yang ditutup admin</h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {blocks.map((block) => <div key={block.id} className="rounded-xl border border-orange-100 bg-orange-50 p-4"><p className="font-semibold text-gray-900">{block.item_name || block.item_id}</p><p className="mt-1 text-sm text-gray-600">{formatDate(block.start_date)}–{formatDate(block.end_date)}</p>{block.reason && <p className="mt-1 text-xs text-gray-500">{block.reason}</p>}<button onClick={() => removeDateBlock(block.id)} className="mt-3 text-xs font-semibold text-red-600">Buka kembali tanggal</button></div>)}
-              {blocks.length === 0 && <p className="text-sm text-gray-500">Tidak ada tanggal yang ditutup manual.</p>}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="font-bold text-gray-900">Tanggal yang ditutup admin</h2>
+                <p className="mt-1 text-sm text-gray-500">Daftar tanggal yang sedang ditutup manual oleh pengelola.</p>
+              </div>
+            </div>
+
+            <div className="admin-table-scroll mt-4 rounded-xl border border-orange-100" data-lenis-prevent data-scroll-container>
+              {sortedBlocks.length === 0 ? (
+                <p className="py-8 text-center text-sm text-gray-500">Tidak ada tanggal yang ditutup manual.</p>
+              ) : (
+                <table className="min-w-[760px] w-full text-left text-sm">
+                  <thead className="border-b bg-orange-50">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold text-gray-700">Unit</th>
+                      <th className="px-4 py-3 font-semibold text-gray-700">Rentang</th>
+                      <th className="px-4 py-3 font-semibold text-gray-700">Alasan</th>
+                      <th className="px-4 py-3 font-semibold text-gray-700">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y bg-white">
+                    {sortedBlocks.map((block) => (
+                      <tr key={block.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{block.item_name || block.item_id}</p>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">{rangeText(block.start_date, block.end_date)}</td>
+                        <td className="px-4 py-3 text-gray-600">{block.reason || '-'}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => removeDateBlock(block.id)}
+                            className="text-sm font-medium text-red-600 hover:underline"
+                          >
+                            Buka kembali tanggal
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </section>
 
           <section className="mt-7 rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="font-bold text-gray-900">Kalender tarif Holiday</h2>
-            <p className="mt-1 text-sm text-gray-500">Tanggal di sini otomatis memakai tarif Holiday homestay. Sistem tidak menebak tanggal libur.</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="font-bold text-gray-900">Kalender tarif Holiday</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Tanggal di sini otomatis memakai tarif Holiday homestay. Sistem tidak menebak tanggal libur.
+                </p>
+              </div>
+            </div>
+
             <form onSubmit={saveHolidayDate} className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto]">
-              <input required type="date" className="form-input" value={holidayForm.date} onChange={(event) => setHolidayForm({ ...holidayForm, date: event.target.value })} aria-label="Tanggal libur" />
-              <input className="form-input" value={holidayForm.label} onChange={(event) => setHolidayForm({ ...holidayForm, label: event.target.value })} placeholder="Nama hari libur/acara" />
+              <input
+                required
+                type="date"
+                className="form-input"
+                value={holidayForm.date}
+                onChange={(event) => setHolidayForm({ ...holidayForm, date: event.target.value })}
+                aria-label="Tanggal libur"
+              />
+              <input
+                className="form-input"
+                value={holidayForm.label}
+                onChange={(event) => setHolidayForm({ ...holidayForm, label: event.target.value })}
+                placeholder="Nama hari libur/acara"
+              />
               <button className="btn-primary text-sm">Tambah tanggal</button>
             </form>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {holidayDates.map((holiday) => <span key={holiday.holiday_date} className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-2 text-xs text-orange-800"><strong>{formatDate(holiday.holiday_date)}</strong>{holiday.label || 'Holiday'}<button type="button" onClick={() => removeHolidayDate(holiday.holiday_date)} className="font-bold text-red-500" aria-label={`Hapus ${holiday.holiday_date}`}>×</button></span>)}
-              {holidayDates.length === 0 && <p className="text-sm text-gray-500">Belum ada tanggal tarif Holiday.</p>}
+
+            <div className="admin-table-scroll mt-4 rounded-xl border border-orange-100" data-lenis-prevent data-scroll-container>
+              {sortedHolidayDates.length === 0 ? (
+                <p className="py-8 text-center text-sm text-gray-500">Belum ada tanggal tarif Holiday.</p>
+              ) : (
+                <table className="min-w-[720px] w-full text-left text-sm">
+                  <thead className="border-b bg-orange-50">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold text-gray-700">Tanggal</th>
+                      <th className="px-4 py-3 font-semibold text-gray-700">Label</th>
+                      <th className="px-4 py-3 font-semibold text-gray-700">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y bg-white">
+                    {sortedHolidayDates.map((holiday) => (
+                      <tr key={holiday.holiday_date} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-900">{formatDate(holiday.holiday_date)}</td>
+                        <td className="px-4 py-3 text-gray-600">{holiday.label || 'Holiday'}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => removeHolidayDate(holiday.holiday_date)}
+                            className="text-sm font-medium text-red-600 hover:underline"
+                          >
+                            Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </section>
         </>

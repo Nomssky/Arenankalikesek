@@ -31,8 +31,7 @@ export async function loadInventory(): Promise<InventoryRecord[]> {
     .from('inventory_rentals')
     .select('id,name,category,price_per_unit,price_type,image,available')
   if (error) {
-    console.error('Inventory load error:', error)
-    return []
+    throw new Error(`Gagal memuat harga sewa tempat dari database: ${error.message}`)
   }
   return (data || []).map((row) => ({
     id: row.id,

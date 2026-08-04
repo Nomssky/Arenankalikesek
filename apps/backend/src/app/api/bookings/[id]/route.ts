@@ -60,6 +60,27 @@ export async function PATCH(
       }
     }
 
+    const requestedStatus = String(updateData.status || '')
+    const requestedPaymentStatus = String(updateData.payment_status || '')
+
+    if (
+      ['paid', 'confirmed'].includes(requestedStatus) &&
+      requestedPaymentStatus &&
+      requestedPaymentStatus !== 'paid'
+    ) {
+      return NextResponse.json(
+        { error: 'Booking hanya dapat dikonfirmasi setelah pembayaran lunas' },
+        { status: 400 }
+      )
+    }
+
+    if (
+      requestedPaymentStatus === 'paid' &&
+      (!requestedStatus || requestedStatus === 'pending')
+    ) {
+      updateData.status = 'paid'
+    }
+
     if (Object.keys(updateData).length <= 1) {
       return NextResponse.json(
         { error: 'Tidak ada data yang diupdate' },

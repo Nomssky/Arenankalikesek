@@ -14,6 +14,22 @@ const rentalOverlapMigration = readFileSync(
   new URL('../supabase/migrations/011_rental_overlap_and_addon_prices.sql', import.meta.url),
   'utf8',
 )
+const publicScheduleRoute = readFileSync(
+  new URL('../src/app/api/schedule/route.ts', import.meta.url),
+  'utf8',
+)
+const adminRentalsRoute = readFileSync(
+  new URL('../src/app/api/admin/rentals/route.ts', import.meta.url),
+  'utf8',
+)
+const adminAccommodationsRoute = readFileSync(
+  new URL('../src/app/api/admin/accommodations/route.ts', import.meta.url),
+  'utf8',
+)
+const paymentHoldMigration = readFileSync(
+  new URL('../supabase/migrations/014_payment_hold_before_active_schedule.sql', import.meta.url),
+  'utf8',
+)
 
 test('migrasi memiliki proteksi overlap penginapan di database', () => {
   assert.match(migration, /EXCLUDE USING gist/)
@@ -44,4 +60,19 @@ test('invoice tidak memilih jenis maupun path dokumen identitas', () => {
   const selectExpression = invoiceRoute.match(/\.select\('([^']+)'\)/)?.[1] || ''
   assert.doesNotMatch(selectExpression, /document_type/)
   assert.doesNotMatch(selectExpression, /document_storage_path/)
+})
+
+test('jadwal aktif hanya memuat booking dengan pembayaran lunas', () => {
+  for (const route of [publicScheduleRoute, adminRentalsRoute, adminAccommodationsRoute]) {
+    assert.match(route, /bookings\.payment_status'\s*,\s*'paid'/)
+    assert.match(route, /bookings\.status'\s*,\s*\['paid', 'confirmed'\]/)
+  }
+})
+
+test('resource pending menjadi hold dan baru aktif setelah pembayaran', () => {
+  assert.match(paymentHoldMigration, /status IN \('hold', 'active'/)
+  assert.match(paymentHoldMigration, /NEW\.status = 'pending'/)
+  assert.match(paymentHoldMigration, /SET status = 'hold'/)
+  assert.match(paymentHoldMigration, /NEW\.status IN \('paid', 'confirmed'\)/)
+  assert.match(paymentHoldMigration, /SET status = 'active'/)
 })

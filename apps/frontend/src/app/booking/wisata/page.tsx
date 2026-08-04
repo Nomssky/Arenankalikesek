@@ -9,6 +9,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ClockIcon,
+  CreditCardIcon,
   InformationCircleIcon,
   MagnifyingGlassIcon,
   MinusIcon,
@@ -24,9 +25,9 @@ import CategoryVisualHeader from '@/components/CategoryVisualHeader'
 import CartToast from '@/components/CartToast'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
 import { formatPrice } from '@/lib/utils'
+import type { PaymentWaitingData } from '@/components/PaymentWaitingModal'
 import { getServiceCategory } from '@/lib/service-categories'
 import {
-  DEFAULT_BOOKING_SETTINGS,
   calculateCampingTotal,
   calculateExtraGuestTotal,
   calculateHomestayBase,
@@ -143,6 +144,10 @@ function getBookingCategoryIdFromServiceCategory(categoryId: string) {
     bookingCategoryGroups.find((group) => group.categoryIds.includes(categoryId))
       ?.id || 'semua'
   )
+}
+
+function settingPriceLabel(value: number | null | undefined, suffix: string) {
+  return value === null || value === undefined ? 'Harga belum tersedia' : `${formatPrice(value)}${suffix}`
 }
 
 function arenaDateKey() {
@@ -302,7 +307,7 @@ export default function BookingWisataPage() {
   const [calendarMonth, setCalendarMonth] = useState(() => arenaDateKey().slice(0, 7))
   const [blockedDatesByMonth, setBlockedDatesByMonth] = useState<Record<string, string[]>>({})
   const [holidayDatesByMonth, setHolidayDatesByMonth] = useState<Record<string, string[]>>({})
-  const [bookingSettings, setBookingSettings] = useState<BookingSettingMap>(DEFAULT_BOOKING_SETTINGS)
+  const [bookingSettings, setBookingSettings] = useState<BookingSettingMap>({})
   const [tentSize, setTentSize] = useState<'small' | 'large'>('small')
   const [tentCount, setTentCount] = useState(1)
   const [tentOption, setTentOption] = useState<'own' | 'rent'>('own')
@@ -322,21 +327,26 @@ export default function BookingWisataPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [fetchError, setFetchError] = useState('')
   const [submitError, setSubmitError] = useState('')
+  const [pendingBooking, setPendingBooking] = useState<PaymentWaitingData | null>(null)
+  const [isCheckingPending, setIsCheckingPending] = useState(false)
   const selectedAccommodation = cart.find((item) => isAccommodationItem(item.id))
   const isAccommodationBooking = Boolean(selectedAccommodation)
   const isCampingBooking = selectedAccommodation?.id === 'camping-ground'
   const isHomestayBooking = selectedAccommodation?.category === 'homestay'
   const isRentalVenueBooking = cart.some((item) => ['area-kegiatan', 'tempat-pertemuan'].includes(item.category))
-  const supportsExtraGuestAddOn = Boolean(
+  const extraGuestEligible = Boolean(
     selectedAccommodation && ['aren-1', 'aren-2'].includes(selectedAccommodation.id),
   )
   const homestaySettingPrefix = selectedAccommodation?.id.replace('-', '_') || ''
-  const homestayBaseCapacity = supportsExtraGuestAddOn
-    ? bookingSettings[`homestay.${homestaySettingPrefix}.base_capacity`] ?? 5
+  const homestayBaseCapacity = extraGuestEligible
+    ? bookingSettings[`homestay.${homestaySettingPrefix}.base_capacity`]
     : null
-  const homestayExtraGuestFee = supportsExtraGuestAddOn
-    ? bookingSettings[`homestay.${homestaySettingPrefix}.extra_guest_fee`] ?? 10000
-    : 0
+  const homestayExtraGuestFee = extraGuestEligible
+    ? bookingSettings[`homestay.${homestaySettingPrefix}.extra_guest_fee`]
+    : null
+  const supportsExtraGuestAddOn = extraGuestEligible
+    && homestayBaseCapacity !== null && homestayBaseCapacity !== undefined
+    && homestayExtraGuestFee !== null && homestayExtraGuestFee !== undefined
   const appliedExtraGuestQuantity = supportsExtraGuestAddOn && extraGuestEnabled
     ? extraGuestQuantity
     : 0
@@ -347,9 +357,17 @@ export default function BookingWisataPage() {
       : 'camping.large_tent_rental_price'
   ] ?? bookingSettings['camping.tent_rental_price']
   const campingTentRentalAvailable = campingTentRentalPrice !== null && campingTentRentalPrice !== undefined
+  const rentalChairPrice = bookingSettings['rental.chair_price']
+  const rentalSoundPrice = bookingSettings['rental.sound_system_price']
+  const rentalMatPrice = bookingSettings['rental.mat_price']
   const hasEduTrip = cart.some((item) => isEduTripItem(item))
   const blockedDates = Object.values(blockedDatesByMonth).flat()
   const holidayDates = Object.values(holidayDatesByMonth).flat()
+  const canResumePendingBooking = Boolean(
+    pendingBooking &&
+    pendingBooking.state === 'pending' &&
+    (pendingBooking.snapToken || pendingBooking.paymentUrl),
+  )
   const identityPreview = useMemo(
     () => identityDocument ? URL.createObjectURL(identityDocument) : '',
     [identityDocument],
@@ -359,7 +377,7 @@ export default function BookingWisataPage() {
     fetch('/api/booking-config')
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
-        if (data?.settings) setBookingSettings({ ...DEFAULT_BOOKING_SETTINGS, ...data.settings })
+        if (data?.settings) setBookingSettings(data.settings)
       })
       .catch(() => undefined)
   }, [])
@@ -560,6 +578,7 @@ export default function BookingWisataPage() {
   }`
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
   const cartBasePrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const extraBedPrice = packages.find((item) => item.id === 'extra-bed' && item.bookable)?.price ?? null
   let stayNights = 0
   let stayBaseTotal = 0
   let stayExtraGuestTotal = 0
@@ -583,7 +602,7 @@ export default function BookingWisataPage() {
           stayNights,
           bookingSettings,
         )
-        stayAddOnTotal = extraBedQuantity * 25000
+        stayAddOnTotal = extraBedQuantity * (extraBedPrice ?? 0)
       } else if (selectedAccommodation.id === 'camping-ground') {
         const camping = calculateCampingTotal({
           tentSize,
@@ -606,10 +625,15 @@ export default function BookingWisataPage() {
     }
   }
   const rentalVenueAddOnTotal = isRentalVenueBooking
-    ? (rentalChairQuantity * (bookingSettings['rental.chair_price'] ?? 3000))
-      + (rentalSoundSystem ? bookingSettings['rental.sound_system_price'] ?? 300000 : 0)
-      + (rentalMatQuantity * (bookingSettings['rental.mat_price'] ?? 10000))
+    ? (rentalChairQuantity * (rentalChairPrice ?? 0))
+      + (rentalSoundSystem ? rentalSoundPrice ?? 0 : 0)
+      + (rentalMatQuantity * (rentalMatPrice ?? 0))
     : 0
+  const rentalUnavailablePrices = [
+    rentalChairQuantity > 0 && (rentalChairPrice === null || rentalChairPrice === undefined) ? 'kursi' : null,
+    rentalSoundSystem && (rentalSoundPrice === null || rentalSoundPrice === undefined) ? 'sound system' : null,
+    rentalMatQuantity > 0 && (rentalMatPrice === null || rentalMatPrice === undefined) ? 'tikar' : null,
+  ].filter(Boolean)
   const totalPrice = isAccommodationBooking
     ? stayBaseTotal + stayExtraGuestTotal + stayAddOnTotal
     : cartBasePrice + rentalVenueAddOnTotal
@@ -687,6 +711,77 @@ export default function BookingWisataPage() {
     setToastItem(null)
     setCheckoutStep('cart')
     setCartOpen(true)
+    checkPendingBooking()
+  }
+
+  const checkPendingBooking = async () => {
+    const pendingBookingId = sessionStorage.getItem('pending-booking-id')
+    if (!pendingBookingId) {
+      setPendingBooking(null)
+      return
+    }
+    setIsCheckingPending(true)
+    try {
+      const storedPhone = sessionStorage.getItem(`invoice_phone_${pendingBookingId}`) || customerPhone
+      const res = await fetch(`/api/bookings/${pendingBookingId}/payment?phone=${encodeURIComponent(storedPhone)}`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.state === 'pending') {
+        const pendingData: PaymentWaitingData = {
+          bookingId: data.bookingId,
+          bookingCode: data.bookingCode,
+          totalAmount: data.totalAmount,
+          paymentUrl: data.paymentUrl,
+          snapToken: data.snapToken,
+          serviceName: data.services?.[0]?.name || null,
+          bookingDate: data.bookingDate,
+          timeStart: data.timeStart,
+          timeEnd: data.timeEnd,
+          expiresAt: data.expiresAt,
+          state: data.state,
+        }
+        setPendingBooking(pendingData)
+      } else {
+        sessionStorage.removeItem('pending-booking-id')
+        setPendingBooking(null)
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      setIsCheckingPending(false)
+    }
+  }
+
+  const handleContinuePayment = async (data: PaymentWaitingData) => {
+    if (data.snapToken) {
+      await loadSnapJs()
+      if (window.snap) {
+        window.snap.pay(data.snapToken, {
+          onSuccess: () => {
+            sessionStorage.removeItem('pending-booking-id')
+            setPendingBooking(null)
+            router.push(`/booking/sukses?id=${data.bookingId}`)
+          },
+          onPending: () => {
+            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            setPendingBooking(data)
+          },
+          onError: () => {
+            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            setPendingBooking(data)
+          },
+          onClose: () => {
+            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            setPendingBooking(data)
+          },
+        })
+        return
+      }
+    }
+    if (data.paymentUrl) {
+      sessionStorage.setItem('pending-booking-id', data.bookingId)
+      window.location.assign(data.paymentUrl)
+    }
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -726,6 +821,10 @@ export default function BookingWisataPage() {
       }
       if (isRentalVenueBooking && (!timeEnd || !timeStart.endsWith(':00') || !timeEnd.endsWith(':00') || timeStart < '07:00' || timeStart >= '17:00' || timeEnd > '17:00')) {
         setSubmitError('Pilih jam sewa dalam jam operasional 07.00–17.00 WIB.')
+        return
+      }
+      if (rentalUnavailablePrices.length > 0) {
+        setSubmitError(`Harga add-on ${rentalUnavailablePrices.join(', ')} belum tersedia.`)
         return
       }
       if (timeEnd && timeEnd <= timeStart) {
@@ -808,27 +907,62 @@ export default function BookingWisataPage() {
       if (data.booking) {
         localStorage.setItem(`invoice_${data.bookingId}`, JSON.stringify(data.booking))
       }
+      try {
+        sessionStorage.setItem(`invoice_phone_${data.bookingId}`, customerPhone.trim())
+      } catch {}
+const waitingData: PaymentWaitingData = {
+        bookingId: data.bookingId,
+        bookingCode: data.bookingCode || null,
+        totalAmount: Number(data.totalAmount ?? totalPrice),
+        paymentUrl: data.paymentUrl || null,
+        snapToken: data.snapToken || null,
+        serviceName: cart[0]?.name || null,
+        bookingDate: isAccommodationBooking ? checkInDate : bookingDate,
+        timeStart: isAccommodationBooking ? null : timeStart,
+        timeEnd: isAccommodationBooking ? null : timeEnd,
+        expiresAt: data.expiresAt || null,
+        state: 'pending',
+      }
       sessionStorage.removeItem('wisata-cart')
       setCart([])
 
       if (data.snapToken) {
         await loadSnapJs()
+        if (!window.snap) {
+          setCartOpen(false)
+          sessionStorage.setItem('pending-booking-id', data.bookingId)
+          setPendingBooking(waitingData)
+          return
+        }
         window.snap?.pay(data.snapToken, {
-          onSuccess: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
-          onPending: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
-          onError: () => { setSubmitError('Pembayaran gagal, silakan hubungi admin') },
-          onClose: () => {
-            if (!window.confirm('Pembayaran belum selesai. Batalkan booking?')) return
-            fetch(`/api/bookings/${data.bookingId}/cancel`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phone: customerPhone }),
-            }).catch(() => {})
-            router.push('/booking/wisata')
-          },
-        })
+           onSuccess: () => {
+             sessionStorage.removeItem('pending-booking-id')
+             setPendingBooking(null)
+             router.push(`/booking/sukses?id=${data.bookingId}`)
+           },
+           onPending: () => {
+             sessionStorage.setItem('pending-booking-id', data.bookingId)
+             setCartOpen(false)
+             setPendingBooking(waitingData)
+           },
+           onError: () => {
+             sessionStorage.setItem('pending-booking-id', data.bookingId)
+             setCartOpen(false)
+             setPendingBooking(waitingData)
+           },
+           onClose: () => {
+             sessionStorage.setItem('pending-booking-id', data.bookingId)
+             setCartOpen(false)
+             setPendingBooking(waitingData)
+           },
+         })
       } else if (data.paymentUrl) {
+        sessionStorage.setItem('pending-booking-id', data.bookingId)
         window.location.assign(data.paymentUrl)
+      } else if (data.status === 'pending') {
+        setCartOpen(false)
+        sessionStorage.setItem('pending-booking-id', data.bookingId)
+        setPendingBooking(waitingData)
       } else {
         router.push(`/booking/sukses?id=${data.bookingId}`)
       }
@@ -1199,9 +1333,64 @@ export default function BookingWisataPage() {
               </div>
             </div>
 
-            {checkoutStep === 'cart' ? (
-              <div className="p-5 sm:p-7">
-                <div className="space-y-3">
+{checkoutStep === 'cart' ? (
+               <div className="p-5 sm:p-7">
+                 {isCheckingPending && !pendingBooking && (
+                   <div className="mb-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
+                     Mengecek pembayaran yang belum selesai...
+                   </div>
+                 )}
+                 {pendingBooking && (
+                   <div className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+                     <div className="flex items-start justify-between gap-3">
+                       <div>
+                         <p className="text-[10px] font-bold uppercase tracking-wider text-orange-600">Pembayaran Tertunda</p>
+                         <p className="mt-1 text-sm font-semibold text-orange-900">{pendingBooking.bookingCode || pendingBooking.bookingId}</p>
+                       </div>
+                       <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-[10px] font-semibold text-orange-700">
+                         <ClockIcon className="h-3.5 w-3.5" />
+                         Menunggu
+                       </span>
+                     </div>
+                     <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                       <div>
+                         <p className="text-orange-600/70">Total</p>
+                         <p className="font-bold text-orange-900">{formatPrice(pendingBooking.totalAmount)}</p>
+                       </div>
+                       {pendingBooking.expiresAt && (
+                         <div>
+                           <p className="text-orange-600/70">Batas waktu</p>
+                           <p className="font-medium text-orange-900">{new Date(pendingBooking.expiresAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                         </div>
+                       )}
+                     </div>
+                     {!canResumePendingBooking && (
+                       <p className="mt-3 text-xs leading-5 text-orange-800">
+                         Pembayaran ini belum bisa dilanjutkan dari sini. Silakan hubungi pengelola bila status tidak berubah.
+                       </p>
+                     )}
+                     <div className="mt-3 flex gap-2">
+                       {canResumePendingBooking && (
+                         <button
+                           type="button"
+                           onClick={() => handleContinuePayment(pendingBooking)}
+                           className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-orange-600"
+                         >
+                           <CreditCardIcon className="h-4 w-4" />
+                           Lanjutkan Pembayaran
+                         </button>
+                       )}
+                       <button
+                         type="button"
+                         onClick={() => setPendingBooking(null)}
+                         className="inline-flex min-h-10 items-center justify-center rounded-full border border-orange-200 px-4 py-2 text-xs font-semibold text-orange-700 transition hover:bg-orange-100"
+                       >
+                         Nanti Saja
+                       </button>
+                     </div>
+                   </div>
+                 )}
+                 <div className="space-y-3">
                   {cart.map((item) => (
                     <div
                       key={item.id}
@@ -1375,7 +1564,7 @@ export default function BookingWisataPage() {
                               <span className="min-w-0 flex-1">
                                 <span className="block text-sm font-semibold text-gray-900">Tambahkan tamu di atas kapasitas</span>
                                 <span className="mt-0.5 block text-xs leading-5 text-gray-500">
-                                  {formatPrice(homestayExtraGuestFee)}/orang untuk satu booking setelah {homestayBaseCapacity} tamu utama.
+                                  {formatPrice(homestayExtraGuestFee ?? 0)}/orang untuk satu booking setelah {homestayBaseCapacity} tamu utama.
                                 </span>
                               </span>
                             </label>
@@ -1420,8 +1609,10 @@ export default function BookingWisataPage() {
 
                         <div>
                           <label className="form-label">Extra bed 100 × 220 cm</label>
-                          <input type="number" min={0} aria-label="Jumlah extra bed" className="form-input bg-white" value={extraBedQuantity} onChange={(event) => setExtraBedQuantity(Math.max(0, Number(event.target.value) || 0))} />
-                          <p className="mt-1 text-xs text-gray-500">Rp25.000/unit, dihitung sebagai add-on booking.</p>
+                          <input type="number" min={0} disabled={extraBedPrice === null} aria-label="Jumlah extra bed" className="form-input bg-white disabled:cursor-not-allowed disabled:opacity-60" value={extraBedQuantity} onChange={(event) => setExtraBedQuantity(Math.max(0, Number(event.target.value) || 0))} />
+                          <p className="mt-1 text-xs text-gray-500">
+                            {extraBedPrice === null ? 'Harga belum tersedia.' : `${formatPrice(extraBedPrice)}/unit, dihitung sebagai add-on booking.`}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -1433,8 +1624,8 @@ export default function BookingWisataPage() {
                           <div>
                             <label className="form-label">Ukuran tenda</label>
                             <select aria-label="Ukuran tenda" className="form-select" value={tentSize} onChange={(event) => setTentSize(event.target.value as 'small' | 'large')}>
-                              <option value="small">Tenda kecil — {formatPrice(bookingSettings['camping.small_tent_price'] ?? 20000)}/malam</option>
-                              <option value="large">Tenda besar — {formatPrice(bookingSettings['camping.large_tent_price'] ?? 50000)}/malam</option>
+                              <option value="small" disabled={bookingSettings['camping.small_tent_price'] == null}>Tenda kecil — {settingPriceLabel(bookingSettings['camping.small_tent_price'], '/malam')}</option>
+                              <option value="large" disabled={bookingSettings['camping.large_tent_price'] == null}>Tenda besar — {settingPriceLabel(bookingSettings['camping.large_tent_price'], '/malam')}</option>
                             </select>
                           </div>
                           <div>
@@ -1456,18 +1647,18 @@ export default function BookingWisataPage() {
                         <div className="grid gap-4 sm:grid-cols-3">
                           <div>
                             <label className="form-label">Paket kayu bakar</label>
-                            <input type="number" min={0} aria-label="Jumlah paket kayu bakar" className="form-input" value={firewoodPackages} onChange={(event) => setFirewoodPackages(Math.max(0, Number(event.target.value) || 0))} />
-                            <p className="mt-1 text-xs text-gray-500">{formatPrice(bookingSettings['addon.firewood_price'] ?? 25000)}/paket</p>
+                            <input type="number" min={0} aria-label="Jumlah paket kayu bakar" disabled={bookingSettings['addon.firewood_price'] == null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={firewoodPackages} onChange={(event) => setFirewoodPackages(Math.max(0, Number(event.target.value) || 0))} />
+                            <p className="mt-1 text-xs text-gray-500">{settingPriceLabel(bookingSettings['addon.firewood_price'], '/paket')}</p>
                           </div>
                           <div>
                             <label className="form-label">Sewa nesting</label>
-                            <input type="number" min={0} aria-label="Jumlah sewa nesting" disabled={bookingSettings['addon.nesting_price'] === null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={nestingQuantity} onChange={(event) => setNestingQuantity(Math.max(0, Number(event.target.value) || 0))} />
-                            <p className="mt-1 text-xs text-gray-500">{bookingSettings['addon.nesting_price'] === null ? 'Harga belum tersedia' : formatPrice(bookingSettings['addon.nesting_price'] || 0)}</p>
+                            <input type="number" min={0} aria-label="Jumlah sewa nesting" disabled={bookingSettings['addon.nesting_price'] == null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={nestingQuantity} onChange={(event) => setNestingQuantity(Math.max(0, Number(event.target.value) || 0))} />
+                            <p className="mt-1 text-xs text-gray-500">{settingPriceLabel(bookingSettings['addon.nesting_price'], '/unit')}</p>
                           </div>
                           <div>
                             <label className="form-label">Kursi camping</label>
-                            <input type="number" min={0} aria-label="Jumlah kursi camping" disabled={bookingSettings['addon.camping_chair_price'] === null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={chairQuantity} onChange={(event) => setChairQuantity(Math.max(0, Number(event.target.value) || 0))} />
-                            <p className="mt-1 text-xs text-gray-500">{bookingSettings['addon.camping_chair_price'] === null ? 'Harga belum tersedia' : formatPrice(bookingSettings['addon.camping_chair_price'] || 0)}</p>
+                            <input type="number" min={0} aria-label="Jumlah kursi camping" disabled={bookingSettings['addon.camping_chair_price'] == null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={chairQuantity} onChange={(event) => setChairQuantity(Math.max(0, Number(event.target.value) || 0))} />
+                            <p className="mt-1 text-xs text-gray-500">{settingPriceLabel(bookingSettings['addon.camping_chair_price'], '/kursi')}</p>
                           </div>
                         </div>
                       </div>
@@ -1552,36 +1743,39 @@ export default function BookingWisataPage() {
                         <div className="mt-4 grid gap-3 sm:grid-cols-3">
                           <label className="rounded-xl border border-gray-200 bg-white p-3">
                             <span className="block text-sm font-semibold text-gray-900">Kursi</span>
-                            <span className="mt-0.5 block text-xs text-gray-500">{formatPrice(bookingSettings['rental.chair_price'] ?? 3000)}/kursi</span>
+                            <span className="mt-0.5 block text-xs text-gray-500">{settingPriceLabel(rentalChairPrice, '/kursi')}</span>
                             <input
                               type="number"
                               min={0}
-                              className="form-input mt-3"
+                              disabled={rentalChairPrice == null}
+                              className="form-input mt-3 disabled:cursor-not-allowed disabled:bg-gray-100"
                               value={rentalChairQuantity}
                               onChange={(event) => setRentalChairQuantity(Math.max(0, Number(event.target.value) || 0))}
                             />
                           </label>
 
-                          <label className={`flex cursor-pointer items-start gap-3 rounded-xl border bg-white p-3 transition ${rentalSoundSystem ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-200'}`}>
+                          <label className={`flex items-start gap-3 rounded-xl border bg-white p-3 transition ${rentalSoundPrice == null ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${rentalSoundSystem ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-200'}`}>
                             <input
                               type="checkbox"
+                              disabled={rentalSoundPrice == null}
                               className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
                               checked={rentalSoundSystem}
                               onChange={(event) => setRentalSoundSystem(event.target.checked)}
                             />
                             <span>
                               <span className="block text-sm font-semibold text-gray-900">Sound system</span>
-                              <span className="mt-0.5 block text-xs text-gray-500">{formatPrice(bookingSettings['rental.sound_system_price'] ?? 300000)}/paket</span>
+                              <span className="mt-0.5 block text-xs text-gray-500">{settingPriceLabel(rentalSoundPrice, '/paket')}</span>
                             </span>
                           </label>
 
                           <label className="rounded-xl border border-gray-200 bg-white p-3">
                             <span className="block text-sm font-semibold text-gray-900">Tikar</span>
-                            <span className="mt-0.5 block text-xs text-gray-500">{formatPrice(bookingSettings['rental.mat_price'] ?? 10000)}/tikar</span>
+                            <span className="mt-0.5 block text-xs text-gray-500">{settingPriceLabel(rentalMatPrice, '/tikar')}</span>
                             <input
                               type="number"
                               min={0}
-                              className="form-input mt-3"
+                              disabled={rentalMatPrice == null}
+                              className="form-input mt-3 disabled:cursor-not-allowed disabled:bg-gray-100"
                               value={rentalMatQuantity}
                               onChange={(event) => setRentalMatQuantity(Math.max(0, Number(event.target.value) || 0))}
                             />

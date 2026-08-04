@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, Suspense, useEffect } from 'react'
 import { formatPrice } from '@/lib/utils'
+import PaymentWaitingModal, { type PaymentWaitingData } from '@/components/PaymentWaitingModal'
 
 function loadSnapJs(): Promise<void> {
   return new Promise((resolve) => {
@@ -36,43 +37,119 @@ interface CartItem {
   quantity: number
 }
 
+interface ProductPrice {
+  id: string
+  name: string
+  price: number
+  purchasable: boolean
+}
+
 function CheckoutForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartReady, setCartReady] = useState(false)
+  const [catalogError, setCatalogError] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
   const [address, setAddress] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [waitingPayment, setWaitingPayment] = useState<PaymentWaitingData | null>(null)
 
   const itemsParam = searchParams.get('items')
 
   useEffect(() => {
     let cancelled = false
-    queueMicrotask(() => {
-      if (cancelled) return
-
+    async function loadCurrentCart() {
       try {
         const storedCart = itemsParam
           ? decodeURIComponent(itemsParam)
           : sessionStorage.getItem('toko-cart')
-        setCart(storedCart ? JSON.parse(storedCart) : [])
+        const storedItems: CartItem[] = storedCart ? JSON.parse(storedCart) : []
+        const response = await fetch('/api/products?available=true')
+        if (!response.ok) throw new Error('Gagal memuat harga produk terbaru')
+        const products = await response.json() as ProductPrice[]
+        if (cancelled) return
+        setCart(storedItems.flatMap((cartItem) => {
+          const product = products.find((item) => item.id === cartItem.id && item.purchasable)
+          return product ? [{
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: cartItem.quantity,
+          }] : []
+        }))
       } catch {
-        setCart([])
+        if (!cancelled) {
+          setCart([])
+          setCatalogError('Harga produk terbaru tidak dapat dimuat. Silakan kembali ke toko dan coba lagi.')
+        }
       } finally {
-        setCartReady(true)
+        if (!cancelled) setCartReady(true)
       }
-    })
+    }
+    void loadCurrentCart()
 
     return () => {
       cancelled = true
     }
   }, [itemsParam])
 
-  const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+  const handleContinuePayment = async (data: PaymentWaitingData) => {
+    setSubmitError('')
+    try {
+      const phone = sessionStorage.getItem(`invoice_phone_${data.bookingId}`) || ''
+      const res = await fetch(`/api/bookings/${data.bookingId}/payment?phone=${encodeURIComponent(phone)}`)
+      const status = await res.json()
+      if (!res.ok) {
+        setSubmitError(status.error || 'Gagal memeriksa status pembayaran')
+        return
+      }
+      if (status.state === 'paid') {
+        router.push(`/booking/sukses?id=${data.bookingId}`)
+        return
+      }
+      if (status.state !== 'pending' || !status.canResume) {
+        setWaitingPayment({
+          ...data,
+          state: status.state,
+          paymentUrl: status.paymentUrl || null,
+          snapToken: status.snapToken || null,
+          expiresAt: status.expiresAt || null,
+        })
+        return
+      }
+      if (status.snapToken) {
+        await loadSnapJs()
+        if (window.snap) {
+          window.snap.pay(status.snapToken, {
+            onSuccess: () => router.push(`/booking/sukses?id=${data.bookingId}`),
+            onPending: () => setWaitingPayment(null),
+            onError: () => setWaitingPayment(null),
+            onClose: () => setWaitingPayment(null),
+          })
+          return
+        }
+      }
+      if (status.paymentUrl) {
+        window.location.assign(status.paymentUrl)
+        return
+      }
+      setWaitingPayment({
+        ...data,
+        state: status.state,
+        paymentUrl: status.paymentUrl || null,
+        snapToken: status.snapToken || null,
+        expiresAt: status.expiresAt || null,
+      })
+    } catch {
+      setSubmitError('Gagal melanjutkan pembayaran. Silakan coba lagi.')
+    }
+  }
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,25 +187,49 @@ function CheckoutForm() {
       if (data.booking) {
         localStorage.setItem(`invoice_${data.bookingId}`, JSON.stringify(data.booking))
       }
+      try {
+        sessionStorage.setItem(`invoice_phone_${data.bookingId}`, customerPhone.trim())
+      } catch {}
+      const waitingData: PaymentWaitingData = {
+        bookingId: data.bookingId,
+        bookingCode: data.bookingCode || null,
+        totalAmount: Number(data.totalAmount ?? totalPrice),
+        paymentUrl: data.paymentUrl || null,
+        snapToken: data.snapToken || null,
+        serviceName: cart.map((ci) => ci.name).join(', ') || null,
+        bookingDate: null,
+        timeStart: null,
+        timeEnd: null,
+        expiresAt: data.expiresAt || null,
+        state: data.status === 'pending' ? 'pending' : null,
+      }
       try { sessionStorage.removeItem('toko-cart') } catch {}
 
       if (data.snapToken) {
         await loadSnapJs()
-        window.snap!.pay(data.snapToken, {
-          onSuccess: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
-          onPending: () => { router.push(`/booking/sukses?id=${data.bookingId}`) },
-          onError: () => { setSubmitError('Pembayaran gagal, silakan hubungi admin') },
+        if (!window.snap) {
+          setWaitingPayment(waitingData)
+          return
+        }
+        window.snap.pay(data.snapToken, {
+          onSuccess: () => {
+            router.push(`/booking/sukses?id=${data.bookingId}`)
+          },
+          onPending: () => {
+            setWaitingPayment(waitingData)
+          },
+          onError: () => {
+            setWaitingPayment(waitingData)
+          },
           onClose: () => {
-            fetch(`/api/bookings/${data.bookingId}/cancel`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phone: customerPhone }),
-            }).catch(() => {})
-            router.push('/toko/checkout')
+            setWaitingPayment(waitingData)
           },
         })
       } else if (data.paymentUrl) {
+        sessionStorage.setItem('pending-booking-id', data.bookingId)
         window.location.assign(data.paymentUrl)
+      } else if (data.status === 'pending') {
+        setWaitingPayment(waitingData)
       } else {
         router.push(`/booking/sukses?id=${data.bookingId}`)
       }
@@ -151,7 +252,9 @@ function CheckoutForm() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 text-lg">Keranjang kosong</p>
+          <p className={`text-lg ${catalogError ? 'text-red-600' : 'text-gray-500'}`}>
+            {catalogError || 'Keranjang kosong'}
+          </p>
           <a href="/toko" className="btn-primary mt-4 inline-block">
             Kembali ke Toko
           </a>
@@ -256,6 +359,12 @@ function CheckoutForm() {
           </button>
         </form>
       </div>
+<PaymentWaitingModal
+        data={waitingPayment}
+        onClose={() => setWaitingPayment(null)}
+        onContinuePayment={handleContinuePayment}
+        onLater={() => setWaitingPayment(null)}
+      />
     </div>
   )
 }

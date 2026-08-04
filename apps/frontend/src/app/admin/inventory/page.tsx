@@ -40,7 +40,7 @@ export default function AdminInventoryPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/inventory-rentals')
+      const res = await fetch('/api/admin/inventory')
       if (res.ok) setItems(await res.json())
       else setError('Gagal memuat inventory')
     } catch (e) {

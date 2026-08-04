@@ -3,9 +3,8 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase-se
 import { createSnapTransaction, isMidtransConfigured } from '../../../lib/midtrans'
 import { generateId } from '../../../lib/utils'
 import { requireAdmin } from '../../../lib/admin-guard'
-import { getTourService, storeProducts } from '@repo/shared-utils'
 import { loadBookingSettings } from '../../../lib/booking-settings'
-import { inventoryVenuePrice } from '../../../lib/inventory'
+import { loadProductCatalog, loadResolvedTourCatalog } from '../../../lib/catalog'
 import {
   accommodationTypeForItem,
   calculateCampingTotal,
@@ -104,29 +103,28 @@ function safeClientItems(value: unknown): ClientBookingItem[] | null {
   return result
 }
 
-async function authoritativeItemPrice(item: ClientBookingItem): Promise<number | null> {
+type TourCatalogItem = Awaited<ReturnType<typeof loadResolvedTourCatalog>>['data'][number]
+type ProductCatalogItem = Awaited<ReturnType<typeof loadProductCatalog>>['data'][number]
+
+function authoritativeItemPrice(
+  item: ClientBookingItem,
+  tourCatalog: TourCatalogItem[],
+  productCatalog: ProductCatalogItem[],
+): number | null {
   const id = item.id
   if (!id) return null
-  const service = getTourService(id)
+  const service = tourCatalog.find((entry) => entry.id === id)
   if (service) {
-    if (RENTAL_VENUE_CATEGORIES.has(service.category)) {
-      const livePrice = await inventoryVenuePrice(id)
-      if (livePrice !== null) return livePrice
-    }
-    if (service.priceType === 'free') return 0
-    if (service.priceType === 'fixed') return service.price
-    if (service.priceType === 'range') {
-      const low = service.price ?? 0
-      const high = service.maxPrice ?? low
-      return item.price >= low && item.price <= high ? item.price : null
-    }
-    if (service.priceType === 'rates') {
-      return service.rates?.some((rate) => rate.price === item.price) ? item.price : null
+    if (!service.available || !service.bookable) return null
+    if (service.pricing_type === 'free') return 0
+    if (['fixed', 'range'].includes(service.pricing_type)) return service.price
+    if (service.pricing_type === 'rates') {
+      return service.rate_options.some((rate) => rate.price === item.price) ? item.price : null
     }
     return null
   }
-  const product = storeProducts.find((p) => p.id === id)
-  return product && product.priceType === 'fixed' && product.price !== null ? product.price : null
+  const product = productCatalog.find((entry) => entry.id === id)
+  return product?.purchasable ? product.price : null
 }
 
 async function parseBookingRequest(request: NextRequest): Promise<{
@@ -229,7 +227,7 @@ async function checkRentalAvailability(
       .select('time_start, time_end')
       .eq('item_id', item.id)
       .eq('booking_date', bookingDate)
-      .neq('status', 'cancelled')
+      .eq('status', 'active')
     if (error) return 'Ketersediaan jadwal gagal diperiksa. Silakan muat ulang dan pilih jadwal kembali.'
     if (!conflicts?.length) continue
     if (!timeStart || conflicts.some((row) => !row.time_start || timeOverlaps(timeStart, timeEnd, row.time_start, row.time_end))) {
@@ -300,6 +298,14 @@ export async function POST(request: NextRequest) {
     const bookingType: BookingType = validTypes.includes(payload.type as BookingType)
       ? payload.type as BookingType
       : 'wisata'
+    const [tourCatalog, productCatalog] = await Promise.all([
+      bookingType === 'toko'
+        ? Promise.resolve([] as TourCatalogItem[])
+        : loadResolvedTourCatalog().then((result) => result.data),
+      bookingType === 'toko'
+        ? loadProductCatalog().then((result) => result.data)
+        : Promise.resolve([] as ProductCatalogItem[]),
+    ])
     const bookingId = generateId()
     const bookingCode = generateBookingCode()
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
@@ -383,7 +389,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const service = getTourService(accommodationItem.id)
+      const service = tourCatalog.find((item) => item.id === accommodationItem.id)
       accommodationType = accommodationTypeForItem(accommodationItem.id)
       if (!service || !accommodationType) {
         return NextResponse.json({ error: 'Data penginapan tidak valid' }, { status: 400 })
@@ -405,12 +411,15 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Gagal memuat kalender tarif hari libur' }, { status: 500 })
         }
         const holidayDates = (holidayRows || []).map((row) => row.holiday_date)
-        const base = calculateHomestayBase(checkInDate, checkOutDate, service.price || 0, service.rates || [], holidayDates)
+        const base = calculateHomestayBase(checkInDate, checkOutDate, service.price, service.rate_options, holidayDates)
         extraGuestFee = calculateExtraGuestTotal(service.id, guestCount, nights, settings)
         const extraBedQuantity = optionalQuantity(payload.extraBedQuantity)
-        const extraBedPrice = getTourService('extra-bed')?.price || 25000
-        const extraBedTotal = extraBedQuantity * extraBedPrice
-        if (extraBedQuantity) addOns.push({ id: 'extra-bed', name: 'Extra Bed 100 × 220 cm', quantity: extraBedQuantity, price: extraBedPrice })
+        const extraBedPrice = tourCatalog.find((item) => item.id === 'extra-bed')?.price
+        if (extraBedQuantity > 0 && (extraBedPrice === undefined || extraBedPrice <= 0)) {
+          return NextResponse.json({ error: 'Harga extra bed belum tersedia' }, { status: 409 })
+        }
+        const extraBedTotal = extraBedQuantity * (extraBedPrice ?? 0)
+        if (extraBedQuantity) addOns.push({ id: 'extra-bed', name: 'Extra Bed 100 × 220 cm', quantity: extraBedQuantity, price: extraBedPrice ?? 0 })
         parsedTotal = base.baseTotal + extraGuestFee + extraBedTotal
         pricingDetails = {
           kind: 'homestay',
@@ -502,7 +511,7 @@ export async function POST(request: NextRequest) {
       let computedTotal = 0
       const validated: ClientBookingItem[] = []
       for (const item of items) {
-        const price = await authoritativeItemPrice(item)
+        const price = authoritativeItemPrice(item, tourCatalog, productCatalog)
         if (price === null) {
           return NextResponse.json({ error: `Harga untuk "${item.name}" tidak valid` }, { status: 400 })
         }
@@ -517,13 +526,27 @@ export async function POST(request: NextRequest) {
         const rentalSoundQuantity = payload.rentalSoundSystem === true || payload.rentalSoundSystem === 'true' ? 1 : 0
         const rentalMatQuantity = optionalQuantity(payload.rentalMatQuantity)
         const rentalAddOns: ClientBookingItem[] = []
+        const rentalChairPrice = settings['rental.chair_price']
+        const rentalSoundPrice = settings['rental.sound_system_price']
+        const rentalMatPrice = settings['rental.mat_price']
+        const unavailableRentalAddOns = [
+          rentalChairQuantity > 0 && (rentalChairPrice === null || rentalChairPrice === undefined) ? 'kursi' : null,
+          rentalSoundQuantity > 0 && (rentalSoundPrice === null || rentalSoundPrice === undefined) ? 'sound system' : null,
+          rentalMatQuantity > 0 && (rentalMatPrice === null || rentalMatPrice === undefined) ? 'tikar' : null,
+        ].filter(Boolean)
+        if (unavailableRentalAddOns.length > 0) {
+          return NextResponse.json(
+            { error: `Harga add-on ${unavailableRentalAddOns.join(', ')} belum tersedia` },
+            { status: 409 },
+          )
+        }
         if (rentalChairQuantity > 0) {
           rentalAddOns.push({
             id: 'rental-addon-chair',
             name: 'Sewa Kursi',
             category: 'rental-addon',
             quantity: rentalChairQuantity,
-            price: settings['rental.chair_price'] ?? 3000,
+            price: rentalChairPrice as number,
           })
         }
         if (rentalSoundQuantity > 0) {
@@ -532,7 +555,7 @@ export async function POST(request: NextRequest) {
             name: 'Sewa Sound System',
             category: 'rental-addon',
             quantity: rentalSoundQuantity,
-            price: settings['rental.sound_system_price'] ?? 300000,
+            price: rentalSoundPrice as number,
           })
         }
         if (rentalMatQuantity > 0) {
@@ -541,7 +564,7 @@ export async function POST(request: NextRequest) {
             name: 'Sewa Tikar',
             category: 'rental-addon',
             quantity: rentalMatQuantity,
-            price: settings['rental.mat_price'] ?? 10000,
+            price: rentalMatPrice as number,
           })
         }
         const rentalAddOnTotal = rentalAddOns.reduce(
@@ -603,6 +626,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         bookingId,
         bookingCode,
+        expiresAt,
+        totalAmount: parsedTotal,
+        status: 'confirmed',
+        paymentStatus: 'unpaid',
         paymentUrl: null,
         local: true,
         booking: { ...bookingData, status: 'confirmed', created_at: now, updated_at: now },
@@ -661,23 +688,65 @@ export async function POST(request: NextRequest) {
             price: item.price,
           })),
         })
-        await supabase.from('bookings').update({ payment_url: snap.redirect_url }).eq('id', bookingId)
-        return NextResponse.json({ bookingId, bookingCode, snapToken: snap.token, paymentUrl: snap.redirect_url })
+        await supabase
+          .from('bookings')
+          .update({
+            payment_url: snap.redirect_url,
+            midtrans_status: 'pending',
+            payment_last_checked_at: new Date().toISOString(),
+          })
+          .eq('id', bookingId)
+        return NextResponse.json({
+          bookingId,
+          bookingCode,
+          expiresAt,
+          totalAmount: parsedTotal,
+          status: 'pending',
+          paymentStatus: 'unpaid',
+          snapToken: snap.token,
+          paymentUrl: snap.redirect_url,
+        })
       } catch (paymentError) {
         console.error('Payment error:', paymentError)
         return NextResponse.json({
-          bookingId, bookingCode, snapToken: null, paymentUrl: null,
-          info: 'Booking berhasil tetapi pembayaran bermasalah. Slot ditahan 30 menit; hubungi admin.',
+          bookingId,
+          bookingCode,
+          expiresAt,
+          totalAmount: parsedTotal,
+          status: 'pending',
+          paymentStatus: 'unpaid',
+          snapToken: null,
+          paymentUrl: null,
+          info: 'Booking berhasil tetapi pembayaran bermasalah. Silakan buka kembali keranjang untuk melanjutkan pembayaran.',
         })
       }
     }
 
-    await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', bookingId)
+    if (parsedTotal > 0) {
+      return NextResponse.json({
+        bookingId,
+        bookingCode,
+        expiresAt,
+        totalAmount: parsedTotal,
+        status: 'pending',
+        paymentStatus: 'unpaid',
+        paymentUrl: null,
+        info: 'Booking menunggu pembayaran dan belum masuk jadwal aktif.',
+      })
+    }
+
+    await supabase
+      .from('bookings')
+      .update({ status: 'confirmed', payment_status: 'paid' })
+      .eq('id', bookingId)
     return NextResponse.json({
       bookingId,
       bookingCode,
+      expiresAt,
+      totalAmount: parsedTotal,
+      status: 'confirmed',
+      paymentStatus: 'paid',
       paymentUrl: null,
-      info: parsedTotal > 0 ? 'Payment gateway belum dikonfigurasi, booking langsung dikonfirmasi' : undefined,
     })
   } catch (error) {
     if (uploadedDocumentPath && isSupabaseConfigured()) {

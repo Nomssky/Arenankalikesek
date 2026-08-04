@@ -7,49 +7,10 @@ import {
   TicketIcon,
 } from '@heroicons/react/24/outline'
 import HomeHero from '@/components/HomeHero'
+import HomeFeaturedWisata from '@/components/HomeFeaturedWisata'
+import HomeHomestayInfo from '@/components/HomeHomestayInfo'
 import Section from '@/components/Section'
-import {
-  formatRupiah,
-  getTourPriceLabel,
-  getTourService,
-  tourServices,
-} from '@repo/shared-utils'
 import { getAllPosts } from '@/lib/content'
-
-const featuredServiceIds = [
-  'berkuda',
-  'keceh-kali',
-  'terapi-ikan',
-  'kolam-renang',
-  'kereta-sawah',
-  'rainbow-slide',
-  'taman-kelinci',
-]
-
-const wisataItems = featuredServiceIds.flatMap((id) => {
-  const service = getTourService(id)
-  return service
-    ? [
-        {
-          name: service.name,
-          image: service.image,
-          price: getTourPriceLabel(service),
-          href: `/booking/wisata?category=${service.category}`,
-        },
-      ]
-    : []
-})
-
-const homestayServices = tourServices.filter(
-  (service) => service.category === 'homestay' && service.capacity && service.rates
-)
-const homestayCapacityNumbers = homestayServices.flatMap((service) =>
-  service.capacity?.match(/\d+/g)?.map(Number) || []
-)
-const homestayMinimumPrice = Math.min(
-  ...homestayServices.flatMap((service) => service.rates?.map((rate) => rate.price) || [])
-)
-const homestayCapacityLabel = `${Math.min(...homestayCapacityNumbers)}–${Math.max(...homestayCapacityNumbers)} orang`
 
 const upgradeFeatures = [
   {
@@ -97,29 +58,7 @@ export default function HomePage() {
         subtitle="Beragam pengalaman alam, pertanian, dan budaya yang dikelola bersama oleh masyarakat Kalikesek."
         className="nature-pattern"
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-7">
-          {wisataItems.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="motion-card group relative aspect-[3/4.6] min-h-[205px] overflow-hidden rounded-b-[1.25rem] rounded-t-[5rem] bg-emerald-950 shadow-[0_16px_32px_-18px_rgba(12,54,27,0.55)] min-[380px]:min-h-[230px] sm:min-h-[285px]"
-            >
-              <div
-                role="img"
-                aria-label={item.name}
-                className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-[1.03]"
-                style={{ backgroundImage: `url(${item.image})` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/5" />
-              <div className="absolute inset-x-0 bottom-0 px-3 pb-4 text-center text-white">
-                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-orange-300">
-                  {item.price}
-                </p>
-                <h3 className="mt-1 text-sm font-semibold leading-5 sm:text-base">{item.name}</h3>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <HomeFeaturedWisata />
         <div className="mt-10 text-center">
           <Link href="/wisata" className="btn-outline">
             Lihat Semua Wisata
@@ -316,20 +255,7 @@ export default function HomePage() {
               <h3 className="mt-4 text-2xl font-semibold text-emerald-950">
                 Pilihan untuk keluarga dan rombongan
               </h3>
-              <ul className="mt-6 space-y-4 text-sm text-gray-600">
-                <li className="flex flex-col gap-1 border-b border-gray-100 pb-3 min-[380px]:flex-row min-[380px]:justify-between">
-                  <span>Kapasitas</span>
-                  <strong className="text-gray-900">{homestayCapacityLabel}</strong>
-                </li>
-                <li className="flex flex-col gap-1 border-b border-gray-100 pb-3 min-[380px]:flex-row min-[380px]:justify-between">
-                  <span>Check-in</span>
-                  <strong className="text-gray-900">14.00 WIB</strong>
-                </li>
-                <li className="flex flex-col gap-1 border-b border-gray-100 pb-3 min-[380px]:flex-row min-[380px]:justify-between">
-                  <span>Harga</span>
-                  <strong className="text-gray-900">Mulai {formatRupiah(homestayMinimumPrice)}</strong>
-                </li>
-              </ul>
+              <HomeHomestayInfo />
             </div>
             <Link href="/booking/wisata" className="btn-primary mt-8 w-full">
               Cek Ketersediaan

@@ -64,6 +64,8 @@ export interface BookingRow {
   payment_status: PaymentStatus
   payment_method: string | null
   payment_url: string | null
+  midtrans_status: string | null
+  payment_last_checked_at: string | null
   transaction_id: string | null
   assigned_pic: string | null
   notes: string | null

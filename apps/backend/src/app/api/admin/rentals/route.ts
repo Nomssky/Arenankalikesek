@@ -32,8 +32,10 @@ export async function GET(request: NextRequest) {
         total_price,
         status,
         created_at,
-        bookings ( customer_name, customer_phone, booking_code )
+        bookings!inner ( customer_name, customer_phone, booking_code, status, payment_status )
       `)
+      .eq('bookings.payment_status', 'paid')
+      .in('bookings.status', ['paid', 'confirmed'])
       .order('created_at', { ascending: false })
 
     if (startDate) query = query.gte('booking_date', startDate)

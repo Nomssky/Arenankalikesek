@@ -14,11 +14,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = getSupabaseAdmin()
+    await supabase.rpc('expire_stale_booking_holds')
 
     let query = supabase
       .from('rental_bookings')
-      .select('id, item_id, item_name, quantity, booking_date, time_start, time_end, total_price, status')
-      .neq('status', 'cancelled')
+      .select('id, item_id, item_name, quantity, booking_date, time_start, time_end, total_price, status, bookings!inner(status, payment_status)')
+      .eq('status', 'active')
+      .eq('bookings.payment_status', 'paid')
+      .in('bookings.status', ['paid', 'confirmed'])
 
     if (startDate) query = query.gte('booking_date', startDate)
     if (endDate) query = query.lte('booking_date', endDate)

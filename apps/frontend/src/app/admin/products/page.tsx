@@ -51,7 +51,7 @@ export default function AdminProductsPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/products')
+      const res = await fetch('/api/admin/products')
       if (res.ok) setProducts(await res.json())
       else setError('Gagal memuat produk')
     } catch (e) {

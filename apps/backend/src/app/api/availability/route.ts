@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       .from('rental_bookings')
       .select('id, booking_date, time_start, time_end, status', { count: 'exact', head: false })
       .eq('item_id', item_id)
-      .neq('status', 'cancelled')
+      .eq('status', 'active')
 
     if (start_at) {
       query = query.gte('booking_date', start_at)

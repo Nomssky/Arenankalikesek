@@ -33,23 +33,13 @@ export async function loadBookingSettingRows(): Promise<BookingSettingRow[]> {
     .order('key')
 
   if (error) {
-    console.error('Load booking settings error:', error)
-    return Object.entries(DEFAULT_BOOKING_SETTINGS).map(([key, value_numeric]) => ({
-      key,
-      group_name: key.split('.')[0],
-      label: key,
-      value_numeric,
-      unit: '',
-      editable: true,
-    }))
+    throw new Error(`Gagal memuat pengaturan harga dari database: ${error.message}`)
   }
   return data || []
 }
 
 export async function loadBookingSettings(): Promise<BookingSettingMap> {
+  if (!isSupabaseConfigured()) return { ...DEFAULT_BOOKING_SETTINGS }
   const rows = await loadBookingSettingRows()
-  return {
-    ...DEFAULT_BOOKING_SETTINGS,
-    ...Object.fromEntries(rows.map((row) => [row.key, row.value_numeric])),
-  }
+  return Object.fromEntries(rows.map((row) => [row.key, row.value_numeric]))
 }

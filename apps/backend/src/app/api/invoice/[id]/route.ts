@@ -24,7 +24,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('bookings')
-      .select('id, booking_code, customer_name, customer_phone, customer_email, customer_address, type, status, payment_status, payment_method, total_amount, items, booking_date, created_at, notes, booking_mode, check_in_date, check_out_date, nights, guest_count, accommodation_type, pricing_details')
+      .select('id, booking_code, customer_name, customer_phone, customer_email, customer_address, type, status, payment_status, payment_method, payment_url, total_amount, items, booking_date, created_at, expires_at, notes, booking_mode, check_in_date, check_out_date, nights, guest_count, accommodation_type, pricing_details')
       .eq('id', id)
       .single()
 
@@ -37,6 +37,13 @@ export async function GET(
 
     if (!isAdmin && (!phone || phone !== digits(data.customer_phone))) {
       return NextResponse.json({ error: 'Nomor telepon tidak cocok' }, { status: 403 })
+    }
+
+    if (!isAdmin && data.payment_status !== 'paid') {
+      return NextResponse.json(
+        { error: 'Invoice tersedia setelah pembayaran berhasil' },
+        { status: 409 },
+      )
     }
 
     return NextResponse.json(data)

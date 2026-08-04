@@ -14,6 +14,7 @@ async function createRentalBookings(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   bookingId: string,
   items: { id?: string; name: string; quantity?: number; price: number }[],
+  resourceStatus: 'hold' | 'active',
   bookingDate?: string,
   timeStart?: string,
   timeEnd?: string,
@@ -52,7 +53,7 @@ async function createRentalBookings(
       start_at: startAt,
       end_at: endAt,
       total_price: (item.price || 0) * (item.quantity || 1),
-      status: 'active',
+      status: resourceStatus,
       updated_at: new Date().toISOString(),
     })
   }
@@ -126,7 +127,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gagal menyimpan booking' }, { status: 500 })
     }
 
-    const rentalResult = await createRentalBookings(supabase, bookingId, items || [], bookingDate, timeStart, timeEnd)
+    const rentalResult = await createRentalBookings(
+      supabase,
+      bookingId,
+      items || [],
+      validPaymentStatus === 'paid' ? 'active' : 'hold',
+      bookingDate,
+      timeStart,
+      timeEnd,
+    )
     if (rentalResult) {
       await supabase.from('bookings').delete().eq('id', bookingId)
       return NextResponse.json(

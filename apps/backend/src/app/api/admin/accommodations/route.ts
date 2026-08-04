@@ -18,7 +18,9 @@ export async function GET(request: NextRequest) {
       .select(`id, booking_id, item_id, item_name, accommodation_type, check_in_date,
         check_out_date, nights, guest_count, tent_size, tent_count, tent_option,
         addons, total_price, status, created_at,
-        bookings (customer_name, customer_phone, booking_code, status, document_type)`)
+        bookings!inner (customer_name, customer_phone, booking_code, status, payment_status, document_type)`)
+      .eq('bookings.payment_status', 'paid')
+      .in('bookings.status', ['paid', 'confirmed'])
       .order('check_in_date', { ascending: true })
     if (startDate) query = query.gte('check_out_date', startDate)
     if (endDate) query = query.lte('check_in_date', endDate)
