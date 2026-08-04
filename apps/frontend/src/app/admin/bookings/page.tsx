@@ -369,7 +369,7 @@ export default function AdminBookingsPage() {
                     ) : (
                     <div className="flex gap-2">
                       <Link
-                        href={`/invoice/${b.id}`}
+                        href={`/invoice/${b.id}?phone=${encodeURIComponent(b.customer_phone || '')}`}
                         className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
                       >
                         Invoice

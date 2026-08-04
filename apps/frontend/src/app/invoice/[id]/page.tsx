@@ -86,8 +86,10 @@ export default function InvoicePage() {
       }
     }
 
+    const phoneFromLink = new URLSearchParams(window.location.search).get('phone')?.trim()
     const storedPhone = sessionStorage.getItem(`invoice_phone_${id}`)
-    fetchInvoice(storedPhone || undefined)
+    if (phoneFromLink) sessionStorage.setItem(`invoice_phone_${id}`, phoneFromLink)
+    fetchInvoice(phoneFromLink || storedPhone || undefined)
   }, [id])
 
   const unlock = () => {

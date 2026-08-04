@@ -25,7 +25,7 @@ interface RentalScheduleRow {
   time_start: string | null
   time_end: string | null
   status: string
-  bookings: { customer_name: string; booking_code: string } | null
+  bookings: { customer_name: string; customer_phone: string; booking_code: string } | null
 }
 
 interface AccommodationScheduleRow {
@@ -36,7 +36,7 @@ interface AccommodationScheduleRow {
   check_in_date: string
   check_out_date: string
   status: string
-  bookings: { customer_name: string; booking_code: string } | null
+  bookings: { customer_name: string; customer_phone: string; booking_code: string } | null
 }
 
 interface DashboardScheduleRow {
@@ -46,6 +46,7 @@ interface DashboardScheduleRow {
   kind: 'Aktivitas / Sewa' | 'Penginapan / Camping'
   itemName: string
   customerName: string
+  customerPhone: string
   startDate: string
   endDate?: string
   timeStart?: string | null
@@ -119,6 +120,7 @@ export default function AdminDashboardPage() {
             kind: 'Aktivitas / Sewa' as const,
             itemName: row.item_name || 'Jadwal aktivitas',
             customerName: row.bookings?.customer_name || '-',
+            customerPhone: row.bookings?.customer_phone || '',
             startDate: row.booking_date,
             timeStart: row.time_start,
             timeEnd: row.time_end,
@@ -131,6 +133,7 @@ export default function AdminDashboardPage() {
             kind: 'Penginapan / Camping' as const,
             itemName: row.item_name,
             customerName: row.bookings?.customer_name || '-',
+            customerPhone: row.bookings?.customer_phone || '',
             startDate: row.check_in_date,
             endDate: row.check_out_date,
             status: row.status,
@@ -286,7 +289,7 @@ export default function AdminDashboardPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        href={`/invoice/${schedule.bookingId}`}
+                        href={`/invoice/${schedule.bookingId}?phone=${encodeURIComponent(schedule.customerPhone)}`}
                         className="text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline"
                       >
                         Invoice
@@ -395,7 +398,7 @@ export default function AdminDashboardPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Link
-                      href={`/invoice/${b.id}`}
+                      href={`/invoice/${b.id}?phone=${encodeURIComponent(b.customer_phone || '')}`}
                       className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
                     >
                       Detail
