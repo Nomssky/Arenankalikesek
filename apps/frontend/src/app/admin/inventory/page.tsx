@@ -15,13 +15,13 @@ interface InventoryItem {
 
 const emptyItem = {
   name: '',
-  category: 'ruangan',
+  category: 'tempat-pertemuan',
   price_per_unit: 0,
   description: '',
   available: true,
 }
 
-const categories = ['ruangan', 'homestay', 'camping', 'fishing']
+const categories = ['area-kegiatan', 'tempat-pertemuan', 'homestay', 'camping', 'fishing']
 
 export default function AdminInventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([])

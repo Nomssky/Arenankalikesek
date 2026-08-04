@@ -92,21 +92,43 @@ CREATE TRIGGER trigger_inventory_rentals_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
--- Trigger: cek overlap sebelum insert/update rental_bookings
+-- Trigger: cek overlap sebelum insert/update rental_bookings (migration 011)
 CREATE OR REPLACE FUNCTION check_rental_booking_overlap()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_new_end TIME;
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM rental_bookings
-    WHERE item_id = NEW.item_id
-      AND booking_date = NEW.booking_date
-      AND status != 'cancelled'
-      AND id != NEW.id
-      AND time_start < COALESCE(NEW.time_end, NEW.time_start)
-      AND COALESCE(time_end, time_start) > NEW.time_start
-  ) THEN
-    RAISE EXCEPTION 'Item sudah dibooking pada slot tersebut';
+  IF NEW.status = 'cancelled' THEN
+    RETURN NEW;
   END IF;
+
+  -- Baris tanpa jam mulai dianggap menutup satu hari penuh. Jika jam selesai
+  -- lama kosong, perlakukan sebagai satu slot satu jam mulai dari time_start.
+  v_new_end := COALESCE(NEW.time_end, NEW.time_start + INTERVAL '1 hour');
+
+  PERFORM pg_advisory_xact_lock(
+    hashtext('rental:' || NEW.item_id || ':' || NEW.booking_date::text)
+  );
+
+  IF EXISTS (
+    SELECT 1
+    FROM rental_bookings existing
+    WHERE existing.item_id = NEW.item_id
+      AND existing.booking_date = NEW.booking_date
+      AND existing.status != 'cancelled'
+      AND existing.id != NEW.id
+      AND (
+        NEW.time_start IS NULL
+        OR existing.time_start IS NULL
+        OR (
+          NEW.time_start < COALESCE(existing.time_end, existing.time_start + INTERVAL '1 hour')
+          AND v_new_end > existing.time_start
+        )
+      )
+  ) THEN
+    RAISE EXCEPTION 'Item sudah dibooking pada rentang waktu tersebut';
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

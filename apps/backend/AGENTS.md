@@ -434,6 +434,8 @@ Setelah migration:
 supabase-schema.sql
 ```
 
+Salinan siap-tempel 010-013 untuk dashboard: `scripts/apply-migrations-live.sql`.
+
 ---
 
 ## reserve_booking RPC
@@ -585,7 +587,8 @@ Perilaku impor yang sudah diputus (jangan dirubah tanpa instruksi):
 - `JAM`: `10.00`→mulai; `10-12.00`→mulai–selesai; `-`/`FULL DAY`/`PER ORANG`/`MENGINAP`/kosong→null.
   `...-SELESAI` → status rental `returned` (badge Selesai). HP nyasar di kolom JAM dipindah ke NOMOR HP.
 - Double-book slot sama (venue+tanggal+jam) → baris kedua `cancelled` + jam null (ponytail:
-  trigger overlap tidak memeriksa `NEW.status`; jam asli tetap ada di `bookings`).
+  sejak migration 011 trigger exempt `status='cancelled'`; jam null dipakai sebagai
+  belt-and-suspenders + penanda verifikasi, jam asli tetap ada di `bookings`).
 - `payment_status = paid` jika KETERANGAN menyebut lunas/tf/dp/cash/qris.
 - Baris berpenanda EDU (`edutrip|outing|study tour`) juga di-insert ke `edu_trip_reservations`
   agar kuota Edu Trip online tahu hari itu sudah ada grup (booking utama tetap `type 'sewa'`).

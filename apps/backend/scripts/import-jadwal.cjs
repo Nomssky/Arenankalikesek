@@ -220,8 +220,9 @@ async function main() {
 
   // Bangun semua baris dulu, cek overlap di JS (replika trigger DB: item+date sama,
   // interval bertabrakan, baris 'cancelled' tidak ikut menghalangi). Baris yang kalah
-  // jadi 'cancelled' + jam null (ponytail: trigger DB tidak memeriksa NEW.status,
-  // jadi baris cancelled ber-jam sama tetap ditolak; jam asli tersimpan di bookings).
+  // jadi 'cancelled' + jam null (ponytail: sejak migration 011 trigger exempt
+  // status='cancelled' sehingga berjual-jam pun diterima; jam null tetap dipakai
+  // sebagai belt-and-suspenders + penanda verifikasi, jam asli ada di bookings).
   const bookingRows = []
   const rentalRows = []
   for (const b of bk) {
