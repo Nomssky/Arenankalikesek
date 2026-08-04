@@ -124,14 +124,14 @@ export function calculateHomestayBase(
 export function calculateExtraGuestTotal(
   itemId: string,
   guestCount: number,
-  nights: number,
+  _nights: number,
   settings: BookingSettingMap = DEFAULT_BOOKING_SETTINGS,
 ): number {
   if (itemId !== 'aren-1' && itemId !== 'aren-2') return 0
   const settingPrefix = itemId.replace('-', '_')
   const capacity = settings[`homestay.${settingPrefix}.base_capacity`] ?? 5
   const fee = settings[`homestay.${settingPrefix}.extra_guest_fee`] ?? 10_000
-  return Math.max(0, guestCount - capacity) * fee * nights
+  return Math.max(0, guestCount - capacity) * fee
 }
 
 export interface CampingCalculationInput {

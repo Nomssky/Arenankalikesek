@@ -110,6 +110,7 @@ export default function Footer() {
           <div className="flex gap-4">
             <a
               href="https://www.instagram.com/arenankalikesek/"
+              aria-label="Instagram Arenan Kalikesek"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-500 hover:text-pink-400 transition-colors"
@@ -120,6 +121,7 @@ export default function Footer() {
             </a>
             <a
               href="https://www.tiktok.com/@arenankalikesek"
+              aria-label="TikTok Arenan Kalikesek"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-500 hover:text-gray-100 transition-colors"

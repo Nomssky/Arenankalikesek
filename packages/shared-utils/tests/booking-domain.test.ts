@@ -25,7 +25,8 @@ test('harga homestay otomatis membedakan weekday dan weekend', () => {
 })
 
 test('biaya tambahan hanya berlaku untuk Aren 1/2 di atas lima tamu', () => {
-  assert.equal(calculateExtraGuestTotal('aren-1', 7, 2), 40_000)
+  assert.equal(calculateExtraGuestTotal('aren-1', 7, 2), 20_000)
+  assert.equal(calculateExtraGuestTotal('aren-1', 7, 5), 20_000)
   assert.equal(calculateExtraGuestTotal('aren-3', 12, 2), 0)
 })
 

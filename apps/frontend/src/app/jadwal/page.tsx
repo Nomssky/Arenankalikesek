@@ -48,6 +48,23 @@ function timeToMinutes(value: string) {
   return (hours * 60) + minutes
 }
 
+function arenaNow() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date())
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || ''
+  return {
+    date: `${value('year')}-${value('month')}-${value('day')}`,
+    minutes: (Number(value('hour')) * 60) + Number(value('minute')),
+  }
+}
+
 function slotIsBooked(slot: { start: string; end: string }, bookings: RentalBooking[]) {
   const slotStart = timeToMinutes(slot.start)
   const slotEnd = timeToMinutes(slot.end)
@@ -62,7 +79,8 @@ function slotIsBooked(slot: { start: string; end: string }, bookings: RentalBook
 }
 
 export default function JadwalPage() {
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const currentArenaTime = useMemo(() => arenaNow(), [])
+  const today = currentArenaTime.date
   const [scheduleType, setScheduleType] = useState<ScheduleType>('rental')
   const [selectedDate, setSelectedDate] = useState(today)
   const [rentalItems, setRentalItems] = useState<InventoryItem[]>([])
@@ -133,7 +151,9 @@ export default function JadwalPage() {
 
   const selectRentalSlot = (item: InventoryItem, slotIndex: number) => {
     const bookings = itemBookings(item)
-    if (slotIsBooked(rentalHourlySlots[slotIndex], bookings)) return
+    const slotIsPast = selectedDate === today
+      && timeToMinutes(rentalHourlySlots[slotIndex].start) <= currentArenaTime.minutes
+    if (slotIsBooked(rentalHourlySlots[slotIndex], bookings) || slotIsPast) return
     if (selectedRentalItemId !== item.id || selectedRentalSlotIndexes.length === 0) {
       setRentalSelectionError('')
       setSelectedRentalItemId(item.id)
@@ -148,8 +168,12 @@ export default function JadwalPage() {
     const firstIndex = Math.min(slotIndex, ...selectedRentalSlotIndexes)
     const lastIndex = Math.max(slotIndex, ...selectedRentalSlotIndexes)
     const nextIndexes = Array.from({ length: lastIndex - firstIndex + 1 }, (_, index) => firstIndex + index)
-    if (nextIndexes.some((index) => slotIsBooked(rentalHourlySlots[index], bookings))) {
-      setRentalSelectionError('Rentang tersebut melewati slot yang sudah terisi. Pilih rentang lain tanpa melewati slot merah.')
+    if (nextIndexes.some((index) => {
+      const slot = rentalHourlySlots[index]
+      return slotIsBooked(slot, bookings)
+        || (selectedDate === today && timeToMinutes(slot.start) <= currentArenaTime.minutes)
+    })) {
+      setRentalSelectionError('Rentang tersebut melewati slot yang tidak tersedia. Pilih rentang lain tanpa melewati slot terisi atau sudah lewat.')
       return
     }
     setRentalSelectionError('')
@@ -182,7 +206,7 @@ export default function JadwalPage() {
             <div>
               <div className="mb-6 max-w-sm">
                 <label className="form-label">Tanggal sewa</label>
-                <input type="date" min={today} className="form-input" value={selectedDate} onChange={(event) => { setLoading(true); setError(''); setRentalSelectionError(''); setSelectedRentalItemId(''); setSelectedRentalSlotIndexes([]); setSelectedDate(event.target.value) }} />
+                <input type="date" min={today} aria-label="Tanggal sewa" className="form-input" value={selectedDate} onChange={(event) => { setLoading(true); setError(''); setRentalSelectionError(''); setSelectedRentalItemId(''); setSelectedRentalSlotIndexes([]); setSelectedDate(event.target.value) }} />
                 <p className="mt-2 text-xs leading-5 text-gray-500">Jam operasional 07.00–17.00 WIB. Pilih satu atau beberapa slot yang berurutan.</p>
               </div>
               {rentalSelectionError && (
@@ -199,7 +223,10 @@ export default function JadwalPage() {
                   {rentalItems.map((item) => {
                     const bookings = itemBookings(item)
                     const bookedSlots = rentalHourlySlots.map((slot) => slotIsBooked(slot, bookings))
-                    const availableSlotCount = bookedSlots.filter((isBooked) => !isBooked).length
+                    const pastSlots = rentalHourlySlots.map((slot) => (
+                      selectedDate === today && timeToMinutes(slot.start) <= currentArenaTime.minutes
+                    ))
+                    const availableSlotCount = bookedSlots.filter((isBooked, index) => !isBooked && !pastSlots[index]).length
                     const itemIsSelected = selectedRentalItemId === item.id && selectedRentalSlotIndexes.length > 0
                     const selectedIndexes = itemIsSelected
                       ? [...selectedRentalSlotIndexes].sort((first, second) => first - second)
@@ -231,12 +258,13 @@ export default function JadwalPage() {
                         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                           {rentalHourlySlots.map((slot, slotIndex) => {
                             const isBooked = bookedSlots[slotIndex]
+                            const isPast = pastSlots[slotIndex]
                             const isSelected = itemIsSelected && selectedRentalSlotIndexes.includes(slotIndex)
                             return (
                               <button
                                 key={slot.start}
                                 type="button"
-                                disabled={isBooked}
+                                disabled={isBooked || isPast}
                                 aria-pressed={isSelected}
                                 onClick={() => selectRentalSlot(item, slotIndex)}
                                 className={`min-h-14 rounded-xl border px-2 py-2 text-center transition ${
@@ -244,12 +272,14 @@ export default function JadwalPage() {
                                     ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
                                     : isBooked
                                       ? 'cursor-not-allowed border-red-100 bg-red-50 text-red-400 line-through'
+                                      : isPast
+                                        ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
                                       : 'border-emerald-100 bg-emerald-50/60 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50'
                                 }`}
                               >
                                 <span className="block text-xs font-bold">{slot.start}</span>
                                 <span className={`mt-0.5 block text-[10px] ${isSelected ? 'text-white/75' : 'opacity-70'}`}>
-                                  {isBooked ? 'Terisi' : `s.d. ${slot.end}`}
+                                  {isBooked ? 'Terisi' : isPast ? 'Sudah lewat' : `s.d. ${slot.end}`}
                                 </span>
                               </button>
                             )
@@ -281,6 +311,7 @@ export default function JadwalPage() {
               <aside className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 lg:self-start">
                 <label className="form-label">Unit penginapan/camping</label>
                 <select
+                  aria-label="Unit penginapan atau camping"
                   className="form-select"
                   value={selectedAccommodationId}
                   onChange={(event) => {

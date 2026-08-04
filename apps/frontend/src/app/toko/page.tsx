@@ -216,6 +216,7 @@ export default function TokoPage() {
           <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto">
             <input
               type="text"
+              aria-label="Cari produk"
               placeholder="Cari produk..."
               className="form-input min-w-0 flex-1 text-base sm:w-48 sm:text-sm"
               value={searchQuery}

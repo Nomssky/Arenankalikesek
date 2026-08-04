@@ -18,8 +18,8 @@ interface InvoiceData {
   status: string
   payment_status: string
   payment_method?: string
-  total_amount: number
-  items: string | { id: string; name: string; quantity: number; price: number }[]
+  total_amount: number | string | null
+  items: unknown
   booking_date?: string
   booking_mode?: string
   check_in_date?: string
@@ -39,6 +39,13 @@ interface InvoiceData {
   notes?: string
 }
 
+interface InvoiceItem {
+  id: string
+  name: string
+  quantity: number
+  price: number
+}
+
 const statusLabel: Record<string, { text: string; color: string }> = {
   pending: { text: 'Menunggu Pembayaran', color: 'text-amber-600 bg-amber-50' },
   paid: { text: 'Lunas', color: 'text-emerald-600 bg-emerald-50' },
@@ -52,12 +59,52 @@ const paymentLabel: Record<string, { text: string; color: string }> = {
   refunded: { text: 'Dikembalikan', color: 'text-gray-600 bg-gray-100' },
 }
 
+function toFiniteNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function parseItems(itemsValue: unknown): InvoiceItem[] {
+  let parsed = itemsValue
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(parsed)) return []
+
+  return parsed.flatMap((item, index) => {
+    if (!item || typeof item !== 'object') return []
+    const candidate = item as Record<string, unknown>
+    return [{
+      id: String(candidate.id || `item-${index}`),
+      name: String(candidate.name || 'Item booking'),
+      quantity: Math.max(1, Math.trunc(toFiniteNumber(candidate.quantity, 1))),
+      price: Math.max(0, toFiniteNumber(candidate.price)),
+    }]
+  })
+}
+
+function readStoredInvoice(id: string): InvoiceData | null {
+  try {
+    const stored = window.localStorage.getItem(`invoice_${id}`)
+    if (!stored) return null
+    return JSON.parse(stored) as InvoiceData
+  } catch {
+    window.localStorage.removeItem(`invoice_${id}`)
+    return null
+  }
+}
+
 export default function InvoicePage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<InvoiceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [locked, setLocked] = useState(false)
   const [phone, setPhone] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     async function fetchInvoice(phoneToUse?: string) {
@@ -68,33 +115,44 @@ export default function InvoicePage() {
           const json = await res.json()
           setData(json)
         } else if (res.status === 403) {
-          const stored = localStorage.getItem(`invoice_${id}`)
+          const stored = readStoredInvoice(id)
           if (stored) {
-            setData(JSON.parse(stored))
+            setData(stored)
           } else {
             setLocked(true)
           }
         } else {
-          const stored = localStorage.getItem(`invoice_${id}`)
-          if (stored) setData(JSON.parse(stored))
+          const stored = readStoredInvoice(id)
+          if (stored) setData(stored)
+          else setLoadError('Invoice gagal dimuat. Silakan kembali ke panel admin dan coba lagi.')
         }
       } catch {
-        const stored = localStorage.getItem(`invoice_${id}`)
-        if (stored) setData(JSON.parse(stored))
+        const stored = readStoredInvoice(id)
+        if (stored) setData(stored)
+        else setLoadError('Invoice gagal dimuat. Periksa koneksi lalu coba lagi.')
       } finally {
         setLoading(false)
       }
     }
 
     const phoneFromLink = new URLSearchParams(window.location.search).get('phone')?.trim()
-    const storedPhone = sessionStorage.getItem(`invoice_phone_${id}`)
-    if (phoneFromLink) sessionStorage.setItem(`invoice_phone_${id}`, phoneFromLink)
+    let storedPhone: string | null = null
+    try {
+      storedPhone = sessionStorage.getItem(`invoice_phone_${id}`)
+      if (phoneFromLink) sessionStorage.setItem(`invoice_phone_${id}`, phoneFromLink)
+    } catch {
+      storedPhone = null
+    }
     fetchInvoice(phoneFromLink || storedPhone || undefined)
   }, [id])
 
   const unlock = () => {
     if (!phone.trim()) return
-    sessionStorage.setItem(`invoice_phone_${id}`, phone.trim())
+    try {
+      sessionStorage.setItem(`invoice_phone_${id}`, phone.trim())
+    } catch {
+      // Invoice tetap dapat dimuat ketika penyimpanan browser dibatasi.
+    }
     setLocked(false)
     setLoading(true)
     setData(null)
@@ -109,15 +167,6 @@ export default function InvoicePage() {
 
   const statusInfo = data ? statusLabel[data.status] || statusLabel.pending : statusLabel.pending
   const paymentInfo = data ? paymentLabel[data.payment_status] || paymentLabel.unpaid : paymentLabel.unpaid
-
-  const parseItems = (itemsValue: InvoiceData['items']) => {
-    if (Array.isArray(itemsValue)) return itemsValue
-    try {
-      return JSON.parse(itemsValue) as { id: string; name: string; quantity: number; price: number }[]
-    } catch {
-      return []
-    }
-  }
 
   const handlePrint = () => window.print()
 
@@ -139,6 +188,7 @@ export default function InvoicePage() {
               Masukkan nomor telepon yang dipakai saat booking untuk melihat invoice.
             </p>
             <input
+              aria-label="Nomor WhatsApp pemesan"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -162,7 +212,7 @@ export default function InvoicePage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 text-lg">Invoice tidak ditemukan</p>
+          <p className="text-gray-500 text-lg">{loadError || 'Invoice tidak ditemukan'}</p>
           <Link href="/" className="btn-primary mt-4 inline-block">Kembali</Link>
         </div>
       </div>
@@ -170,6 +220,9 @@ export default function InvoicePage() {
   }
 
   const items = parseItems(data.items)
+  const invoiceAddOns = Array.isArray(data.pricing_details?.addOns)
+    ? data.pricing_details.addOns
+    : []
   return (
     <div className="invoice-page min-h-screen bg-gray-100 pb-8 pt-28 print:bg-white print:py-0">
       <div className="mx-auto max-w-3xl px-4 print:max-w-none print:px-0">
@@ -258,10 +311,10 @@ export default function InvoicePage() {
                   {data.pricing_details?.tentOption && <div><dt className="text-gray-500">Opsi tenda</dt><dd className="font-semibold text-gray-900">{data.pricing_details.tentOption === 'own' ? 'Bawa sendiri' : 'Sewa tenda'}</dd></div>}
                   {Boolean(data.pricing_details?.extraGuestTotal) && <div><dt className="text-gray-500">Tamu tambahan</dt><dd className="font-semibold text-gray-900">{formatPrice(data.pricing_details?.extraGuestTotal || 0)}</dd></div>}
                 </dl>
-                {Boolean(data.pricing_details?.addOns?.length) && (
+                {invoiceAddOns.length > 0 && (
                   <div className="mt-3 border-t border-emerald-100 pt-3 text-sm">
                     <p className="text-gray-500">Add-on</p>
-                    <p className="font-semibold text-gray-900">{data.pricing_details?.addOns?.map((item) => `${item.name} × ${item.quantity}`).join(', ')}</p>
+                    <p className="font-semibold text-gray-900">{invoiceAddOns.map((item) => `${item.name} × ${item.quantity}`).join(', ')}</p>
                   </div>
                 )}
               </div>
@@ -295,7 +348,7 @@ export default function InvoicePage() {
             <div className="invoice-keep border-t-2 pt-4">
               <div className="flex flex-wrap items-center justify-between gap-3 text-lg">
                 <span className="font-bold text-gray-900">Total</span>
-                <span className="font-bold text-2xl text-emerald-600">{formatPrice(data.total_amount)}</span>
+                <span className="font-bold text-2xl text-emerald-600">{formatPrice(toFiniteNumber(data.total_amount))}</span>
               </div>
               {data.payment_method && (
                 <p className="text-xs text-gray-500 mt-1 text-right">

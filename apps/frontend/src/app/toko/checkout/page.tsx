@@ -194,6 +194,8 @@ function CheckoutForm() {
             <label className="form-label">Nama Lengkap *</label>
             <input
               type="text"
+              aria-label="Nama lengkap"
+              maxLength={120}
               className="form-input"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
@@ -204,6 +206,11 @@ function CheckoutForm() {
             <label className="form-label">No. WhatsApp *</label>
             <input
               type="tel"
+              aria-label="Nomor WhatsApp"
+              inputMode="tel"
+              pattern="(?:\+?62|0)8[0-9 -]{8,15}"
+              title="Gunakan nomor WhatsApp Indonesia, misalnya 0812 3456 7890"
+              maxLength={20}
               className="form-input"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
@@ -215,6 +222,8 @@ function CheckoutForm() {
             <label className="form-label">Email</label>
             <input
               type="email"
+              aria-label="Email"
+              maxLength={254}
               className="form-input"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
@@ -223,6 +232,8 @@ function CheckoutForm() {
           <div>
             <label className="form-label">Alamat Pengiriman</label>
             <textarea
+              aria-label="Alamat pengiriman"
+              maxLength={500}
               className="form-input"
               rows={3}
               value={address}

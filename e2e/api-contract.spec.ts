@@ -1,11 +1,20 @@
 import { test, expect } from '@playwright/test'
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3000'
+const target = new URL(baseURL)
+const isLocalTarget = target.hostname === 'localhost' || target.hostname === '127.0.0.1'
+const mutationEnabled = process.env.E2E_ENABLE_MUTATIONS === 'true' && isLocalTarget
+
 const testItem = { id: 'atv-anak', name: 'ATV Anak', quantity: 1, price: 5000 }
 const testDate = new Date(Date.now() + 86400000).toISOString().split('T')[0]
 let bookingId = ''
 let bookingCode = ''
 
 test.describe('API Contract Tests', () => {
+  test.skip(
+    !mutationEnabled,
+    'Tes mutasi hanya berjalan pada localhost dengan E2E_ENABLE_MUTATIONS=true',
+  )
 
   test('POST /api/bookings creates booking with snap token', async ({ request }) => {
     const res = await request.post('/api/bookings', {

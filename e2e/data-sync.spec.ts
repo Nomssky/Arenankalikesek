@@ -1,6 +1,15 @@
 import { test, expect } from '@playwright/test'
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:3000'
+const target = new URL(baseURL)
+const isLocalTarget = target.hostname === 'localhost' || target.hostname === '127.0.0.1'
+const mutationEnabled = process.env.E2E_ENABLE_MUTATIONS === 'true' && isLocalTarget
+
 test.describe('Data Sync & Integrity', () => {
+  test.skip(
+    !mutationEnabled,
+    'Tes mutasi hanya berjalan pada localhost dengan E2E_ENABLE_MUTATIONS=true',
+  )
 
   const testPrefix = `e2e-sync-${Date.now()}`
   const testDate = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0]

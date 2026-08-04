@@ -79,6 +79,10 @@ function isRentalVenueItem(item: ClientBookingItem) {
   return Boolean(item.category && RENTAL_VENUE_CATEGORIES.has(item.category))
 }
 
+function isValidWhatsAppNumber(value: string) {
+  return /^(?:08\d{8,11}|628\d{8,11})$/.test(digits(value))
+}
+
 function safeClientItems(value: unknown): ClientBookingItem[] | null {
   if (!Array.isArray(value)) return null
   const result: ClientBookingItem[] = []
@@ -169,6 +173,23 @@ function timeToMinutes(value: string) {
   const minutes = Number(match[2])
   if (hours > 23 || minutes > 59) return null
   return (hours * 60) + minutes
+}
+
+function arenaNow() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date())
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || ''
+  return {
+    date: `${value('year')}-${value('month')}-${value('day')}`,
+    minutes: (Number(value('hour')) * 60) + Number(value('minute')),
+  }
 }
 
 function timeOverlaps(
@@ -263,6 +284,9 @@ export async function POST(request: NextRequest) {
     if (!customerName || !customerPhone) {
       return NextResponse.json({ error: 'Nama dan nomor WhatsApp harus diisi' }, { status: 400 })
     }
+    if (!isValidWhatsAppNumber(customerPhone)) {
+      return NextResponse.json({ error: 'Format nomor WhatsApp tidak valid' }, { status: 400 })
+    }
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Pilih minimal satu layanan' }, { status: 400 })
     }
@@ -307,6 +331,17 @@ export async function POST(request: NextRequest) {
     let documentType: string | null = null
     let pricingDetails: Record<string, unknown> = {}
     let accommodations: Record<string, unknown>[] = []
+    const currentArenaTime = arenaNow()
+
+    if (!isStay && bookingDate) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(bookingDate) || bookingDate < currentArenaTime.date) {
+        return NextResponse.json({ error: 'Tanggal booking tidak boleh berada di masa lalu' }, { status: 400 })
+      }
+      const requestedStartMinutes = payload.timeStart ? timeToMinutes(payload.timeStart) : null
+      if (bookingDate === currentArenaTime.date && requestedStartMinutes !== null && requestedStartMinutes <= currentArenaTime.minutes) {
+        return NextResponse.json({ error: 'Jam booking yang sudah lewat tidak dapat dipilih' }, { status: 400 })
+      }
+    }
 
     if (isStay && accommodationItem?.id) {
       if (items.filter((item) => item.id && isAccommodationItem(item.id)).length !== 1) {
@@ -315,6 +350,9 @@ export async function POST(request: NextRequest) {
       if (!customerAddress) return NextResponse.json({ error: 'Alamat wajib diisi untuk booking penginapan' }, { status: 400 })
       checkInDate = payload.checkInDate || ''
       checkOutDate = payload.checkOutDate || ''
+      if (checkInDate < currentArenaTime.date) {
+        return NextResponse.json({ error: 'Tanggal check-in tidak boleh berada di masa lalu' }, { status: 400 })
+      }
       try {
         nights = differenceInNights(checkInDate, checkOutDate)
       } catch (error) {

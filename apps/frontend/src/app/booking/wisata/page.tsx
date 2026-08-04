@@ -145,6 +145,17 @@ function getBookingCategoryIdFromServiceCategory(categoryId: string) {
   )
 }
 
+function arenaDateKey() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || ''
+  return `${value('year')}-${value('month')}-${value('day')}`
+}
+
 function BookingServiceCard({
   item,
   selectedQuantity,
@@ -288,7 +299,7 @@ export default function BookingWisataPage() {
   const [timeEnd, setTimeEnd] = useState('')
   const [checkInDate, setCheckInDate] = useState('')
   const [checkOutDate, setCheckOutDate] = useState('')
-  const [calendarMonth, setCalendarMonth] = useState(new Date().toISOString().slice(0, 7))
+  const [calendarMonth, setCalendarMonth] = useState(() => arenaDateKey().slice(0, 7))
   const [blockedDatesByMonth, setBlockedDatesByMonth] = useState<Record<string, string[]>>({})
   const [holidayDatesByMonth, setHolidayDatesByMonth] = useState<Record<string, string[]>>({})
   const [bookingSettings, setBookingSettings] = useState<BookingSettingMap>(DEFAULT_BOOKING_SETTINGS)
@@ -387,7 +398,7 @@ export default function BookingWisataPage() {
     queueMicrotask(() => {
       if (cancelled) return
 
-      setMinimumDate(new Date().toISOString().split('T')[0])
+      setMinimumDate(arenaDateKey())
 
       const searchParams = new URLSearchParams(window.location.search)
       const requestedCategory = searchParams.get('category')
@@ -1323,6 +1334,7 @@ export default function BookingWisataPage() {
                         <UserGroupIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                         <input
                           type="number"
+                          aria-label={isHomestayBooking ? 'Jumlah tamu utama' : 'Jumlah tamu'}
                           min={1}
                           max={homestayBaseCapacity ?? undefined}
                           className="form-input !pl-10"
@@ -1363,7 +1375,7 @@ export default function BookingWisataPage() {
                               <span className="min-w-0 flex-1">
                                 <span className="block text-sm font-semibold text-gray-900">Tambahkan tamu di atas kapasitas</span>
                                 <span className="mt-0.5 block text-xs leading-5 text-gray-500">
-                                  {formatPrice(homestayExtraGuestFee)}/orang/malam setelah {homestayBaseCapacity} tamu utama.
+                                  {formatPrice(homestayExtraGuestFee)}/orang untuk satu booking setelah {homestayBaseCapacity} tamu utama.
                                 </span>
                               </span>
                             </label>
@@ -1408,7 +1420,7 @@ export default function BookingWisataPage() {
 
                         <div>
                           <label className="form-label">Extra bed 100 × 220 cm</label>
-                          <input type="number" min={0} className="form-input bg-white" value={extraBedQuantity} onChange={(event) => setExtraBedQuantity(Math.max(0, Number(event.target.value) || 0))} />
+                          <input type="number" min={0} aria-label="Jumlah extra bed" className="form-input bg-white" value={extraBedQuantity} onChange={(event) => setExtraBedQuantity(Math.max(0, Number(event.target.value) || 0))} />
                           <p className="mt-1 text-xs text-gray-500">Rp25.000/unit, dihitung sebagai add-on booking.</p>
                         </div>
                       </div>
@@ -1420,14 +1432,14 @@ export default function BookingWisataPage() {
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div>
                             <label className="form-label">Ukuran tenda</label>
-                            <select className="form-select" value={tentSize} onChange={(event) => setTentSize(event.target.value as 'small' | 'large')}>
+                            <select aria-label="Ukuran tenda" className="form-select" value={tentSize} onChange={(event) => setTentSize(event.target.value as 'small' | 'large')}>
                               <option value="small">Tenda kecil — {formatPrice(bookingSettings['camping.small_tent_price'] ?? 20000)}/malam</option>
                               <option value="large">Tenda besar — {formatPrice(bookingSettings['camping.large_tent_price'] ?? 50000)}/malam</option>
                             </select>
                           </div>
                           <div>
                             <label className="form-label">Jumlah tenda</label>
-                            <input type="number" min={1} className="form-input" value={tentCount} onChange={(event) => setTentCount(Math.max(1, Number(event.target.value) || 1))} />
+                            <input type="number" min={1} aria-label="Jumlah tenda" className="form-input" value={tentCount} onChange={(event) => setTentCount(Math.max(1, Number(event.target.value) || 1))} />
                           </div>
                           <div className="sm:col-span-2">
                             <label className="form-label">Perlengkapan tenda</label>
@@ -1444,17 +1456,17 @@ export default function BookingWisataPage() {
                         <div className="grid gap-4 sm:grid-cols-3">
                           <div>
                             <label className="form-label">Paket kayu bakar</label>
-                            <input type="number" min={0} className="form-input" value={firewoodPackages} onChange={(event) => setFirewoodPackages(Math.max(0, Number(event.target.value) || 0))} />
+                            <input type="number" min={0} aria-label="Jumlah paket kayu bakar" className="form-input" value={firewoodPackages} onChange={(event) => setFirewoodPackages(Math.max(0, Number(event.target.value) || 0))} />
                             <p className="mt-1 text-xs text-gray-500">{formatPrice(bookingSettings['addon.firewood_price'] ?? 25000)}/paket</p>
                           </div>
                           <div>
                             <label className="form-label">Sewa nesting</label>
-                            <input type="number" min={0} disabled={bookingSettings['addon.nesting_price'] === null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={nestingQuantity} onChange={(event) => setNestingQuantity(Math.max(0, Number(event.target.value) || 0))} />
+                            <input type="number" min={0} aria-label="Jumlah sewa nesting" disabled={bookingSettings['addon.nesting_price'] === null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={nestingQuantity} onChange={(event) => setNestingQuantity(Math.max(0, Number(event.target.value) || 0))} />
                             <p className="mt-1 text-xs text-gray-500">{bookingSettings['addon.nesting_price'] === null ? 'Harga belum tersedia' : formatPrice(bookingSettings['addon.nesting_price'] || 0)}</p>
                           </div>
                           <div>
                             <label className="form-label">Kursi camping</label>
-                            <input type="number" min={0} disabled={bookingSettings['addon.camping_chair_price'] === null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={chairQuantity} onChange={(event) => setChairQuantity(Math.max(0, Number(event.target.value) || 0))} />
+                            <input type="number" min={0} aria-label="Jumlah kursi camping" disabled={bookingSettings['addon.camping_chair_price'] === null} className="form-input disabled:cursor-not-allowed disabled:bg-gray-100" value={chairQuantity} onChange={(event) => setChairQuantity(Math.max(0, Number(event.target.value) || 0))} />
                             <p className="mt-1 text-xs text-gray-500">{bookingSettings['addon.camping_chair_price'] === null ? 'Harga belum tersedia' : formatPrice(bookingSettings['addon.camping_chair_price'] || 0)}</p>
                           </div>
                         </div>
@@ -1470,7 +1482,7 @@ export default function BookingWisataPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="sm:col-span-2">
                         <label className="form-label">Tanggal kunjungan *</label>
-                        <input type="date" min={minimumDate} className="form-input" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} required />
+                        <input type="date" min={minimumDate} aria-label="Tanggal kunjungan" className="form-input" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} required />
                         {hasEduTrip && eduTripQuota?.date === bookingDate && (
                           <p className={`mt-2 rounded-lg px-3 py-2 text-xs font-semibold ${eduTripQuota.remaining > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                             {eduTripQuota.remaining > 0
@@ -1485,6 +1497,7 @@ export default function BookingWisataPage() {
                           <ClockIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                           <input
                             type="time"
+                            aria-label="Jam kedatangan"
                             min={isRentalVenueBooking ? '07:00' : undefined}
                             max={isRentalVenueBooking ? '16:00' : undefined}
                             step={isRentalVenueBooking ? 3600 : undefined}
@@ -1502,6 +1515,7 @@ export default function BookingWisataPage() {
                         <label className="form-label">Perkiraan selesai</label>
                         <input
                           type="time"
+                          aria-label="Perkiraan selesai"
                           min={isRentalVenueBooking ? '08:00' : undefined}
                           max={isRentalVenueBooking ? '17:00' : undefined}
                           step={isRentalVenueBooking ? 3600 : undefined}
@@ -1518,7 +1532,7 @@ export default function BookingWisataPage() {
                         <label className="form-label">Jumlah peserta *</label>
                         <div className="relative">
                           <UserGroupIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                          <input type="number" min={1} max={500} className="form-input !pl-10" value={participantCount} onChange={(event) => setParticipantCount(Math.max(1, Number(event.target.value) || 1))} required />
+                          <input type="number" min={1} max={500} aria-label="Jumlah peserta" className="form-input !pl-10" value={participantCount} onChange={(event) => setParticipantCount(Math.max(1, Number(event.target.value) || 1))} required />
                         </div>
                       </div>
                     </div>
@@ -1585,6 +1599,8 @@ export default function BookingWisataPage() {
                       <label className="form-label">Atas nama *</label>
                       <input
                         type="text"
+                        aria-label="Atas nama"
+                        maxLength={120}
                         autoComplete="name"
                         className="form-input"
                         value={customerName}
@@ -1597,7 +1613,11 @@ export default function BookingWisataPage() {
                       <label className="form-label">Nomor WhatsApp *</label>
                       <input
                         type="tel"
+                        aria-label="Nomor WhatsApp"
                         inputMode="tel"
+                        pattern="(?:\+?62|0)8[0-9 -]{8,15}"
+                        title="Gunakan nomor WhatsApp Indonesia, misalnya 0812 3456 7890"
+                        maxLength={20}
                         autoComplete="tel"
                         className="form-input"
                         value={customerPhone}
@@ -1610,6 +1630,8 @@ export default function BookingWisataPage() {
                       <label className="form-label">Email</label>
                       <input
                         type="email"
+                        aria-label="Email"
+                        maxLength={254}
                         autoComplete="email"
                         className="form-input"
                         value={customerEmail}
@@ -1621,6 +1643,8 @@ export default function BookingWisataPage() {
                       <label className="form-label">Nama rombongan/acara</label>
                       <input
                         type="text"
+                        aria-label="Nama rombongan atau acara"
+                        maxLength={150}
                         className="form-input"
                         value={eventName}
                         onChange={(event) => setEventName(event.target.value)}
@@ -1631,6 +1655,8 @@ export default function BookingWisataPage() {
                       <label className="form-label">Alamat{isAccommodationBooking ? ' *' : ''}</label>
                       <input
                         type="text"
+                        aria-label="Alamat"
+                        maxLength={500}
                         autoComplete="street-address"
                         className="form-input"
                         value={customerAddress}
@@ -1649,7 +1675,7 @@ export default function BookingWisataPage() {
                           <div className="mt-4 grid gap-4 sm:grid-cols-2">
                             <div>
                               <label className="form-label">Jenis dokumen</label>
-                              <select className="form-select" value={documentType} onChange={(event) => setDocumentType(event.target.value as typeof documentType)} required>
+                              <select aria-label="Jenis dokumen identitas" className="form-select" value={documentType} onChange={(event) => setDocumentType(event.target.value as typeof documentType)} required>
                                 <option value="">Pilih dokumen</option>
                                 <option value="ktp">KTP</option>
                                 <option value="kk">Kartu Keluarga (KK)</option>
@@ -1660,6 +1686,7 @@ export default function BookingWisataPage() {
                               <label className="form-label">Berkas JPEG</label>
                               <input
                                 type="file"
+                                aria-label="Berkas dokumen identitas JPEG"
                                 accept="image/jpeg,.jpg,.jpeg"
                                 className="form-input file:mr-3 file:rounded-full file:border-0 file:bg-orange-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-orange-700"
                                 onChange={(event) => {
@@ -1695,6 +1722,8 @@ export default function BookingWisataPage() {
                     <div className="sm:col-span-2">
                       <label className="form-label">Catatan tambahan</label>
                       <textarea
+                        aria-label="Catatan tambahan"
+                        maxLength={2000}
                         className="form-input"
                         rows={3}
                         value={notes}

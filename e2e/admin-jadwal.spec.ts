@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Admin Jadwal Page', () => {
-  const ADMIN_PASSWORD = '@Sriwulanjaya5758'
+  const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD
+
+  test.skip(!ADMIN_PASSWORD, 'E2E_ADMIN_PASSWORD belum disediakan untuk akun pengujian resmi')
 
   test('Redirects to login when not authenticated', async ({ page }) => {
     await page.goto('/admin/jadwal')
@@ -11,7 +13,7 @@ test.describe('Admin Jadwal Page', () => {
 
   test('Login and access jadwal page', async ({ page }) => {
     await page.goto('/admin/login')
-    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD)
+    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD || '')
     await page.locator('button[type="submit"]').click()
     await page.waitForTimeout(2000)
 
@@ -23,7 +25,7 @@ test.describe('Admin Jadwal Page', () => {
 
   test('Jadwal cards render rental data or empty state', async ({ page }) => {
     await page.goto('/admin/login')
-    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD)
+    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD || '')
     await page.locator('button[type="submit"]').click()
     await page.waitForTimeout(2000)
 
@@ -41,7 +43,7 @@ test.describe('Admin Jadwal Page', () => {
 
   test('Filter by date shows rental cards for that day', async ({ page }) => {
     await page.goto('/admin/login')
-    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD)
+    await page.locator('input[type="password"]').fill(ADMIN_PASSWORD || '')
     await page.locator('button[type="submit"]').click()
     await page.waitForTimeout(2000)
 

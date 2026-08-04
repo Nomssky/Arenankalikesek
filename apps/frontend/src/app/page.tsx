@@ -263,6 +263,7 @@ export default function HomePage() {
             >
               <Link
                 href={item.href}
+                aria-label={`Baca artikel ${item.title}`}
                 className="block aspect-[4/3] overflow-hidden"
                 data-gallery-reveal
               >

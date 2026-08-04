@@ -53,6 +53,7 @@ function LoginForm() {
             <label className="form-label">Kata sandi</label>
             <input
               type="password"
+              aria-label="Kata sandi"
               className="form-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
