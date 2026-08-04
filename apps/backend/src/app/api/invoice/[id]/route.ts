@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../lib/supabase-server'
+import { verifySessionToken } from '../../../../lib/admin-auth'
 
 const digits = (value: unknown) => String(value ?? '').replace(/\D/g, '')
 
@@ -9,6 +10,8 @@ export async function GET(
 ) {
   const { id } = await params
   const phone = digits(request.nextUrl.searchParams.get('phone'))
+  const adminToken = request.cookies.get('admin_token')?.value
+  const isAdmin = adminToken ? await verifySessionToken(adminToken) : false
 
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: 'Invoice tidak ditemukan' }, { status: 404 })
@@ -32,7 +35,7 @@ export async function GET(
       return NextResponse.json({ error: 'Gagal memuat invoice' }, { status: 500 })
     }
 
-    if (!phone || phone !== digits(data.customer_phone)) {
+    if (!isAdmin && (!phone || phone !== digits(data.customer_phone))) {
       return NextResponse.json({ error: 'Nomor telepon tidak cocok' }, { status: 403 })
     }
 
