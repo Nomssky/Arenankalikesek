@@ -331,7 +331,7 @@ export default function WisataPage() {
                 <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/90 p-4 text-sm text-gray-700">
                   <p className="font-medium">Informasi Penginapan</p>
                   <p>Check-in: 14.00 | Check-out: 12.00</p>
-                  <p>Aren 1/2: kapasitas dasar 5 orang, tambahan Rp10.000/orang/malam.</p>
+                  <p>Aren 1/2: kapasitas dasar 5 orang, tambahan Rp10.000/orang untuk satu booking.</p>
                   <p className="mt-1 text-xs text-gray-500">Tarif weekday, weekend, dan Holiday dihitung dari tanggal yang dipilih.</p>
                 </div>
               )}
