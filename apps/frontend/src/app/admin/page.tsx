@@ -60,6 +60,10 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 50
   const [schedules, setSchedules] = useState<DashboardScheduleRow[]>([])
   const [scheduleLoading, setScheduleLoading] = useState(true)
   const [scheduleError, setScheduleError] = useState('')
@@ -71,6 +75,8 @@ export default function AdminDashboardPage() {
       const params = new URLSearchParams()
       if (statusFilter) params.set('status', statusFilter)
       if (paymentFilter) params.set('payment_status', paymentFilter)
+      if (startDate) params.set('start_date', startDate)
+      if (endDate) params.set('end_date', endDate)
       const res = await fetch(`/api/bookings?${params}`)
       if (res.ok) {
         const data = await res.json()
@@ -84,7 +90,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, paymentFilter])
+  }, [statusFilter, paymentFilter, startDate, endDate])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -167,6 +173,11 @@ export default function AdminDashboardPage() {
   const totalRevenue = bookings
     .filter((b) => b.payment_status === 'paid')
     .reduce((sum, b) => sum + b.total_amount, 0)
+
+  const pageStart = page * PAGE_SIZE
+  const pageEnd = pageStart + PAGE_SIZE
+  const paginatedBookings = bookings.slice(pageStart, pageEnd)
+  const maxPage = Math.ceil(bookings.length / PAGE_SIZE)
 
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
@@ -308,7 +319,15 @@ export default function AdminDashboardPage() {
         <h2 className="text-xl font-bold text-gray-900">Data Booking</h2>
         <p className="mt-1 text-sm text-gray-500">Daftar transaksi dan status pembayaran.</p>
       </div>
-      <div className="admin-filterbar mt-4 flex flex-wrap gap-3">
+      <div className="admin-filterbar mt-4 flex flex-wrap items-end gap-3">
+        <label className="text-sm font-medium text-gray-700">
+          Dari
+          <input type="date" className="form-input mt-1 block w-auto" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </label>
+        <label className="text-sm font-medium text-gray-700">
+          Sampai
+          <input type="date" className="form-input mt-1 block w-auto" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </label>
         <select
           className="form-input w-auto"
           value={statusFilter}
@@ -365,7 +384,7 @@ export default function AdminDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {bookings.slice(0, 50).map((b) => (
+              {paginatedBookings.map((b) => (
                 <tr key={b.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs font-medium text-gray-900">
                     {b.booking_code || b.id.slice(0, 8)}
@@ -408,6 +427,31 @@ export default function AdminDashboardPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {bookings.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between border-t p-4 text-sm">
+            <p className="text-gray-600">
+              Menampilkan {pageStart + 1}–{Math.min(pageEnd, bookings.length)} dari {bookings.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="btn-secondary disabled:opacity-50"
+              >
+                Sebelumnya
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(maxPage - 1, p + 1))}
+                disabled={page >= maxPage - 1}
+                className="btn-secondary disabled:opacity-50"
+              >
+                Berikutnya
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

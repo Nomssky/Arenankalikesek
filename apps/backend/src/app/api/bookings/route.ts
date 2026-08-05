@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase-server'
 import { createSnapTransaction, isMidtransConfigured } from '../../../lib/midtrans'
+import { sendBookingCreated } from '../../../lib/email'
 import { digits, generateId, timeToMinutes } from '../../../lib/utils'
 import { requireAdmin } from '../../../lib/admin-guard'
 import { loadBookingSettings } from '../../../lib/booking-settings'
@@ -661,6 +662,11 @@ export async function POST(request: NextRequest) {
       }
       const friendly = rpcErrorMessage(reservationError.message)
       return NextResponse.json({ error: friendly.message }, { status: friendly.status })
+    }
+
+    // Email konfirmasi booking (best-effort, tidak memblokir respons).
+    if (customerEmail) {
+      sendBookingCreated(bookingId).catch(() => undefined)
     }
 
     if (parsedTotal > 0 && isMidtransConfigured()) {
