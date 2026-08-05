@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../../lib/supabase-server'
 import { digits, timeToMinutes } from '../../../../../lib/utils'
+import { sendBookingPaid } from '../../../../../lib/email'
 import {
   getTransactionStatus,
   isMidtransConfigured,
@@ -191,6 +192,11 @@ export async function GET(
               payment_last_checked_at: new Date().toISOString(),
             })
             .eq('id', id)
+
+          // Fallback email lunas bila webhook belum sempat memproses (anti-duplikat).
+          if (mapped.bookingStatus === 'paid') {
+            await sendBookingPaid(id)
+          }
 
           const refreshed = await supabase.from('bookings').select(selectFields).eq('id', id).single()
           if (refreshed.data) booking = refreshed.data

@@ -1,8 +1,8 @@
 -- ============================================================
--- Migrasi 010-021 — jalankan SEKALI di dashboard Supabase
+-- Migrasi 010-022 — jalankan SEKALI di dashboard Supabase
 -- (SQL editor, supabase.com → project → SQL → New query)
 --
--- Sumber asli: supabase/migrations/010..021_*.sql
+-- Sumber asli: supabase/migrations/010..022_*.sql
 -- File ini salinan siap-tempel; jangan jalankan dua kali jika
 -- 010-013 sudah pernah dijalankan (ON CONFLICT idempoten, tapi
 -- trigger 011/017 akan ditimpa ulang — aman).
@@ -749,3 +749,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql
 SET search_path = public;
+
+-- ---------- 022: notifikasi email + hygiene index ----------
+DROP INDEX IF EXISTS idx_bookings_source_ref;
+DROP INDEX IF EXISTS idx_bookings_midtrans_status;
+DROP INDEX IF EXISTS idx_bookings_stay_dates;
+DROP INDEX IF EXISTS idx_payments_status;
+DROP INDEX IF EXISTS idx_products_category;
+DROP INDEX IF EXISTS idx_products_available;
+DROP INDEX IF EXISTS idx_products_sort_order;
+DROP INDEX IF EXISTS idx_products_category_available;
+DROP INDEX IF EXISTS idx_tour_packages_category;
+DROP INDEX IF EXISTS idx_tour_packages_available;
+DROP INDEX IF EXISTS idx_tour_packages_category_available;
+DROP INDEX IF EXISTS idx_rental_bookings_item_name;
+
+CREATE INDEX IF NOT EXISTS idx_payments_verified_by ON payments (verified_by);
+CREATE INDEX IF NOT EXISTS idx_rental_resource_conflicts_item ON rental_resource_conflicts (conflict_item_id);
+
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS email_sent_created_at TIMESTAMPTZ;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS email_sent_paid_at TIMESTAMPTZ;
+
+INSERT INTO booking_settings (key, group_name, label, value_numeric, unit, editable)
+VALUES ('email_notification.enabled', 'email', 'Notifikasi Email (konfirmasi ke pelanggan)', 1, '1=aktif, 0=nonaktif', true)
+ON CONFLICT (key) DO UPDATE SET
+  label = EXCLUDED.label,
+  unit = EXCLUDED.unit,
+  editable = true;

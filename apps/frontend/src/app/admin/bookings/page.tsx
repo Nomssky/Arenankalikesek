@@ -40,6 +40,10 @@ export default function AdminBookingsPage() {
   const [paymentFilter, setPaymentFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [search, setSearch] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [page, setPage] = useState(0)
+  const PAGE_SIZE = 50
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editData, setEditData] = useState<{ status: string; payment_status: string } | null>(null)
   const [savedData, setSavedData] = useState<Record<string, { status: string; payment_status: string }>>({})
@@ -92,6 +96,8 @@ export default function AdminBookingsPage() {
       if (statusFilter) params.set('status', statusFilter)
       if (paymentFilter) params.set('payment_status', paymentFilter)
       if (typeFilter) params.set('type', typeFilter)
+      if (startDate) params.set('start_date', startDate)
+      if (endDate) params.set('end_date', endDate)
       const res = await fetch(`/api/bookings?${params}`)
       if (res.ok) {
         let data = await res.json()
@@ -114,7 +120,7 @@ export default function AdminBookingsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, paymentFilter, typeFilter, search])
+  }, [statusFilter, paymentFilter, typeFilter, search, startDate, endDate])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -187,6 +193,11 @@ export default function AdminBookingsPage() {
     return colors[status] || 'bg-gray-100 text-gray-800'
   }
 
+  const pageStart = page * PAGE_SIZE
+  const pageEnd = pageStart + PAGE_SIZE
+  const paginatedBookings = bookings.slice(pageStart, pageEnd)
+  const maxPage = Math.ceil(bookings.length / PAGE_SIZE)
+
   return (
     <div>
       <div className="admin-page-header flex items-center justify-between gap-3">
@@ -199,15 +210,23 @@ export default function AdminBookingsPage() {
         </div>
       </div>
 
-      <div className="admin-filterbar mt-4 flex flex-wrap gap-3">
+      <div className="admin-filterbar mt-4 flex flex-wrap items-end gap-3">
         <input
-          type="text"
+          type="search"
           placeholder="Cari nama/no. WA/kode..."
           className="form-input flex-1 min-w-[200px]"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && fetchBookings()}
         />
+        <label className="text-sm font-medium text-gray-700">
+          Dari
+          <input type="date" className="form-input mt-1 block w-auto" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </label>
+        <label className="text-sm font-medium text-gray-700">
+          Sampai
+          <input type="date" className="form-input mt-1 block w-auto" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </label>
         <select
           className="form-input w-auto"
           value={typeFilter}
@@ -281,7 +300,7 @@ export default function AdminBookingsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {bookings.map((b) => (
+              {paginatedBookings.map((b) => (
                 <tr key={b.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs font-medium text-gray-900">
                     {b.booking_code || b.id.slice(0, 8)}
@@ -405,6 +424,31 @@ export default function AdminBookingsPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {bookings.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between border-t p-4 text-sm">
+            <p className="text-gray-600">
+              Menampilkan {pageStart + 1}–{Math.min(pageEnd, bookings.length)} dari {bookings.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="btn-secondary disabled:opacity-50"
+              >
+                Sebelumnya
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(maxPage - 1, p + 1))}
+                disabled={page >= maxPage - 1}
+                className="btn-secondary disabled:opacity-50"
+              >
+                Berikutnya
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

@@ -451,6 +451,8 @@ export default function AdminJadwalPage() {
     if (response.ok) setRefreshKey((value) => value + 1)
   }
 
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table')
+
   return (
     <div>
       <div className="admin-page-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -469,6 +471,23 @@ export default function AdminJadwalPage() {
             {showBlockForm ? 'Tutup form' : '+ Tutup tanggal'}
           </button>
         )}
+      </div>
+
+      <div className="mt-4 flex gap-3">
+        <button
+          type="button"
+          onClick={() => setViewMode('table')}
+          className={`btn-secondary text-sm ${viewMode === 'calendar' ? 'opacity-50' : ''}`}
+        >
+          Tabel
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('calendar')}
+          className={`btn-secondary text-sm ${viewMode === 'table' ? 'opacity-50' : ''}`}
+        >
+          Kalender
+        </button>
       </div>
 
       <div className="mt-5 grid grid-cols-2 rounded-xl bg-white p-1 shadow-sm sm:max-w-lg">

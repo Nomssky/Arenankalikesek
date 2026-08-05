@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../lib/supabase-server'
 import { verifyMidtransNotification, mapMidtransStatus, refundTransaction } from '../../../../lib/midtrans'
+import { sendBookingPaid } from '../../../../lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -111,6 +112,11 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Supabase update error:', error)
       return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
+    }
+
+    // Email konfirmasi lunas (best-effort, anti-duplikat via flag di DB).
+    if (bookingStatus === 'paid') {
+      await sendBookingPaid(orderId)
     }
 
     if (bookingStatus === 'cancelled') {

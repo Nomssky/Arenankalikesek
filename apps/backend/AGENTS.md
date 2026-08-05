@@ -500,12 +500,26 @@ Server-only:
 - MIDTRANS_SERVER_KEY
 - ADMIN_PASSWORD
 - MIDTRANS_API_URL
+- RESEND_API_KEY (opsional — email notif; wajib verifikasi domain di resend.com)
+- EMAIL_FROM (opsional, default noreply@arenankalikesek.com)
 
 Public:
 
 - NEXT_PUBLIC_SUPABASE_URL
 - NEXT_PUBLIC_MIDTRANS_CLIENT_KEY
 - NEXT_PUBLIC_SITE_URL
+
+## Email notifikasi (Resend)
+
+- Gratis 3.000 email/bulan. Setup sekali: daftar resend.com → add domain
+  `arenankalikesek.com` (DNS TXT/MX di registrar) → isi `RESEND_API_KEY`.
+- Toggle aktif/non-aktif dipakai admin via `booking_settings`
+  `email_notification.enabled` (1/0); email hanya terkirim bila key terpasang.
+- Pemicu: booking online dibuat (`sendBookingCreated`) dan pembayaran lunas
+  (`sendBookingPaid` di webhook + fallback GET payment). Best-effort, tidak
+  pernah melempar ke pemanggil; anti-duplikat via kolom
+  `email_sent_created_at`/`email_sent_paid_at` di bookings.
+- Offline booking (admin) tidak mengirim email.
 
 Sandbox Midtrans tetap digunakan pada production.
 
