@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase-server'
 import { createSnapTransaction, isMidtransConfigured } from '../../../lib/midtrans'
-import { generateId } from '../../../lib/utils'
+import { digits, generateId, timeToMinutes } from '../../../lib/utils'
 import { requireAdmin } from '../../../lib/admin-guard'
 import { loadBookingSettings } from '../../../lib/booking-settings'
 import { loadProductCatalog, loadResolvedTourCatalog } from '../../../lib/catalog'
@@ -71,7 +71,6 @@ function optionalQuantity(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0
 }
 
-const digits = (value: unknown) => String(value ?? '').replace(/\D/g, '')
 const MAX_PENDING_PER_PHONE = 3
 const RENTAL_VENUE_CATEGORIES = new Set(['area-kegiatan', 'tempat-pertemuan'])
 
@@ -167,15 +166,6 @@ async function parseBookingRequest(request: NextRequest): Promise<{
   }
   const fileValue = form.get('identityDocument')
   return { payload, identityDocument: fileValue instanceof File ? fileValue : null }
-}
-
-function timeToMinutes(value: string) {
-  const match = /^(\d{2}):(\d{2})/.exec(value)
-  if (!match) return null
-  const hours = Number(match[1])
-  const minutes = Number(match[2])
-  if (hours > 23 || minutes > 59) return null
-  return (hours * 60) + minutes
 }
 
 function arenaNow() {

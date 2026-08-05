@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../../lib/supabase-server'
+import { digits, timeToMinutes } from '../../../../../lib/utils'
 import {
   getTransactionStatus,
   isMidtransConfigured,
@@ -7,16 +8,7 @@ import {
   snapTokenFromRedirectUrl,
 } from '../../../../../lib/midtrans'
 
-const digits = (value: unknown) => String(value ?? '').replace(/\D/g, '')
-
 type PaymentState = 'pending' | 'paid' | 'expired' | 'cancelled' | 'failed' | 'refunded' | 'conflict'
-
-function timeToMinutes(value: string | null) {
-  if (!value) return null
-  const match = /^(\d{2}):(\d{2})/.exec(value)
-  if (!match) return null
-  return (Number(match[1]) * 60) + Number(match[2])
-}
 
 function overlaps(
   start: string | null,
@@ -59,63 +51,82 @@ async function hasScheduleConflict(
     throw new Error('Ketersediaan jadwal gagal diperiksa')
   }
 
-  for (const rental of rentals.data || []) {
-    const { data, error } = await supabase
-      .from('rental_bookings')
-      .select('time_start, time_end')
-      .eq('item_id', rental.item_id)
-      .eq('booking_date', rental.booking_date)
-      .eq('status', 'active')
-      .neq('booking_id', bookingId)
-    if (error) throw new Error('Ketersediaan jadwal gagal diperiksa')
-    if ((data || []).some((row) => overlaps(
-      rental.time_start,
-      rental.time_end,
-      row.time_start,
-      row.time_end,
-    ))) return true
+  const rentalIds = (rentals.data || []).map((row) => row.item_id)
+  const rentalDates = (rentals.data || []).map((row) => String(row.booking_date))
+  const stayIds = (stays.data || []).map((row) => row.item_id)
+  const eduDates = (eduTrips.data || []).map((row) => String(row.booking_date))
+  const empty = { data: [] as never[], error: null }
+
+  // Satu kueri per tabel untuk semua item booking (sebelumnya N+1 per item).
+  const [liveRentals, liveStays, blocks, liveEdu, quotaSetting] = await Promise.all([
+    rentalIds.length
+      ? supabase
+          .from('rental_bookings')
+          .select('item_id, booking_date, time_start, time_end')
+          .in('item_id', rentalIds)
+          .in('booking_date', rentalDates)
+          .eq('status', 'active')
+          .neq('booking_id', bookingId)
+      : empty,
+    stayIds.length
+      ? supabase
+          .from('accommodation_bookings')
+          .select('item_id, check_in_date, check_out_date')
+          .in('item_id', stayIds)
+          .eq('status', 'active')
+          .neq('booking_id', bookingId)
+      : empty,
+    stayIds.length
+      ? supabase
+          .from('booking_date_blocks')
+          .select('item_id, start_date, end_date')
+          .in('item_id', stayIds)
+          .eq('active', true)
+      : empty,
+    // Kuota Edu Trip ikut menghitung hold+active, konsisten dengan reserve_booking (020).
+    eduDates.length
+      ? supabase
+          .from('edu_trip_reservations')
+          .select('booking_date')
+          .in('booking_date', eduDates)
+          .in('status', ['hold', 'active'])
+          .neq('booking_id', bookingId)
+      : empty,
+    supabase
+      .from('booking_settings')
+      .select('value_numeric')
+      .eq('key', 'edu_trip.daily_quota')
+      .maybeSingle(),
+  ])
+
+  if (
+    liveRentals.error || liveStays.error || blocks.error ||
+    liveEdu.error || quotaSetting.error
+  ) {
+    throw new Error('Ketersediaan jadwal gagal diperiksa')
   }
 
-  for (const stay of stays.data || []) {
-    const [{ data: reservations, error: reservationError }, { data: blocks, error: blockError }] = await Promise.all([
-      supabase
-        .from('accommodation_bookings')
-        .select('check_in_date, check_out_date')
-        .eq('item_id', stay.item_id)
-        .eq('status', 'active')
-        .neq('booking_id', bookingId),
-      supabase
-        .from('booking_date_blocks')
-        .select('start_date, end_date')
-        .eq('item_id', stay.item_id)
-        .eq('active', true),
-    ])
-    if (reservationError || blockError) throw new Error('Ketersediaan jadwal gagal diperiksa')
-    if ((reservations || []).some((row) =>
+  if ((rentals.data || []).some((rental) => (liveRentals.data || []).some((row) =>
+    row.item_id === rental.item_id &&
+    row.booking_date === rental.booking_date &&
+    overlaps(rental.time_start, rental.time_end, row.time_start, row.time_end)
+  ))) return true
+
+  if ((stays.data || []).some((stay) =>
+    (liveStays.data || []).some((row) =>
+      row.item_id === stay.item_id &&
       stay.check_in_date < row.check_out_date && stay.check_out_date > row.check_in_date
-    )) return true
-    if ((blocks || []).some((row) =>
+    ) ||
+    (blocks.data || []).some((row) =>
+      row.item_id === stay.item_id &&
       stay.check_in_date < row.end_date && stay.check_out_date > row.start_date
-    )) return true
-  }
+    )
+  )) return true
 
-  for (const eduTrip of eduTrips.data || []) {
-    const [{ count, error }, { data: setting, error: settingError }] = await Promise.all([
-      supabase
-        .from('edu_trip_reservations')
-        .select('id', { count: 'exact', head: true })
-        .eq('booking_date', eduTrip.booking_date)
-        .eq('status', 'active')
-        .neq('booking_id', bookingId),
-      supabase
-        .from('booking_settings')
-        .select('value_numeric')
-        .eq('key', 'edu_trip.daily_quota')
-        .maybeSingle(),
-    ])
-    if (error || settingError) throw new Error('Ketersediaan jadwal gagal diperiksa')
-    if ((count || 0) >= Number(setting?.value_numeric ?? 2)) return true
-  }
+  const quota = Number(quotaSetting.data?.value_numeric ?? 2)
+  if ((eduTrips.data || []).some((eduTrip) =>
+    (liveEdu.data || []).filter((row) => row.booking_date === eduTrip.booking_date).length >= quota
+  )) return true
 
   return false
 }

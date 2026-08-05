@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../../lib/supabase-server'
-
-function digits(value: unknown): string {
-  return String(value ?? '').replace(/\D/g, '')
-}
+import { digits } from '../../../../../lib/utils'
 
 export async function PATCH(
   request: NextRequest,

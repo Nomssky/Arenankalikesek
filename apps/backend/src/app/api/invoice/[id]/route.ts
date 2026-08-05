@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../lib/supabase-server'
 import { verifySessionToken } from '../../../../lib/admin-auth'
-
-const digits = (value: unknown) => String(value ?? '').replace(/\D/g, '')
+import { digits } from '../../../../lib/utils'
 
 export async function GET(
   request: NextRequest,
