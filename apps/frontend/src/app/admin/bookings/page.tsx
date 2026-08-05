@@ -121,7 +121,12 @@ export default function AdminBookingsPage() {
     fetchBookings()
   }, [fetchBookings])
 
+  function isOnlineBooking(b: BookingRow) {
+    return b.payment_method !== 'offline' && !(b.booking_code || '').startsWith('SPR-')
+  }
+
   function startEdit(b: BookingRow) {
+    if (isOnlineBooking(b)) return
     setSavedData((prev) => ({ ...prev, [b.id]: { status: b.status, payment_status: b.payment_status } }))
     setEditData({ status: b.status, payment_status: b.payment_status })
     setEditingId(b.id)
@@ -320,7 +325,9 @@ export default function AdminBookingsPage() {
                     ) : (
                       <button
                         onClick={() => startEdit(b)}
-                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadge(b.status)}`}
+                        disabled={isOnlineBooking(b)}
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadge(b.status)} ${isOnlineBooking(b) ? 'cursor-not-allowed opacity-60' : ''}`}
+                        title={isOnlineBooking(b) ? 'Booking online dikelola sistem' : undefined}
                         aria-label={b.status}
                       >
                         {b.status}
@@ -343,7 +350,9 @@ export default function AdminBookingsPage() {
                     ) : (
                       <button
                         onClick={() => startEdit(b)}
-                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${paymentBadge(b.payment_status)}`}
+                        disabled={isOnlineBooking(b)}
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${paymentBadge(b.payment_status)} ${isOnlineBooking(b) ? 'cursor-not-allowed opacity-60' : ''}`}
+                        title={isOnlineBooking(b) ? 'Booking online dikelola sistem' : undefined}
                         aria-label={b.payment_status}
                       >
                         {b.payment_status}

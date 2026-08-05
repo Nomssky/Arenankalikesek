@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
     if (body.price === undefined || body.price === null || isNaN(Number(body.price))) {
       return NextResponse.json({ error: 'Harga harus diisi dengan angka' }, { status: 400 })
     }
+    if (!body.slug) {
+      return NextResponse.json({ error: 'Slug harus diisi' }, { status: 400 })
+    }
 
     const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
@@ -60,6 +63,9 @@ export async function POST(request: NextRequest) {
         image: body.image || '',
         available: body.available ?? true,
         sort_order: body.sort_order || 0,
+        slug: body.slug,
+        price_type: body.price_type || 'fixed',
+        rates: body.rates || null,
       })
       .select()
       .single()

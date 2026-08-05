@@ -47,6 +47,25 @@ export async function PATCH(
   const { id } = await params
   const supabase = getSupabaseAdmin()
   try {
+    const { data: existing } = await supabase
+      .from('bookings')
+      .select('payment_method, booking_code')
+      .eq('id', id)
+      .single()
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Booking tidak ditemukan' },
+        { status: 404 }
+      )
+    }
+    const isOnline = existing.payment_method !== 'offline' && !String(existing.booking_code || '').startsWith('SPR-')
+    if (isOnline) {
+      return NextResponse.json(
+        { error: 'Booking online dikelola sistem dan tidak dapat diubah manual.' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     const updateData: Record<string, unknown> = {

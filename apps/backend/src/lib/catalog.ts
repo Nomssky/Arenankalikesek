@@ -1,5 +1,6 @@
 import {
   formatRupiah,
+  type PricingRate,
   type PricingType,
 } from '@repo/shared-utils'
 import {
@@ -19,10 +20,13 @@ import { getSupabaseAdmin, isSupabaseConfigured } from './supabase-server'
 
 interface TourPackageRow {
   id: string
+  slug: string | null
   name: string
   category: string
   price: number | string | null
   max_price: number | string | null
+  price_type: string | null
+  rates: { label: string; price: number }[] | null
   capacity: string | null
   note: string | null
   image: string | null
@@ -32,8 +36,10 @@ interface TourPackageRow {
 
 interface ProductRow {
   id: string
+  slug: string | null
   name: string
   price: number | string | null
+  price_type: string | null
   category: string
   image: string | null
   description: string | null
@@ -75,6 +81,11 @@ function tourPricingType(
   maxPrice: number | null,
 ): PricingType {
   if (row.category === 'gratis') return 'free'
+  // price_type/rates dikelola admin (migrasi catalog_slug_keys). Kalau default
+  // 'fixed' tidak perlu dipaksa, biarkan turunan dari angka dibawahnya.
+  if (row.price_type && row.price_type !== 'fixed') {
+    return row.price_type as PricingType
+  }
   if (maxPrice !== null && maxPrice > price) return 'range'
   if (price > 0) return 'fixed'
   if (fallback?.pricing_type === 'free') return 'free'
@@ -103,22 +114,28 @@ export function mapTourPackageRow(row: TourPackageRow): FallbackTourPackage {
   const pricingType = tourPricingType(row, fallback, price, maxPrice)
   const unit = fallback?.unit ?? null
   const available = row.available ?? true
+  const rates = Array.isArray(row.rates) ? row.rates : []
 
   return {
-    id: fallback?.id ?? String(row.id),
+    // id publik = slug DB (kunci item booking), lalu fallback id statis, terakhir uuid.
+    id: row.slug || fallback?.id || String(row.id),
     name: row.name,
     category: row.category,
     price,
     max_price: maxPrice,
-    price_label: tourPriceLabel(price, maxPrice, pricingType),
+    price_label: pricingType === 'rates'
+      ? rates.length
+        ? `${formatRupiah(Math.min(...rates.map((r) => r.price)))}–${formatRupiah(Math.max(...rates.map((r) => r.price)))}`
+        : 'Hubungi pengelola'
+      : tourPriceLabel(price, maxPrice, pricingType),
     pricing_type: pricingType,
     unit,
     capacity: row.capacity ?? fallback?.capacity ?? null,
     note: row.note ?? fallback?.note ?? null,
     facilities: fallback?.facilities ?? [],
-    // Tarif publik tidak boleh memakai rincian harga statis saat database hanya
-    // menyimpan harga dasar/maksimum. Booking memakai harga dasar database.
-    rate_options: [],
+    // ponytail: label rate bebas dari DB (admin), konsumen runtime (calculateHomestayBase)
+    // menerima {label:string;price:number}; union PricingRate hanya tipe-tampilan.
+    rate_options: pricingType === 'rates' ? (rates as PricingRate[]) : fallback?.rate_options ?? [],
     image: row.image || fallback?.image || '',
     available,
     bookable: available && !['contact', 'market'].includes(pricingType),
@@ -135,7 +152,7 @@ export function mapProductRow(row: ProductRow): FallbackProduct {
   const unit = row.unit ?? fallback?.unit ?? ''
 
   return {
-    id: fallback?.id ?? String(row.id),
+    id: row.slug || fallback?.id || String(row.id),
     name: row.name,
     price,
     price_label: price > 0 ? formatRupiah(price) : 'Hubungi pengelola',
@@ -156,14 +173,17 @@ export async function loadTourCatalog(): Promise<CatalogResult<FallbackTourPacka
 
   const { data, error } = await getSupabaseAdmin()
     .from('tour_packages')
-    .select('id,name,category,price,max_price,capacity,note,image,available,sort_order')
+    .select('id,slug,name,category,price,max_price,price_type,rates,capacity,note,image,available,sort_order')
     .order('sort_order', { ascending: true })
 
   if (error) throw new Error(`Gagal memuat harga paket dari database: ${error.message}`)
-  return {
-    data: (data || []).map((row) => mapTourPackageRow(row as TourPackageRow)),
-    source: 'database',
-  }
+
+  const dbItems = (data || []).map((row) => mapTourPackageRow(row as TourPackageRow))
+  // barang hanya di pricing.ts (belum di-DB) tetap muncul agar slug id-nya bookable
+  const dbIds = new Set(dbItems.map((item) => item.id))
+  const fallbackOnly = fallbackTourPackages.filter((item) => !dbIds.has(item.id))
+
+  return { data: [...dbItems, ...fallbackOnly], source: 'database' }
 }
 
 export async function loadProductCatalog(): Promise<CatalogResult<FallbackProduct>> {
@@ -173,14 +193,16 @@ export async function loadProductCatalog(): Promise<CatalogResult<FallbackProduc
 
   const { data, error } = await getSupabaseAdmin()
     .from('products')
-    .select('id,name,price,category,image,description,unit,available,sort_order')
+    .select('id,slug,name,price,price_type,category,image,description,unit,available,sort_order')
     .order('sort_order', { ascending: true })
 
   if (error) throw new Error(`Gagal memuat harga produk dari database: ${error.message}`)
-  return {
-    data: (data || []).map((row) => mapProductRow(row as ProductRow)),
-    source: 'database',
-  }
+
+  const dbItems = (data || []).map((row) => mapProductRow(row as ProductRow))
+  const dbIds = new Set(dbItems.map((item) => item.id))
+  const fallbackOnly = fallbackProducts.filter((item) => !dbIds.has(item.id))
+
+  return { data: [...dbItems, ...fallbackOnly], source: 'database' }
 }
 
 export async function loadResolvedTourCatalog(): Promise<ResolvedTourCatalog> {
@@ -189,10 +211,14 @@ export async function loadResolvedTourCatalog(): Promise<ResolvedTourCatalog> {
     loadBookingSettings(),
     inventoryVenues(),
   ])
-  const baseItems = catalog.source === 'database'
+  const catalogItems = catalog.source === 'database'
     ? catalog.data.filter((item) => !RENTAL_VENUE_CATEGORIES.includes(item.category))
     : [...catalog.data]
 
+  // venue dari inventory_rentals adalah sumber otoritatif; buang baris tour_packages
+  // warisan yang menyandang id venue sama (backfill slug dulu memberinya id ini).
+  const liveIds = new Set(liveVenues.map((live) => live.id))
+  const baseItems = catalogItems.filter((item) => !liveIds.has(item.id))
   for (const live of liveVenues) {
     const fallback = fallbackTourPackages.find((item) => item.id === live.id)
     baseItems.push({
@@ -247,6 +273,7 @@ export async function loadResolvedTourCatalog(): Promise<ResolvedTourCatalog> {
         max_price: largePrice,
         price_label: `${formatRupiah(smallPrice)}–${formatRupiah(largePrice)}`,
         pricing_type: 'range' as const,
+        rate_options: [],
       }
     }
     const glampingPrice = settings['camping.glamping_base_price']
@@ -268,6 +295,7 @@ export async function loadResolvedTourCatalog(): Promise<ResolvedTourCatalog> {
       price_label: formatRupiah(glampingPrice),
       pricing_type: 'fixed' as const,
       unit: 'malam',
+      rate_options: [],
       bookable: item.available,
     }
   })

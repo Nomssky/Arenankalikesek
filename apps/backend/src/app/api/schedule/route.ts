@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       .from('rental_bookings')
       .select('id, item_id, item_name, quantity, booking_date, time_start, time_end, total_price, status, bookings!inner(status, payment_status)')
       .eq('status', 'active')
-      .eq('bookings.payment_status', 'paid')
       .in('bookings.status', ['paid', 'confirmed'])
 
     if (startDate) query = query.gte('booking_date', startDate)

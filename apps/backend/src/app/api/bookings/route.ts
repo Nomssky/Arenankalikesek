@@ -231,7 +231,7 @@ async function checkRentalAvailability(
     if (error) return 'Ketersediaan jadwal gagal diperiksa. Silakan muat ulang dan pilih jadwal kembali.'
     if (!conflicts?.length) continue
     if (!timeStart || conflicts.some((row) => !row.time_start || timeOverlaps(timeStart, timeEnd, row.time_start, row.time_end))) {
-      return `Ketersediaan jadwal berubah. “${item.name}” sudah dipesan pada rentang tersebut. Silakan pilih jadwal lain.`
+      return `Ketersediaan jadwal berubah. “${item.name}” sudah dibooking pada rentang tersebut. Silakan pilih jadwal lain.`
     }
   }
   return null
