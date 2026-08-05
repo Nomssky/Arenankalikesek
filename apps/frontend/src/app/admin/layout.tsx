@@ -47,7 +47,7 @@ const navItems = [
   { href: '/admin/booking-settings', label: 'Pengaturan Booking', icon: Cog6ToothIcon },
   { href: '/admin/products', label: 'Produk', icon: ShoppingBagIcon },
   { href: '/admin/tour-packages', label: 'Paket Wisata', icon: TicketIcon },
-  { href: '/admin/inventory', label: 'Inventory', icon: ArchiveBoxIcon },
+  { href: '/admin/inventory', label: 'Stok Barang', icon: ArchiveBoxIcon },
 ]
 
 function isActivePath(pathname: string, href: string) {

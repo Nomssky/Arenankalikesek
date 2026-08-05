@@ -11,6 +11,7 @@ interface InventoryItem {
   price_per_unit: number
   description: string | null
   available: boolean
+  created_at: string
 }
 
 const emptyItem = {
@@ -31,6 +32,9 @@ export default function AdminInventoryPage() {
   const [form, setForm] = useState(emptyItem)
   const [error, setError] = useState('')
   const [saveError, setSaveError] = useState('')
+  const [sortOrder, setSortOrder] = useState<'terbaru' | 'terlama'>('terbaru')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   useEffect(() => {
     fetchItems()
@@ -42,14 +46,30 @@ export default function AdminInventoryPage() {
     try {
       const res = await fetch('/api/admin/inventory')
       if (res.ok) setItems(await res.json())
-      else setError('Gagal memuat inventory')
+      else setError('Gagal memuat stok barang')
     } catch (e) {
       console.error(e)
-      setError('Gagal memuat inventory')
+      setError('Gagal memuat stok barang')
     } finally {
       setLoading(false)
     }
   }
+
+  const createdDate = (item: InventoryItem) => (item.created_at ? String(item.created_at).slice(0, 10) : '')
+
+  const visibleItems = items
+    .filter((item) => {
+      const created = createdDate(item)
+      if (startDate && created && created < startDate) return false
+      if (endDate && created && created > endDate) return false
+      return true
+    })
+    .sort((a, b) => {
+      const first = createdDate(a)
+      const second = createdDate(b)
+      if (sortOrder === 'terlama') return first.localeCompare(second)
+      return second.localeCompare(first)
+    })
 
   function openCreate() {
     setForm(emptyItem)
@@ -92,34 +112,76 @@ export default function AdminInventoryPage() {
       }
     } catch (e) {
       console.error(e)
-      setSaveError('Gagal menyimpan item')
+      setSaveError('Gagal menyimpan barang')
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Hapus item ini?')) return
+    if (!confirm('Hapus barang ini?')) return
     try {
       const res = await fetch(`/api/admin/inventory/${id}`, { method: 'DELETE' })
       if (res.ok) fetchItems()
-      else setError('Gagal menghapus item')
+      else setError('Gagal menghapus barang')
     } catch (e) {
       console.error(e)
-      setError('Gagal menghapus item')
+      setError('Gagal menghapus barang')
     }
   }
 
   return (
     <div>
       <div className="admin-page-header flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Inventory Rental</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Stok Barang</h1>
         <button onClick={openCreate} className="btn-primary text-sm">
-          + Tambah Item
+          + Tambah Barang
         </button>
+      </div>
+
+      <div className="admin-filterbar mt-4 flex flex-wrap items-end gap-3">
+        <div>
+          <label className="form-label">Urutkan</label>
+          <select
+            className="form-input w-auto"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as 'terbaru' | 'terlama')}
+            aria-label="Urutkan stok barang"
+          >
+            <option value="terbaru">Terbaru</option>
+            <option value="terlama">Terlama</option>
+          </select>
+        </div>
+        <label className="text-sm font-medium text-gray-700">
+          Dari
+          <input
+            type="date"
+            className="form-input mt-1 block w-auto"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </label>
+        <label className="text-sm font-medium text-gray-700">
+          Sampai
+          <input
+            type="date"
+            className="form-input mt-1 block w-auto"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </label>
+        {(startDate || endDate || sortOrder !== 'terbaru') && (
+          <button
+            type="button"
+            onClick={() => { setStartDate(''); setEndDate(''); setSortOrder('terbaru') }}
+            className="text-sm font-medium text-emerald-700 hover:underline"
+          >
+            Reset filter
+          </button>
+        )}
       </div>
 
       {showForm && (
         <AdminModal
-          title={editingId ? 'Edit Item' : 'Tambah Item'}
+          title={editingId ? 'Edit Barang' : 'Tambah Barang'}
           onClose={() => setShowForm(false)}
         >
             <form onSubmit={handleSave} className="space-y-3">
@@ -212,8 +274,8 @@ export default function AdminInventoryPage() {
           <div className="rounded-xl bg-red-50 p-6 text-center text-red-700">
             <p className="text-lg font-medium">{error}</p>
           </div>
-        ) : items.length === 0 ? (
-          <p className="py-12 text-center text-gray-500">Belum ada item</p>
+        ) : visibleItems.length === 0 ? (
+          <p className="py-12 text-center text-gray-500">Belum ada barang</p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="border-b bg-gray-50">
@@ -222,17 +284,23 @@ export default function AdminInventoryPage() {
                 <th className="px-4 py-3 font-semibold text-gray-700">Kategori</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Harga</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Deskripsi</th>
+                <th className="px-4 py-3 font-semibold text-gray-700">Ditambahkan</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Tersedia</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {items.map((item) => (
+              {visibleItems.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
                   <td className="px-4 py-3 text-gray-500">{item.category}</td>
                   <td className="px-4 py-3 text-gray-900">{formatPrice(item.price_per_unit)}</td>
                   <td className="px-4 py-3 text-gray-500">{item.description || '-'}</td>
+                  <td className="px-4 py-3 text-gray-500">
+                    {createdDate(item)
+                      ? new Date(`${createdDate(item)}T00:00:00`).toLocaleDateString('id-ID')
+                      : '-'}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
