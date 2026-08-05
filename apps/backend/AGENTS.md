@@ -427,14 +427,12 @@ Aturan:
 
 Setelah migration:
 
-1. Jalankan di dashboard Supabase.
-2. Update
+1. Jalankan di dashboard Supabase (atau via `apply_migration` untuk pengembangan).
+2. Salin migrasi baru ke `scripts/apply-migrations-live.sql` (header saat ini 010-021).
 
-```
-supabase-schema.sql
-```
+Catatan: `supabase-schema.sql` tidak ada di repo — skema bersumber dari `supabase/migrations/`.
 
-Salinan siap-tempel 010-013 untuk dashboard: `scripts/apply-migrations-live.sql`.
+Salinan siap-tempel untuk dashboard: `scripts/apply-migrations-live.sql`.
 
 ## Harga Sewa Tempat (venue)
 
@@ -471,6 +469,12 @@ Jangan menghapus cast tersebut.
 ## Overlap Trigger
 
 EXCLUDE USING gist pada migration 007 digunakan untuk mencegah booking penginapan overlap.
+
+Sejak migration 020, hold ikut mengunci slot: trigger `check_rental_booking_overlap`
+menyertakan status `'hold'` (venue) dan exclusion constraint penginapan
+`WHERE (status IN ('hold','active'))`; kuota Edu Trip menghitung hold+active.
+Slot dilepas saat hold kedaluwarsa (15 menit, `expires_at` di bookings/route.ts)
+oleh `expire_stale_booking_holds()`.
 
 Migration contract test bergantung pada ini.
 
@@ -656,6 +660,9 @@ Ikuti urutan berikut:
 - Jangan menyimpan secret di source code.
 - Gunakan `process.env`.
 - Variabel yang boleh diakses browser harus berawalan `NEXT_PUBLIC_`.
+- `output: standalone` TIDAK memuat `.env.local` saat dijalankan via
+  `node .next/standalone/server.js` → endpoint yang butuh env jadi 503.
+  Gunakan `npm run start` (next start) dari `apps/frontend` untuk pengujian lokal.
 
 ---
 
