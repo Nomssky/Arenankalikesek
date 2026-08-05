@@ -4,21 +4,22 @@ date: 2026-07-31
 author: "KKNT IDBU 10 UNDIP Kelompok 2"
 category: "Peternakan"
 excerpt: "Mahasiswa KKNT IDBU 10 UNDIP mendampingi peternak domba melalui Focus Group Discussion mengenai biosecurity, manajemen pakan, kesehatan ternak, dan pengelolaan limbah."
-image: /images/village-landscape.jpg
-imageAlt: "Gambar sementara untuk reportase Focus Group Discussion peternak domba di Desa Sriwulan"
+image: /images/mono-peternakan1.png
+imageAlt: "Focus Group Discussion peternak domba di Desa Sriwulan"
 published: true
 ---
 
 **KENDAL** – Mahasiswa Kelompok 2 Kuliah Kerja Nyata Tematik IPTEK Bagi Desa Binaan Universitas (KKNT IDBU) 10 Universitas Diponegoro (Undip) melaksanakan kegiatan Focus Group Discussion (FGD) bersama peternak domba di Balai Desa Sriwulan, Kecamatan Limbangan, Kabupaten Kendal, pada Jumat (31/07/2026). Kegiatan ini bertujuan meningkatkan produktivitas peternakan melalui penguatan kapasitas peternak sekaligus mendukung pencapaian Sustainable Development Goals (SDGs), khususnya SDG 2 (Tanpa Kelaparan), SDG 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi), SDG 12 (Konsumsi dan Produksi yang Bertanggung Jawab), serta SDG 15 (Menjaga Ekosistem Daratan). Program ini memperoleh sambutan positif dari masyarakat, terutama para peternak domba yang aktif mengikuti diskusi dan berbagi pengalaman mengenai berbagai tantangan dalam usaha peternakan.
 
-Kegiatan diawali dengan pemaparan materi mengenai aspek penting dalam manajemen pemeliharaan domba, meliputi biosecurity, manajemen pakan, Body Condition Score (BCS), pengendalian penyakit ternak, serta pengelolaan limbah peternakan. Mahasiswa menjelaskan bahwa penerapan biosecurity menjadi langkah utama dalam mencegah penyebaran penyakit sehingga mampu meningkatkan kesehatan dan produktivitas ternak.
+![Focus Group Discussion peternak domba](/images/mono-peternakan1.png)
 
-![Focus Group Discussion dengan peternak domba](/images/mono-peternakan1.png)
-![Diskusi interaktif mengenai manajemen peternakan](/images/mono-peternakan2.png)
+Kegiatan diawali dengan pemaparan materi mengenai aspek penting dalam manajemen pemeliharaan domba, meliputi biosecurity, manajemen pakan, Body Condition Score (BCS), pengendalian penyakit ternak, serta pengelolaan limbah peternakan. Mahasiswa menjelaskan bahwa penerapan biosecurity menjadi langkah utama dalam mencegah penyebaran penyakit sehingga mampu meningkatkan kesehatan dan produktivitas ternak.
 
 Pada sesi manajemen pakan, peserta diberikan pemahaman mengenai pemanfaatan bahan pakan lokal yang mudah diperoleh serta penyusunan ransum sesuai kebutuhan nutrisi ternak. Materi mengenai Body Condition Score (BCS) juga disampaikan sebagai indikator penting dalam mengevaluasi kondisi tubuh ternak sehingga peternak dapat menentukan strategi pemberian pakan secara lebih tepat.
 
 FGD berlangsung secara interaktif dengan membahas berbagai permasalahan yang dihadapi peternak, seperti penyakit yang sering menyerang ternak, upaya pencegahan, hingga penanganan yang tepat. Melalui diskusi ini, mahasiswa dan peternak bersama-sama mencari solusi yang sesuai dengan kondisi lapangan sehingga ilmu yang diperoleh dapat langsung diterapkan.
+
+![Diskusi peternak domba](/images/mono-peternakan2.png)
 
 Selain itu, pengelolaan limbah peternakan turut menjadi pembahasan utama. Limbah ternak yang sebelumnya berpotensi mencemari lingkungan diperkenalkan sebagai bahan baku pupuk organik yang memiliki nilai ekonomi. Pemanfaatan limbah ini menjadi salah satu bentuk implementasi SDG 12, yaitu mendorong pengelolaan sumber daya secara berkelanjutan, sekaligus mendukung SDG 15 melalui upaya menjaga kualitas lingkungan dan kesuburan tanah.
 
