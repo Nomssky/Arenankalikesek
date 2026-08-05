@@ -35,3 +35,4 @@ yarn-error.log*
 .frontend-dev-*.log
 *.diff.txt
 booking-page-diff.txt
+.bin/

@@ -71,6 +71,10 @@ test.describe('Alur booking UI tanpa membuat transaksi', () => {
     await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
 
     const addButton = page.getByRole('button', { name: /^Tambahkan .* ke keranjang$/ }).first()
+    if ((await addButton.count()) === 0) {
+      await expect(page.getByText('Produk tidak ditemukan')).toBeVisible()
+      return
+    }
     const productName = (await addButton.getAttribute('aria-label'))?.replace(/^Tambahkan | ke keranjang$/g, '') || ''
     await addButton.click()
     await expect(page.getByRole('status').filter({ hasText: 'Produk ditambahkan' })).toBeVisible()

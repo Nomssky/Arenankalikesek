@@ -106,9 +106,9 @@ Eduwisata combines activities with optional accommodation (camping/glamping) int
 
 ### Paket makanan
 
-- Paket makanan (food packages) have been removed from the store.
-- `storeProducts` in `packages/shared-utils/src/pricing.ts` is now empty.
-- Do not re-add food packages to `/toko` without an explicit request.
+- Paket makanan (food packages) have been completely removed from `storeProducts` in `packages/shared-utils/src/pricing.ts`.
+- The frontend (`apps/frontend/src/app/toko/page.tsx`) explicitly excludes any products with category `paket-makanan` or names starting with 'Paket ' to ensure they do not display on the Store page under any circumstances.
+- Do not re-add food packages or display them without an explicit request.
 
 ## API consumption
 

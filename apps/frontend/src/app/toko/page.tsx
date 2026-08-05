@@ -133,6 +133,7 @@ export default function TokoPage() {
   }, [])
 
   const filteredProducts = products.filter((p) => {
+    if (p.category === 'paket-makanan' || p.name.startsWith('Paket ')) return false
     const matchCategory = activeCategory === 'semua' || p.category === activeCategory
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchCategory && matchSearch
