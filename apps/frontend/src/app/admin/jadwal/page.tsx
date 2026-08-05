@@ -228,7 +228,9 @@ export default function AdminJadwalPage() {
       setAccommodations(stayData)
       setBlocks(blockData)
       setHolidayDates(holidayData)
-      setEduTrips((eduTripsData || []).filter((item: EduTripBooking) => item.booking_mode === 'edu_trip'))
+      setEduTrips((eduTripsData || []).filter(
+        (item: EduTripBooking) => item.booking_mode === 'edu_trip' && item.status !== 'cancelled',
+      ))
       setEduQuota(Number(eduAvailabilityData.quota) || 2)
       setEduUsedByDate(eduAvailabilityData.byDate || {})
 

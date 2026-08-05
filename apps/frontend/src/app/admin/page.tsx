@@ -60,6 +60,7 @@ interface EduTripRow {
   customer_name: string | null
   customer_phone: string | null
   booking_date: string
+  booking_mode: string
   status: string
   items: { name?: string | null }[] | null
 }
@@ -140,7 +141,12 @@ export default function AdminDashboardPage() {
           edutripResponse.json(),
         ])) as [RentalScheduleRow[], AccommodationScheduleRow[], EduTripRow[]]
 
-        const eduTrips = bookings.filter((b) => b.booking_date >= startDate && b.booking_date <= endDate)
+        const eduTrips = bookings.filter(
+          (b) => b.booking_mode === 'edu_trip'
+            && b.booking_date >= startDate
+            && b.booking_date <= endDate
+            && b.status !== 'cancelled',
+        )
 
         const combined: DashboardScheduleRow[] = [
           ...rentals.map((row) => ({
