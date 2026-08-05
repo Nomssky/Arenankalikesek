@@ -227,7 +227,7 @@ async function checkRentalAvailability(
       .select('time_start, time_end')
       .eq('item_id', item.id)
       .eq('booking_date', bookingDate)
-      .eq('status', 'active')
+      .in('status', ['hold', 'active'])
     if (error) return 'Ketersediaan jadwal gagal diperiksa. Silakan muat ulang dan pilih jadwal kembali.'
     if (!conflicts?.length) continue
     if (!timeStart || conflicts.some((row) => !row.time_start || timeOverlaps(timeStart, timeEnd, row.time_start, row.time_end))) {
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
     ])
     const bookingId = generateId()
     const bookingCode = generateBookingCode()
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
     const accommodationItem = items.find((item) => item.id && isAccommodationItem(item.id))
     const isStay = Boolean(accommodationItem)
     const isRentalVenue = items.some(isRentalVenueItem)

@@ -150,15 +150,14 @@ console.log('\n== C. Sewa tempat per jam (venue) ==')
     const addonIds = (items || []).map((i) => i.id).filter((i) => i && i.startsWith('rental-addon'))
     check('invoice memuat add-on server', addonIds.length === 3, JSON.stringify(addonIds))
 
-    // Payment-hold: booking pending (rental hold) TIDAK memblokir slot.
+    // Hold mengunci slot sejak pending (migrasi 020): booking kedua ditolak 409.
     const hpC2 = phone()
     const rHold = await post('/api/bookings', {
       type: 'wisata', customerName: 'Uji Hold', customerPhone: hpC2,
       bookingDate: D, timeStart: '08:00', timeEnd: '09:00', participantCount: 5,
       items: [{ id: 'aula-full', name: 'Aula Full', category: 'tempat-pertemuan', quantity: 1, price: hargaAula }],
     })
-    check('double-book slot sama saat pending → 200 (hold tidak blokir)', rHold.status === 200, `${rHold.status} ${rHold.body?.error || ''}`)
-    if (rHold.status === 200) created.push({ id: rHold.body.bookingId, phone: hpC2 })
+    check('double-book slot sama saat pending → 409 (hold ikut kunci)', rHold.status === 409 && /sudah dibooking/.test(rHold.body?.error || ''), `${rHold.status} ${rHold.body?.error || ''}`)
 
     // Simulasi pembayaran pertama: sync trigger menyalakan rental → slot terkunci.
     await sb.from('bookings').update({ status: 'confirmed', payment_status: 'paid' }).eq('id', r.body.bookingId)
@@ -170,7 +169,41 @@ console.log('\n== C. Sewa tempat per jam (venue) ==')
       items: [{ id: 'aula-full', name: 'Aula Full', category: 'tempat-pertemuan', quantity: 1, price: hargaAula }],
     })
     check('slot terkunci setelah paid → 409 + sudah dibooking', r409.status === 409 && /sudah dibooking/.test(r409.body.error || ''), `${r409.status} ${r409.body.error}`)
+
+    // Slot dilepas saat booking di-cancel (kembalikan pending dulu supaya bisa cancel).
     await sb.from('bookings').update({ status: 'pending', payment_status: 'unpaid' }).eq('id', r.body.bookingId)
+    const cancelOk = await cancelBooking(r.body.bookingId, hpC1)
+    check('cancel pending → slot dilepas', cancelOk)
+    const idxA = created.findIndex((c) => c.id === r.body.bookingId)
+    if (idxA >= 0) created.splice(idxA, 1)
+    const hpRe = phone()
+    const rRe = await post('/api/bookings', {
+      type: 'wisata', customerName: 'Uji Rebook', customerPhone: hpRe,
+      bookingDate: D, timeStart: '08:30', timeEnd: '09:30', participantCount: 5,
+      items: [{ id: 'aula-full', name: 'Aula Full', category: 'tempat-pertemuan', quantity: 1, price: hargaAula }],
+    })
+    check('slot lepas setelah cancel → 200', rRe.status === 200, `${rRe.status} ${rRe.body?.error || ''}`)
+    if (rRe.status === 200) created.push({ id: rRe.body.bookingId, phone: hpRe })
+
+    // Slot dilepas saat hold kedaluwarsa (15 menit): set expires_at ke masa lalu + sweep.
+    const hpEx = phone()
+    const rEx = await post('/api/bookings', {
+      type: 'wisata', customerName: 'Uji Expire', customerPhone: hpEx,
+      bookingDate: D, timeStart: '09:30', timeEnd: '10:30', participantCount: 5,
+      items: [{ id: 'aula-full', name: 'Aula Full', category: 'tempat-pertemuan', quantity: 1, price: hargaAula }],
+    })
+    if (rEx.status === 200) {
+      await sb.from('bookings').update({ expires_at: new Date(Date.now() - 60000).toISOString() }).eq('id', rEx.body.bookingId)
+      await sb.rpc('expire_stale_booking_holds')
+      const hpFr = phone()
+      const rFr = await post('/api/bookings', {
+        type: 'wisata', customerName: 'Uji Freed', customerPhone: hpFr,
+        bookingDate: D, timeStart: '09:30', timeEnd: '10:30', participantCount: 5,
+        items: [{ id: 'aula-full', name: 'Aula Full', category: 'tempat-pertemuan', quantity: 1, price: hargaAula }],
+      })
+      check('slot lepas setelah hold expired → 200', rFr.status === 200, `${rFr.status} ${rFr.body?.error || ''}`)
+      if (rFr.status === 200) created.push({ id: rFr.body.bookingId, phone: hpFr })
+    }
 
     const hpGz = phone()
     const rFree = await post('/api/bookings', {

@@ -27,7 +27,7 @@ const adminAccommodationsRoute = readFileSync(
   'utf8',
 )
 const paymentHoldMigration = readFileSync(
-  new URL('../supabase/migrations/014_payment_hold_before_active_schedule.sql', import.meta.url),
+  new URL('../supabase/migrations/017_payment_hold_before_active_schedule.sql', import.meta.url),
   'utf8',
 )
 
@@ -62,9 +62,8 @@ test('invoice tidak memilih jenis maupun path dokumen identitas', () => {
   assert.doesNotMatch(selectExpression, /document_storage_path/)
 })
 
-test('jadwal aktif hanya memuat booking dengan pembayaran lunas', () => {
+test('jadwal aktif hanya memuat booking dengan status lunas/confirmed', () => {
   for (const route of [publicScheduleRoute, adminRentalsRoute, adminAccommodationsRoute]) {
-    assert.match(route, /bookings\.payment_status'\s*,\s*'paid'/)
     assert.match(route, /bookings\.status'\s*,\s*\['paid', 'confirmed'\]/)
   }
 })
@@ -75,4 +74,14 @@ test('resource pending menjadi hold dan baru aktif setelah pembayaran', () => {
   assert.match(paymentHoldMigration, /SET status = 'hold'/)
   assert.match(paymentHoldMigration, /NEW\.status IN \('paid', 'confirmed'\)/)
   assert.match(paymentHoldMigration, /SET status = 'active'/)
+})
+
+test('hold mengunci slot: overlap trigger & penginapan menyertakan status hold (migrasi 020)', () => {
+  const holdBlocksMigration = readFileSync(
+    new URL('../supabase/migrations/020_hold_blocks_slot.sql', import.meta.url),
+    'utf8',
+  )
+  assert.match(holdBlocksMigration, /NEW\.status IN \('cancelled', 'returned'\)/)
+  assert.match(holdBlocksMigration, /existing\.status IN \('hold', 'active'\)/)
+  assert.match(holdBlocksMigration, /WHERE \(status IN \('hold', 'active'\)\)/)
 })
