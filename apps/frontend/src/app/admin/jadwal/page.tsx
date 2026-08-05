@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import Link from 'next/link'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { accommodationTypeForItem, isAccommodationItem, stayDateKeys } from '@repo/shared-utils'
+import MonthFilter from '@/components/admin/MonthFilter'
 
 interface RentalRow {
   id: string
@@ -568,13 +569,8 @@ export default function AdminJadwalPage() {
 
       <div className="admin-filterbar mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="w-full sm:max-w-xs">
-          <label className="form-label">Filter bulan</label>
-          <input
-            type="month"
-            className="form-input"
-            value={selectedMonth}
-            onChange={(event) => setSelectedMonth(event.target.value)}
-          />
+            <label className="form-label">Filter bulan</label>
+            <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
         </div>
         <div className="text-sm text-gray-500">
           Menampilkan jadwal sewa untuk <span className="font-medium text-gray-700">{monthLabel}</span>.

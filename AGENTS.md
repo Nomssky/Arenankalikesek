@@ -2,6 +2,10 @@
 
 ## Git Workflow
 
+**WAJIB: sebelum memulai task apa pun, `git pull origin main` dulu** (atau minimal
+`git fetch && git status`) agar selalu sinkron dengan kerja orang lain. Jangan
+mulai mengerjakan dari versi lama; bisa bentrok saat push.
+
 Sebelum commit dan push, selalu cek apakah remote punya commit lebih baru:
 
 1. `git fetch`
@@ -9,7 +13,7 @@ Sebelum commit dan push, selalu cek apakah remote punya commit lebih baru:
 3. Jika remote lebih baru: `git pull origin main` dulu, resolve konflik bila ada, baru lanjut commit/push.
 4. Push hanya setelah branch sinkron dengan `origin/main`.
 
-Jangan pernah push langsung tanpa memeriksa pull terlebih dahulu — memaksa remote force-update berisiko menghilangkan commit orang lain.
+Jangan pernah push langsung tanpa memeriksa pull terlebih dahulu — memaksa remote force-update berisiko menghilangkan commit orang lain. Kalau `pull` diblokir oleh perubahan lokal yang belum di-commit: `git stash push` → `git pull` → `git stash pop` (resolve konflik bila ada).
 
 ### Judul Commit & Identitas
 

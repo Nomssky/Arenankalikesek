@@ -112,6 +112,25 @@ test.describe('Admin: read + offline booking (perlu E2E_ADMIN_PASSWORD)', () => 
     expect((await postCancel.json()).status).toBe('cancelled')
   })
 
+  test('halaman dashboard: filter bulan berupa dropdown (bukan input ketik)', async ({ page }) => {
+    await page.goto('/admin/login')
+    await page.getByLabel('Kata sandi').fill(ADMIN_PASSWORD || '')
+    await page.getByRole('button', { name: /Masuk/ }).click()
+    await expect(page).not.toHaveURL(/\/admin\/login/, { timeout: 10000 })
+
+    await page.goto('/admin')
+    const bulan = page.getByLabel('Bulan')
+    const tahun = page.getByLabel('Tahun')
+    await expect(bulan).toBeVisible({ timeout: 10000 })
+    await expect(tahun).toBeVisible()
+    expect(await bulan.evaluate((el: HTMLSelectElement) => el.tagName)).toBe('SELECT')
+
+    const currentMonth = new Date().toISOString().slice(5, 7)
+    const target = currentMonth === '01' ? '02' : '01'
+    await bulan.selectOption(target)
+    await expect(page.getByText(/Menampilkan jadwal untuk/)).toBeVisible({ timeout: 10000 })
+  })
+
   test('halaman laporan admin dapat dibuka setelah login', async ({ page }) => {
     await page.goto('/admin/login')
     await page.getByLabel('Kata sandi').fill(ADMIN_PASSWORD || '')

@@ -36,7 +36,8 @@ test.describe('Admin Jadwal Page', () => {
 
   test('Login and access jadwal page', async ({ page }) => {
     await openJadwal(page, true)
-    await expect(page.locator('input[type="month"]')).toBeVisible()
+    await expect(page.getByLabel('Bulan')).toBeVisible()
+    await expect(page.getByLabel('Tahun')).toBeVisible()
     await expect(page.locator('button').filter({ hasText: 'Penginapan & Camping' })).toBeVisible()
   })
 
@@ -45,12 +46,14 @@ test.describe('Admin Jadwal Page', () => {
     await expectTableOrEmpty(page)
   })
 
-  test('Filter bulan menampilkan jadwal untuk bulan itu', async ({ page }) => {
+  test('Filter bulan (pilih bulan berbeda) memuat ulang jadwal', async ({ page }) => {
     await openJadwal(page, true)
 
-    const month = new Date().toISOString().slice(0, 7)
-    await page.locator('input[type="month"]').fill(month)
+    const currentMonth = new Date().toISOString().slice(5, 7)
+    const target = currentMonth === '01' ? '02' : '01'
+    await page.getByLabel('Bulan').selectOption(target)
     await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 15000 })
+    await expect(page.getByLabel('Bulan')).toHaveValue(target)
     await expectTableOrEmpty(page)
   })
 })

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { formatDate, formatPrice } from '@/lib/utils'
+import MonthFilter from '@/components/admin/MonthFilter'
 
 interface BookingRow {
   id: string
@@ -288,12 +289,7 @@ export default function AdminDashboardPage() {
         <div className="admin-filterbar mt-4 flex flex-wrap items-end gap-3">
           <div className="w-full sm:max-w-xs">
             <label className="form-label">Filter bulan</label>
-            <input
-              type="month"
-              className="form-input"
-              value={scheduleMonth}
-              onChange={(e) => setScheduleMonth(e.target.value)}
-            />
+            <MonthFilter value={scheduleMonth} onChange={setScheduleMonth} />
           </div>
           <p className="text-sm text-gray-500">
             Menampilkan jadwal untuk <span className="font-medium text-gray-700">{new Date(`${scheduleMonth}-01`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span>
