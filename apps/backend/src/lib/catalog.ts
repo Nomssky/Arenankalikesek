@@ -103,9 +103,11 @@ function tourPriceLabel(price: number, maxPrice: number | null, pricingType: Pri
 }
 
 export function mapTourPackageRow(row: TourPackageRow): FallbackTourPackage {
-  const fallback = fallbackTourPackages.find(
-    (item) => normalizedName(item.name) === normalizedName(row.name),
-  )
+  const fallback = fallbackTourPackages.find((item) => {
+    const rowName = normalizedName(row.name)
+    const fallbackName = normalizedName(item.name)
+    return rowName === fallbackName || rowName.startsWith(`${fallbackName} `)
+  })
   const price = safePrice(row.price)
   const rawMaxPrice = row.max_price === null || row.max_price === undefined
     ? null

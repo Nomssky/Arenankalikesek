@@ -97,7 +97,6 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               src={post.image}
               alt={post.imageAlt ?? `Sampul artikel ${post.title}`}
               fill
-              priority
               sizes="(min-width: 1024px) 896px, 100vw"
               className="object-cover"
             />
