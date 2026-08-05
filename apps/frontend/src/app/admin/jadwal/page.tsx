@@ -55,6 +55,20 @@ interface HolidayDate {
   label: string | null
 }
 
+interface EduTripBooking {
+  id: string
+  booking_code: string | null
+  customer_name: string | null
+  customer_phone: string | null
+  booking_date: string
+  booking_mode: string
+  status: string
+  payment_status: string
+  guest_count: number | null
+  notes: string | null
+  items: { name?: string | null }[] | null
+}
+
 function formatClock(value: string | null) {
   return value ? value.slice(0, 5) : '-'
 }
@@ -140,18 +154,32 @@ function prettyAccommodationType(value: string | null) {
   return mapped[value] || value
 }
 
+function eduPackageName(booking: EduTripBooking) {
+  const first = Array.isArray(booking.items) ? booking.items[0] : null
+  return first?.name || '-'
+}
+
+function eduParticipantCount(booking: EduTripBooking) {
+  if (booking.guest_count) return `${booking.guest_count} orang`
+  const match = String(booking.notes || '').match(/Jumlah peserta:\s*(\d+)\s*orang/)
+  return match ? `${match[1]} orang` : '-'
+}
+
 function orderKey(date: string, time: string | null) {
   return `${date}T${time || '00:00'}`
 }
 
 export default function AdminJadwalPage() {
-  const [tab, setTab] = useState<'rental' | 'accommodation'>('rental')
+  const [tab, setTab] = useState<'rental' | 'accommodation' | 'edutrip'>('rental')
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey())
   const [rentals, setRentals] = useState<RentalRow[]>([])
   const [accommodations, setAccommodations] = useState<AccommodationRow[]>([])
   const [blocks, setBlocks] = useState<DateBlock[]>([])
   const [stayOptions, setStayOptions] = useState<StayOption[]>([])
   const [holidayDates, setHolidayDates] = useState<HolidayDate[]>([])
+  const [eduTrips, setEduTrips] = useState<EduTripBooking[]>([])
+  const [eduQuota, setEduQuota] = useState(2)
+  const [eduUsedByDate, setEduUsedByDate] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
@@ -172,30 +200,37 @@ export default function AdminJadwalPage() {
     }
 
     try {
-      const [rentalsResponse, staysResponse, blocksResponse, packagesResponse, holidaysResponse] = await Promise.all([
+      const [rentalsResponse, staysResponse, blocksResponse, packagesResponse, holidaysResponse, eduTripsResponse, eduAvailabilityResponse] = await Promise.all([
         fetch(`/api/admin/rentals?${params}`),
         fetch(`/api/admin/accommodations?${params}`),
         fetch('/api/admin/booking-date-blocks'),
         fetch('/api/tour-packages?available=true'),
         fetch('/api/admin/booking-holiday-dates'),
+        fetch(`/api/admin/bookings?${params}`),
+        fetch(`/api/edu-trip-availability?month=${selectedMonth}`),
       ])
 
-      if (![rentalsResponse, staysResponse, blocksResponse, packagesResponse, holidaysResponse].every((response) => response.ok)) {
+      if (![rentalsResponse, staysResponse, blocksResponse, packagesResponse, holidaysResponse, eduTripsResponse, eduAvailabilityResponse].every((response) => response.ok)) {
         throw new Error('Gagal memuat jadwal')
       }
 
-      const [rentalData, stayData, blockData, packageData, holidayData] = await Promise.all([
+      const [rentalData, stayData, blockData, packageData, holidayData, eduTripsData, eduAvailabilityData] = await Promise.all([
         rentalsResponse.json(),
         staysResponse.json(),
         blocksResponse.json(),
         packagesResponse.json(),
         holidaysResponse.json(),
+        eduTripsResponse.json(),
+        eduAvailabilityResponse.json(),
       ])
 
       setRentals(rentalData)
       setAccommodations(stayData)
       setBlocks(blockData)
       setHolidayDates(holidayData)
+      setEduTrips((eduTripsData || []).filter((item: EduTripBooking) => item.booking_mode === 'edu_trip'))
+      setEduQuota(Number(eduAvailabilityData.quota) || 2)
+      setEduUsedByDate(eduAvailabilityData.byDate || {})
 
       const options = packageData.filter((item: StayOption) => isAccommodationItem(item.id))
       setStayOptions(options)
@@ -213,12 +248,12 @@ export default function AdminJadwalPage() {
   }, [loadData])
 
   const sortedRentals = useMemo(
-    () => [...rentals].sort((a, b) => orderKey(a.booking_date, a.time_start).localeCompare(orderKey(b.booking_date, b.time_start))),
+    () => [...rentals].sort((a, b) => orderKey(b.booking_date, b.time_start).localeCompare(orderKey(a.booking_date, a.time_start))),
     [rentals],
   )
 
   const sortedAccommodations = useMemo(
-    () => [...accommodations].sort((a, b) => orderKey(a.check_in_date, null).localeCompare(orderKey(b.check_in_date, null))),
+    () => [...accommodations].sort((a, b) => orderKey(b.check_in_date, null).localeCompare(orderKey(a.check_in_date, null))),
     [accommodations],
   )
 
@@ -262,6 +297,40 @@ export default function AdminJadwalPage() {
       }
     })
   }, [monthBounds])
+
+  const sortedEduTrips = useMemo(
+    () => [...eduTrips].sort((a, b) => b.booking_date.localeCompare(a.booking_date)),
+    [eduTrips],
+  )
+
+  const eduTripsByDate = useMemo(() => {
+    const map = new Map<string, EduTripBooking[]>()
+    for (const booking of eduTrips) {
+      const list = map.get(booking.booking_date) || []
+      list.push(booking)
+      map.set(booking.booking_date, list)
+    }
+    return map
+  }, [eduTrips])
+
+  const eduDays = useMemo(
+    () => monthDateColumns.map(({ day, dateKey }) => {
+      const used = eduUsedByDate[dateKey] || 0
+      const bookings = eduTripsByDate.get(dateKey) || []
+      return { day, dateKey, used, remaining: Math.max(0, eduQuota - used), bookings }
+    }),
+    [monthDateColumns, eduUsedByDate, eduQuota, eduTripsByDate],
+  )
+
+  const eduSummary = useMemo(() => {
+    let totalRombongan = 0
+    let fullDays = 0
+    for (const day of eduDays) {
+      totalRombongan += day.used
+      if (day.remaining <= 0) fullDays += 1
+    }
+    return { totalRombongan, fullDays }
+  }, [eduDays])
 
   const accommodationUnits = useMemo(() => {
     const map = new Map<string, { id: string; name: string; type: string | null }>()
@@ -490,7 +559,7 @@ export default function AdminJadwalPage() {
         </button>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 rounded-xl bg-white p-1 shadow-sm sm:max-w-lg">
+      <div className="mt-5 grid grid-cols-3 rounded-xl bg-white p-1 shadow-sm sm:max-w-2xl">
         <button
           type="button"
           onClick={() => setTab('rental')}
@@ -504,6 +573,13 @@ export default function AdminJadwalPage() {
           className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${tab === 'accommodation' ? 'bg-emerald-700 text-white' : 'text-gray-600'}`}
         >
           Penginapan & Camping
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('edutrip')}
+          className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${tab === 'edutrip' ? 'bg-emerald-700 text-white' : 'text-gray-600'}`}
+        >
+          Eduwisata dan Kegiatan
         </button>
       </div>
 
@@ -668,7 +744,7 @@ export default function AdminJadwalPage() {
             </div>
           )}
         </div>
-      ) : (
+      ) : tab === 'accommodation' ? (
         <>
           <div
             className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl bg-white shadow-sm"
@@ -910,6 +986,93 @@ export default function AdminJadwalPage() {
               )}
             </div>
           </section>
+        </>
+      ) : (
+        <>
+          <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+            <div
+              className="admin-table-scroll admin-table-scroll--wide rounded-xl bg-white shadow-sm"
+              data-lenis-prevent
+              data-scroll-container
+            >
+              {sortedEduTrips.length === 0 ? (
+                <p className="py-12 text-center text-gray-500">Belum ada booking eduwisata pada bulan ini.</p>
+              ) : (
+                <div className="overflow-auto">
+                  <table className="min-w-[820px] w-full text-left text-sm">
+                    <thead className="border-b bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold text-gray-700">Tanggal</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700">Nama pemesan</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700">Paket</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700">Peserta</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700">Kode</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700">Status</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y bg-white">
+                      {sortedEduTrips.map((booking) => (
+                        <tr key={booking.id} className="hover:bg-gray-50">
+                          <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-900">
+                            {formatDate(booking.booking_date)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">{booking.customer_name || '-'}</td>
+                          <td className="px-4 py-3 text-gray-700">{eduPackageName(booking)}</td>
+                          <td className="px-4 py-3 text-gray-700">{eduParticipantCount(booking)}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-500">{booking.booking_code || '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClasses(booking.status)}`}>
+                              {booking.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/invoice/${booking.id}?phone=${encodeURIComponent(booking.customer_phone || '')}`}
+                              className="text-sm font-semibold text-emerald-700 hover:underline"
+                            >
+                              Invoice
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <aside className="rounded-xl bg-white p-4 shadow-sm lg:self-start">
+              <h2 className="font-bold text-gray-900">Kuota harian</h2>
+              <p className="mt-1 text-sm leading-5 text-gray-500">
+                Maksimal {eduQuota} rombongan per hari untuk seluruh paket eduwisata dan kegiatan (Edu Trip Kesek dan Package 1–3).
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-center">
+                <div className="rounded-lg bg-emerald-50 p-3">
+                  <p className="text-2xl font-bold text-emerald-700">{eduSummary.totalRombongan}</p>
+                  <p className="mt-1 text-xs text-gray-500">Total rombongan bulan ini</p>
+                </div>
+                <div className="rounded-lg bg-orange-50 p-3">
+                  <p className="text-2xl font-bold text-orange-700">{eduSummary.fullDays}</p>
+                  <p className="mt-1 text-xs text-gray-500">Hari kuota penuh</p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Kuota terisi per tanggal</p>
+                <ul className="mt-2 space-y-1.5 text-xs text-gray-600">
+                  {eduDays.map((day) => (
+                    <li key={day.dateKey} className="flex items-center justify-between gap-2">
+                      <span>{formatDate(day.dateKey)}</span>
+                      <span className={day.remaining <= 0 ? 'font-semibold text-red-600' : 'font-medium text-emerald-700'}>
+                        {day.used}/{eduQuota}
+                        {day.remaining <= 0 ? ' penuh' : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </aside>
+          </div>
         </>
       )}
     </div>

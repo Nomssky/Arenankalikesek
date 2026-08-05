@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CalendarDaysIcon, CheckCircleIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
@@ -32,7 +32,15 @@ interface AccommodationItem {
   price_label: string
 }
 
-type ScheduleType = 'rental' | 'accommodation'
+interface EduTripPackage {
+  id: string
+  name: string
+  category: string
+  price_label: string
+  bookable: boolean
+}
+
+type ScheduleType = 'rental' | 'accommodation' | 'edutrip'
 
 const rentalHourlySlots = Array.from({ length: 10 }, (_, index) => {
   const startHour = index + 7
@@ -78,6 +86,27 @@ function slotIsBooked(slot: { start: string; end: string }, bookings: RentalBook
   })
 }
 
+function shiftMonth(month: string, amount: number) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  return new Date(Date.UTC(year, monthNumber - 1 + amount, 1)).toISOString().slice(0, 7)
+}
+
+function monthLabel(month: string) {
+  const date = new Date(`${month}-01T00:00:00.000Z`)
+  return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+}
+
+function dateLabel(date: string) {
+  const parsed = new Date(`${date}T00:00:00.000Z`)
+  return parsed.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
 export default function JadwalPage() {
   const currentArenaTime = useMemo(() => arenaNow(), [])
   const today = currentArenaTime.date
@@ -94,6 +123,12 @@ export default function JadwalPage() {
   const [blockedByMonth, setBlockedByMonth] = useState<Record<string, string[]>>({})
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
+  const [edutripMonth, setEduTripMonth] = useState(today.slice(0, 7))
+  const [edutripQuota, setEduTripQuota] = useState(2)
+  const [edutripUsedByMonth, setEduTripUsedByMonth] = useState<Record<string, Record<string, number>>>({})
+  const [edutripPackages, setEduTripPackages] = useState<EduTripPackage[]>([])
+  const [selectedEduTripDate, setSelectedEduTripDate] = useState('')
+  const [selectedEduTripPackage, setSelectedEduTripPackage] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -110,6 +145,9 @@ export default function JadwalPage() {
         const stays = packages.filter((item: AccommodationItem) => isAccommodationItem(item.id))
         setAccommodationItems(stays)
         setSelectedAccommodationId((current) => current || stays[0]?.id || '')
+        setEduTripPackages(packages.filter(
+          (item: EduTripPackage) => ['paket-edukasi', 'paket-kegiatan'].includes(item.category),
+        ))
       })
       .catch((fetchError) => {
         if (fetchError?.name !== 'AbortError') setError('Gagal memuat jadwal. Silakan coba lagi.')
@@ -128,6 +166,20 @@ export default function JadwalPage() {
     return () => controller.abort()
   }, [selectedAccommodationId, calendarMonth])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch(`/api/edu-trip-availability?month=${edutripMonth}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data) => {
+        setEduTripQuota(Number(data.quota) || 2)
+        setEduTripUsedByMonth((current) => ({ ...current, [edutripMonth]: data.byDate || {} }))
+      })
+      .catch((fetchError) => {
+        if (fetchError?.name !== 'AbortError') setError('Gagal memuat kuota Eduwisata. Silakan coba lagi.')
+      })
+    return () => controller.abort()
+  }, [edutripMonth])
+
   const blockedDates = Object.values(blockedByMonth).flat()
   const selectedAccommodation = accommodationItems.find((item) => item.id === selectedAccommodationId)
   const canContinueAccommodationBooking = Boolean(selectedAccommodation?.bookable && checkIn && checkOut)
@@ -138,6 +190,35 @@ export default function JadwalPage() {
           : ''
       }`
     : '/booking/wisata?category=penginapan-camping'
+
+  const edutripUsedByDate = edutripUsedByMonth[edutripMonth] || {}
+  const edutripBlockedSet = new Set(
+    Object.entries(edutripUsedByDate)
+      .filter(([, used]) => used >= edutripQuota)
+      .map(([date]) => date),
+  )
+  const selectedEduTripUsed = selectedEduTripDate
+    ? (edutripUsedByMonth[selectedEduTripDate.slice(0, 7)]?.[selectedEduTripDate] ?? 0)
+    : 0
+  const selectedEduTripRemaining = Math.max(0, edutripQuota - selectedEduTripUsed)
+  const selectedEduTripPackageInfo = edutripPackages.find((item) => item.id === selectedEduTripPackage)
+  const canContinueEduTripBooking = Boolean(
+    selectedEduTripDate
+    && selectedEduTripRemaining > 0
+    && selectedEduTripPackageInfo?.bookable,
+  )
+  const edutripBookingHref = selectedEduTripPackageInfo
+    ? `/booking/wisata?item=${encodeURIComponent(selectedEduTripPackageInfo.id)}${
+        selectedEduTripDate ? `&bookingDate=${encodeURIComponent(selectedEduTripDate)}` : ''
+      }&directBooking=1`
+    : '/booking/wisata?category=paket-edukasi'
+
+  const [edutripYear, edutripMonthNumber] = edutripMonth.split('-').map(Number)
+  const edutripFirstDay = new Date(Date.UTC(edutripYear, edutripMonthNumber - 1, 1))
+  const edutripNumberOfDays = new Date(Date.UTC(edutripYear, edutripMonthNumber, 0)).getUTCDate()
+  const edutripMondayOffset = (edutripFirstDay.getUTCDay() + 6) % 7
+  const edutripPreviousMonth = shiftMonth(edutripMonth, -1)
+  const canGoPreviousEduTrip = !today || `${edutripPreviousMonth}-31` >= today
 
   const itemBookings = (item: InventoryItem) => rentalBookings.filter((booking) => {
     if (booking.status === 'cancelled') return false
@@ -191,12 +272,15 @@ export default function JadwalPage() {
 
       <Section>
         <div className="mx-auto max-w-6xl">
-          <div className="mb-7 grid grid-cols-2 rounded-2xl bg-emerald-950 p-1.5 text-sm font-semibold text-white shadow-lg sm:max-w-xl">
+          <div className="mb-7 grid grid-cols-3 rounded-2xl bg-emerald-950 p-1.5 text-sm font-semibold text-white shadow-lg sm:max-w-2xl">
             <button type="button" onClick={() => setScheduleType('rental')} className={`rounded-xl px-3 py-3 transition ${scheduleType === 'rental' ? 'bg-orange-500 shadow-sm' : 'text-white/70 hover:text-white'}`}>
               Sewa Tempat
             </button>
             <button type="button" onClick={() => setScheduleType('accommodation')} className={`rounded-xl px-3 py-3 transition ${scheduleType === 'accommodation' ? 'bg-orange-500 shadow-sm' : 'text-white/70 hover:text-white'}`}>
               Penginapan & Camping
+            </button>
+            <button type="button" onClick={() => setScheduleType('edutrip')} className={`rounded-xl px-3 py-3 transition ${scheduleType === 'edutrip' ? 'bg-orange-500 shadow-sm' : 'text-white/70 hover:text-white'}`}>
+              Eduwisata dan Kegiatan
             </button>
           </div>
 
@@ -306,7 +390,7 @@ export default function JadwalPage() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : scheduleType === 'accommodation' ? (
             <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
               <aside className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 lg:self-start">
                 <label className="form-label">Unit penginapan/camping</label>
@@ -356,6 +440,128 @@ export default function JadwalPage() {
                     className={`rounded-full px-5 py-3 text-center text-sm font-bold ${canContinueAccommodationBooking ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-white/10 text-white/40'}`}
                   >
                     {checkIn && checkOut ? 'Lanjut booking' : 'Pilih tanggal dahulu'}
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
+              <aside className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 lg:self-start">
+                <label className="form-label">Pilih paket</label>
+                <select
+                  aria-label="Pilih paket eduwisata atau kegiatan"
+                  className="form-select"
+                  value={selectedEduTripPackage}
+                  onChange={(event) => setSelectedEduTripPackage(event.target.value)}
+                >
+                  <option value="">-- Pilih paket --</option>
+                  {edutripPackages.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} — {item.price_label}/orang
+                    </option>
+                  ))}
+                </select>
+                {selectedEduTripPackageInfo && (
+                  <div className="mt-4 rounded-xl bg-white p-4">
+                    <p className="font-bold text-emerald-950">{selectedEduTripPackageInfo.name}</p>
+                    <p className="mt-1 text-sm text-orange-600">{selectedEduTripPackageInfo.price_label}/orang</p>
+                    {!selectedEduTripPackageInfo.bookable && <p className="mt-2 text-xs text-gray-500">Harga belum tersedia; hubungi pengelola.</p>}
+                  </div>
+                )}
+                <div className="mt-4 text-xs leading-5 text-gray-600">
+                  <p className="flex items-center gap-2 font-semibold text-emerald-900"><CalendarDaysIcon className="h-4 w-4" />Cara memilih</p>
+                  <p className="mt-1">Pilih paket, lalu pilih satu tanggal. Kuota maksimal {edutripQuota} rombongan per hari untuk seluruh paket eduwisata dan kegiatan. Harga berlaku untuk minimal 25 anak.</p>
+                </div>
+              </aside>
+              <div>
+                <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-emerald-50 px-3 py-3 sm:px-4">
+                  <button
+                    type="button"
+                    aria-label="Bulan sebelumnya"
+                    disabled={!canGoPreviousEduTrip}
+                    onClick={() => { setEduTripMonth(edutripPreviousMonth); setSelectedEduTripDate('') }}
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <ChevronLeftIcon className="h-5 w-5" />
+                  </button>
+                  <p className="text-sm font-bold capitalize text-emerald-950">{monthLabel(edutripMonth)}</p>
+                  <button
+                    type="button"
+                    aria-label="Bulan berikutnya"
+                    onClick={() => { setEduTripMonth(shiftMonth(edutripMonth, 1)); setSelectedEduTripDate('') }}
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-emerald-800 transition hover:bg-emerald-50"
+                  >
+                    <ChevronRightIcon className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 p-2 sm:p-4">
+                  {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((label) => (
+                    <div key={label} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400 sm:text-xs">
+                      {label}
+                    </div>
+                  ))}
+                  {Array.from({ length: edutripMondayOffset }, (_, index) => <div key={`empty-${index}`} />)}
+                  {Array.from({ length: edutripNumberOfDays }, (_, index) => {
+                    const date = `${edutripMonth}-${String(index + 1).padStart(2, '0')}`
+                    const isPast = Boolean(today && date < today)
+                    const isFull = edutripBlockedSet.has(date)
+                    const isSelected = date === selectedEduTripDate
+                    const disabled = isPast || isFull
+                    return (
+                      <button
+                        key={date}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => setSelectedEduTripDate(date)}
+                        aria-label={`${date}${isFull ? ', kuota penuh' : ', tersedia'}`}
+                        className={`relative flex aspect-square min-h-9 items-center justify-center rounded-xl text-xs font-semibold transition sm:text-sm ${
+                          isSelected
+                            ? 'bg-orange-500 text-white shadow-sm'
+                            : isFull
+                              ? 'cursor-not-allowed border-red-100 bg-red-50 text-red-400 line-through'
+                              : isPast
+                                ? 'cursor-not-allowed text-gray-300'
+                                : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-800'
+                        }`}
+                      >
+                        {index + 1}
+                        {!disabled && !isSelected && (
+                          <span className="absolute bottom-1 h-1 w-1 rounded-full bg-emerald-400" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-emerald-50 px-4 py-3 text-[11px] text-gray-500">
+                  <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-emerald-400" />Tersedia</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-red-200" />Kuota penuh</span>
+                  <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-orange-500" />Pilihan Anda</span>
+                </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-emerald-950 p-4 text-white sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs text-white/60">Pilihan tanggal</p>
+                    <p className="font-semibold">
+                      {selectedEduTripDate ? dateLabel(selectedEduTripDate) : 'Tanggal belum dipilih'}
+                      {selectedEduTripDate && (
+                        <span className="text-white/70">
+                          {selectedEduTripRemaining > 0
+                            ? ` · tersisa ${selectedEduTripRemaining} dari ${edutripQuota} kuota`
+                            : ' · kuota penuh'}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <Link
+                    href={edutripBookingHref}
+                    aria-disabled={!canContinueEduTripBooking}
+                    className={`rounded-full px-5 py-3 text-center text-sm font-bold ${canContinueEduTripBooking ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-white/10 text-white/40'}`}
+                  >
+                    {canContinueEduTripBooking ? 'Lanjut booking' : 'Pilih tanggal & paket'}
                   </Link>
                 </div>
               </div>

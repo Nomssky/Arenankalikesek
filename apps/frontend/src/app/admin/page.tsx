@@ -43,7 +43,7 @@ interface DashboardScheduleRow {
   id: string
   bookingId: string
   bookingCode: string
-  kind: 'Aktivitas / Sewa' | 'Penginapan / Camping'
+  kind: 'Aktivitas / Sewa' | 'Penginapan / Camping' | 'Eduwisata / Kegiatan'
   itemName: string
   customerName: string
   customerPhone: string
@@ -52,6 +52,16 @@ interface DashboardScheduleRow {
   timeStart?: string | null
   timeEnd?: string | null
   status: string
+}
+
+interface EduTripRow {
+  id: string
+  booking_code: string | null
+  customer_name: string | null
+  customer_phone: string | null
+  booking_date: string
+  status: string
+  items: { name?: string | null }[] | null
 }
 
 export default function AdminDashboardPage() {
@@ -67,6 +77,10 @@ export default function AdminDashboardPage() {
   const [schedules, setSchedules] = useState<DashboardScheduleRow[]>([])
   const [scheduleLoading, setScheduleLoading] = useState(true)
   const [scheduleError, setScheduleError] = useState('')
+  const [scheduleMonth, setScheduleMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
 
   const fetchBookings = useCallback(async () => {
     setLoading(true)
@@ -104,19 +118,29 @@ export default function AdminDashboardPage() {
       setScheduleLoading(true)
       setScheduleError('')
       try {
-        const [rentalResponse, accommodationResponse] = await Promise.all([
-          fetch('/api/admin/rentals', { cache: 'no-store' }),
-          fetch('/api/admin/accommodations', { cache: 'no-store' }),
+        const [year, month] = scheduleMonth.split('-').map(Number)
+        const daysInMonth = new Date(year, month, 0).getDate()
+        const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+        const endDate = `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
+        const params = new URLSearchParams({ start_date: startDate, end_date: endDate })
+
+        const [rentalResponse, accommodationResponse, edutripResponse] = await Promise.all([
+          fetch(`/api/admin/rentals?${params}`, { cache: 'no-store' }),
+          fetch(`/api/admin/accommodations?${params}`, { cache: 'no-store' }),
+          fetch(`/api/admin/bookings?${params}`, { cache: 'no-store' }),
         ])
 
-        if (!rentalResponse.ok || !accommodationResponse.ok) {
+        if (!rentalResponse.ok || !accommodationResponse.ok || !edutripResponse.ok) {
           throw new Error('Gagal memuat jadwal')
         }
 
-        const [rentals, accommodations] = (await Promise.all([
+        const [rentals, accommodations, bookings] = (await Promise.all([
           rentalResponse.json(),
           accommodationResponse.json(),
-        ])) as [RentalScheduleRow[], AccommodationScheduleRow[]]
+          edutripResponse.json(),
+        ])) as [RentalScheduleRow[], AccommodationScheduleRow[], EduTripRow[]]
+
+        const eduTrips = bookings.filter((b) => b.booking_date >= startDate && b.booking_date <= endDate)
 
         const combined: DashboardScheduleRow[] = [
           ...rentals.map((row) => ({
@@ -144,12 +168,23 @@ export default function AdminDashboardPage() {
             endDate: row.check_out_date,
             status: row.status,
           })),
+          ...eduTrips.map((row) => ({
+            id: `edutrip-${row.id}`,
+            bookingId: row.id,
+            bookingCode: row.booking_code || row.id.slice(0, 8),
+            kind: 'Eduwisata / Kegiatan' as const,
+            itemName: (Array.isArray(row.items) && row.items[0]?.name) || 'Paket Eduwisata',
+            customerName: row.customer_name || '-',
+            customerPhone: row.customer_phone || '',
+            startDate: row.booking_date,
+            status: row.status,
+          })),
         ]
 
         combined.sort((a, b) => {
           const first = `${a.startDate}T${a.timeStart?.slice(0, 5) || '00:00'}`
           const second = `${b.startDate}T${b.timeStart?.slice(0, 5) || '00:00'}`
-          return first.localeCompare(second)
+          return second.localeCompare(first)
         })
 
         if (active) setSchedules(combined)
@@ -164,7 +199,7 @@ export default function AdminDashboardPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [scheduleMonth])
 
   const totalBookings = bookings.length
   const totalWisata = bookings.filter((b) => b.type === 'wisata').length
@@ -242,6 +277,21 @@ export default function AdminDashboardPage() {
           <Link href="/admin/jadwal" className="text-sm font-semibold text-emerald-700 hover:underline">
             Kelola jadwal
           </Link>
+        </div>
+
+        <div className="admin-filterbar mt-4 flex flex-wrap items-end gap-3">
+          <div className="w-full sm:max-w-xs">
+            <label className="form-label">Filter bulan</label>
+            <input
+              type="month"
+              className="form-input"
+              value={scheduleMonth}
+              onChange={(e) => setScheduleMonth(e.target.value)}
+            />
+          </div>
+          <p className="text-sm text-gray-500">
+            Menampilkan jadwal untuk <span className="font-medium text-gray-700">{new Date(`${scheduleMonth}-01`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span>
+          </p>
         </div>
 
         <div
