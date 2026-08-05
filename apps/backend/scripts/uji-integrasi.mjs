@@ -100,10 +100,11 @@ console.log('\n== A. DB ↔ jadwal ==')
   const got = (Array.isArray(sched) ? sched : []).map((r) => JSON.stringify({ item_id: r.item_id, time_start: r.time_start, time_end: r.time_end, booking_date: r.booking_date })).sort()
   check('jadwal API == rental_bookings (2026-10-18)', JSON.stringify(want) === JSON.stringify(got), `DB ${want.length} vs API ${got.length}`)
 
-  const { data: eduDb } = await sb.from('edu_trip_reservations').select('booking_date').eq('status', 'active').eq('booking_date', '2026-07-30')
+  const eduDate = daysFromNow(6)
+  const { data: eduDb } = await sb.from('edu_trip_reservations').select('booking_date').in('status', ['hold', 'active']).eq('booking_date', eduDate)
   const quota = settings['edu_trip.daily_quota'] ?? 2
-  const { body: eduApi } = await get('/api/edu-trip-availability?date=2026-07-30')
-  check('kuota edu == DB (2026-07-30)', eduApi.used === (eduDb || []).length && eduApi.remaining === Math.max(0, quota - (eduDb || []).length), `quota ${quota} used ${eduApi.used} rem ${eduApi.remaining}`)
+  const { body: eduApi } = await get(`/api/edu-trip-availability?date=${eduDate}`)
+  check(`kuota edu == DB (${eduDate}, hold+active)`, eduApi.used === (eduDb || []).length && eduApi.remaining === Math.max(0, quota - (eduDb || []).length), `quota ${quota} used ${eduApi.used} rem ${eduApi.remaining} db ${(eduDb || []).length}`)
 }
 
 console.log('\n== B. Harga venue publik == DB ==')

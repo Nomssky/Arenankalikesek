@@ -54,15 +54,15 @@ test.describe('Alur booking UI tanpa membuat transaksi', () => {
   })
 
   test('durasi dan add-on sewa tempat memperbarui total', async ({ page }) => {
-    await openDirectBooking(page, 'item=area-outbound&bookingDate=2026-08-10&timeStart=07%3A00&timeEnd=09%3A00&directBooking=1')
-    await expect(bookingTotal(page)).toContainText('Rp50.000')
+    await openDirectBooking(page, 'item=gazebo-atas&bookingDate=2026-08-10&timeStart=07%3A00&timeEnd=09%3A00&directBooking=1')
+    await expect(bookingTotal(page)).toContainText('Rp60.000')
 
     await page.getByLabel('Kursi').fill('2')
     await page.getByRole('checkbox', { name: /Sound system/ }).check()
     await page.getByLabel('Tikar').fill('3')
-    await expect(bookingTotal(page)).toContainText('Rp386.000')
+    await expect(bookingTotal(page)).toContainText('Rp396.000')
     await page.getByRole('checkbox', { name: /Sound system/ }).uncheck()
-    await expect(bookingTotal(page)).toContainText('Rp86.000')
+    await expect(bookingTotal(page)).toContainText('Rp96.000')
   })
 
   test('toko memberi notifikasi, modal keranjang, dan checkout tervalidasi', async ({ page }) => {

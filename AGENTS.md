@@ -64,3 +64,11 @@ import { getSupabaseAdmin } from '@/lib/supabase-server'
 ```
 
 Baca `apps/backend/AGENTS.md` dan `apps/frontend/AGENTS.md` untuk detail lengkap tentang batasan dan tanggung jawab masing-masing area.
+
+## Testing
+
+Seluruh pengujian (unit, integrasi, e2e Playwright) dan aturan env-nya dijelaskan
+di bagian `# E2E` pada `apps/backend/AGENTS.md`. Ringkas: `pnpm --filter backend test:unit`
+(unit), `npm run test:e2e` (UI non-mutasi), `E2E_ENABLE_MUTATIONS=true npm run test:e2e`
+(mutasi, localhost), `node apps/backend/scripts/uji-integrasi.mjs` (integrasi). Setiap
+perubahan perilaku diharapkan meninggalkan satu cek yang bisa dijalankan.

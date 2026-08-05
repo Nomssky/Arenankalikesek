@@ -12,7 +12,8 @@ test.describe('Data Sync & Integrity', () => {
   )
 
   const testPrefix = `e2e-sync-${Date.now()}`
-  const testDate = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0]
+  const hpSync = `08${String(Math.floor(100000000 + Math.random() * 899999999))}`
+  const testDate = new Date(Date.now() + 86400000 * 18).toISOString().split('T')[0]
   let bookingId = ''
   let bookingCode = ''
 
@@ -21,9 +22,9 @@ test.describe('Data Sync & Integrity', () => {
       data: {
         type: 'wisata',
         customerName: `${testPrefix} User`,
-        customerPhone: '081234567893',
-        items: [{ id: 'edu-trip-kesek-1', name: 'Edu Trip Kesek 1', quantity: 1, price: 35000 }],
-        totalAmount: 35000,
+        customerPhone: hpSync,
+        items: [{ id: 'atv-anak', name: 'ATV Anak', quantity: 1, price: 5000 }],
+        totalAmount: 5000,
         bookingDate: testDate,
         timeStart: '09:00',
         timeEnd: '11:00',
@@ -53,20 +54,16 @@ test.describe('Data Sync & Integrity', () => {
     }
   })
 
-  test('3. Invoice matches booking data', async ({ request }) => {
+  test('3. Invoice gated hingga lunas (409)', async ({ request }) => {
     if (!bookingId) test.skip()
-    const invoiceRes = await request.get(`/api/invoice/${bookingId}?phone=081234567893`)
-    expect(invoiceRes.status()).toBe(200)
-    const invoice = await invoiceRes.json()
-    expect(invoice.booking_code).toBe(bookingCode)
-    expect(invoice.total_amount).toBe(35000)
-    expect(invoice.customer_name).toBe(`${testPrefix} User`)
+    const invoiceRes = await request.get(`/api/invoice/${bookingId}?phone=${hpSync}`)
+    expect(invoiceRes.status()).toBe(409)
   })
 
   test('4. Cancel booking cascades to rental_bookings', async ({ request }) => {
     if (!bookingId) test.skip()
     const cancelRes = await request.patch(`/api/bookings/${bookingId}/cancel`, {
-      data: { phone: '081234567893' },
+      data: { phone: hpSync },
     })
     expect(cancelRes.status()).toBe(200)
   })

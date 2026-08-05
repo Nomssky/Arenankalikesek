@@ -1,5 +1,5 @@
 import { formatRupiah } from '@repo/shared-utils'
-import { getSupabaseAdmin, isSupabaseConfigured } from './supabase-server'
+import { getSupabaseAdmin, isSupabaseConfigured } from './supabase-server.ts'
 
 // Notifikasi email via Resend (gratis 3.000 email/bulan). Tanpa dependency
 // tambahan — pakai fetch bawaan. Berjalan best-effort: kegagalan tidak pernah

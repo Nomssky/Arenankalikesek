@@ -6,7 +6,10 @@ const isLocalTarget = target.hostname === 'localhost' || target.hostname === '12
 const mutationEnabled = process.env.E2E_ENABLE_MUTATIONS === 'true' && isLocalTarget
 
 const testItem = { id: 'atv-anak', name: 'ATV Anak', quantity: 1, price: 5000 }
-const testDate = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+const testDate = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
+const testPhone = () => `08${String(Math.floor(100000000 + Math.random() * 899999999))}`
+const hpMain = testPhone()
+const hpConflict = testPhone()
 let bookingId = ''
 let bookingCode = ''
 
@@ -21,7 +24,7 @@ test.describe('API Contract Tests', () => {
       data: {
         type: 'wisata',
         customerName: 'E2E Test',
-        customerPhone: '081234567890',
+        customerPhone: hpMain,
         items: [testItem],
         totalAmount: testItem.price * testItem.quantity,
         bookingDate: testDate,
@@ -64,22 +67,17 @@ test.describe('API Contract Tests', () => {
     }
   })
 
-  test('GET /api/invoice/[id] returns valid booking', async ({ request }) => {
+  test('GET /api/invoice/[id] gated hingga lunas (409 tanpa admin)', async ({ request }) => {
     if (!bookingId) test.skip()
-    const res = await request.get(`/api/invoice/${bookingId}?phone=081234567890`)
-    expect(res.status()).toBe(200)
-    const body = await res.json()
-    expect(body).toHaveProperty('id', bookingId)
-    expect(body).toHaveProperty('booking_code', bookingCode)
-    expect(body).toHaveProperty('status')
-    expect(body).toHaveProperty('payment_status')
-    expect(body).toHaveProperty('total_amount', testItem.price * testItem.quantity)
+    const res = await request.get(`/api/invoice/${bookingId}?phone=${hpMain}`)
+    expect(res.status()).toBe(409)
+    expect((await res.json()).error).toMatch(/setelah pembayaran/i)
   })
 
   test('PATCH /api/bookings/[id]/cancel cancels booking', async ({ request }) => {
     if (!bookingId) test.skip()
     const res = await request.patch(`/api/bookings/${bookingId}/cancel`, {
-      data: { phone: '081234567890' },
+      data: { phone: hpMain },
     })
     expect(res.status()).toBe(200)
     const body = await res.json()
@@ -87,14 +85,14 @@ test.describe('API Contract Tests', () => {
   })
 
   test('POST /api/bookings conflict detection — second booking on same slot conflicts', async ({ request }) => {
-    const futureDate = new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0]
+    const futureDate = new Date(Date.now() + 86400000 * 9).toISOString().split('T')[0]
     const conflictItem = { id: 'atv-anak', name: 'ATV Anak', quantity: 1, price: 5000 }
 
     const res = await request.post('/api/bookings', {
       data: {
         type: 'wisata',
         customerName: 'Conflict Test',
-        customerPhone: '081234567891',
+        customerPhone: hpConflict,
         items: [conflictItem],
         totalAmount: 5000,
         bookingDate: futureDate,
@@ -110,7 +108,7 @@ test.describe('API Contract Tests', () => {
       data: {
         type: 'wisata',
         customerName: 'Conflict Test 2',
-        customerPhone: '081234567892',
+        customerPhone: testPhone(),
         items: [conflictItem],
         totalAmount: 5000,
         bookingDate: futureDate,
@@ -124,19 +122,28 @@ test.describe('API Contract Tests', () => {
     expect(body.error).toContain('sudah dibooking')
 
     await request.patch(`/api/bookings/${first.bookingId}/cancel`, {
-      data: { phone: '081234567891' },
+      data: { phone: hpConflict },
     })
   })
 
-  test('Availability endpoint returns expected shape', async ({ request }) => {
-    const res = await request.post('/api/availability', {
-      data: { item_id: 'nonexistent-item', start_at: testDate, end_at: testDate },
-    })
-    expect(res.status()).toBe(200)
-    const body = await res.json()
-    expect(body).toHaveProperty('available')
-    expect(body).toHaveProperty('item_id')
-    expect(body).toHaveProperty('data')
-    expect(typeof body.available).toBe('boolean')
+  test('Availability endpoints return expected shape', async ({ request }) => {
+    const month = new Date(Date.now() + 86400000).toISOString().slice(0, 7)
+    const accomRes = await request.get(`/api/accommodation-availability?item_id=aren-1&month=${month}`)
+    expect(accomRes.status()).toBe(200)
+    const accom = await accomRes.json()
+    expect(accom).toHaveProperty('itemId')
+    expect(accom).toHaveProperty('month')
+    expect(Array.isArray(accom.blockedDates)).toBe(true)
+    expect(Array.isArray(accom.holidayDates)).toBe(true)
+
+    const eduRes = await request.get(`/api/edu-trip-availability?date=${testDate}`)
+    expect(eduRes.status()).toBe(200)
+    const edu = await eduRes.json()
+    expect(edu).toHaveProperty('quota')
+    expect(edu).toHaveProperty('byDate')
+    expect(edu).toHaveProperty('remaining')
+
+    const badRes = await request.get('/api/accommodation-availability?month=nonsense')
+    expect(badRes.status()).toBe(400)
   })
 })

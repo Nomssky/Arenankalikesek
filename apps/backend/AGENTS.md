@@ -592,17 +592,45 @@ Flow yang perlu dicek:
 
 # E2E
 
-Repository root:
+Semua lapisan pengujian dijalankan dari root repo. Playwright butuh server yang
+sudah berjalan (`pnpm dev:frontend` atau `pnpm build:frontend && pnpm --filter frontend start`) —
+`webServer` tidak dikonfigurasi, jalankan server terlebih dahulu.
 
 ```bash
-npm run test:e2e
+npm run test:e2e               # subset UI + baca (non-mutasi)
+E2E_ENABLE_MUTATIONS=true npm run test:e2e   # + tes yang membuat/menghapus data
+# atau arahkan ke server jauh:
+PLAYWRIGHT_BASE_URL=https://site.example npm run test:e2e
 ```
 
-Menjalankan pengujian terhadap flow produksi.
+Self-cleaning: semua data uji ber-identitas `E2E-`/`Uji ` dan dibatalkan otomatis.
 
-Self-cleaning.
+## Tabel lapisan
 
-Jangan dijalankan kecuali memang diperlukan.
+| File (`e2e/`) | Cakupan | Env |
+|---|---|---|
+| `ui-audit.spec.ts` | Health semua route publik (4 viewport), proteksi admin, link internal, 404, invoice cache | — |
+| `booking-ui.spec.ts` | Kategori/pencarian, homestay, camping, sewa add-on, toko+checkout, tolak input | — |
+| `schedule.spec.ts` | Kalender sewa & penginapan (mock API), slot lampau, rentang | — |
+| `admin-jadwal.spec.ts` | Login admin + halaman jadwal | `E2E_ADMIN_PASSWORD` |
+| `admin.spec.ts` | Login, endpoint baca admin, offline booking (buat→paid→cancel), laporan | `E2E_ADMIN_PASSWORD` (+ mutasi utk offline) |
+| `api-contract.spec.ts` | POST booking+snapToken, invoice, cancel, konflik 409, availability shape | `E2E_ENABLE_MUTATIONS` (localhost) |
+| `data-sync.spec.ts` | booking→jadwal→invoice→cancel sinkron | `E2E_ENABLE_MUTATIONS` (localhost) |
+| `payments.spec.ts` | `GET /api/bookings/[id]/payment` (state/canResume/403) | mutasi (localhost) |
+| `webhook.spec.ts` | signature 401, amount mismatch 400, status cancel | mutasi + `MIDTRANS_SERVER_KEY` |
+| `availability-hold.spec.ts` | hold homestay memblokir kalender, dilepas saat cancel | mutasi (localhost) |
+| `edutrip.spec.ts` | kuota edu hold+active → 409 saat penuh, release | mutasi (localhost) |
+| `toko-restriction.spec.ts` | hanya 3 produk izin muncul di `/toko` | — |
+| `login-rate-limit.spec.ts` | 5 gagal → 429 (DB-backed, migration 023) | localhost + `E2E_ADMIN_PASSWORD` |
+| `sukses.spec.ts` | render `/booking/sukses` | — |
+
+Catatan:
+- `E2E_ENABLE_MUTATIONS` + `MIDTRANS_SERVER_KEY` + login-rate-limit **hanya
+  deterministik di localhost**. Di Vercel, header `X-Forwarded-For` bisa ditimpa
+  platform → rate-limit bisa mengunci IP egress CI; jangan jalankan spec itu ke prod.
+- `api-contract.spec.ts`/`data-sync.spec.ts` di-skip otomatis bila bukan localhost.
+- Rate-limit meninggalkan 1 baris `admin_login_attempts` ber-IP acak per run
+  (tanpa akses service role dari spec tidak bisa dibersihkan) — tidak berbahaya.
 
 ## Uji integrasi menyeluruh
 
@@ -618,6 +646,30 @@ node --experimental-strip-types apps/backend/scripts/uji-integrasi.mjs
 Patokan harga memakai `@repo/shared-utils` (kode yang sama dengan FE & backend),
 jadi selisih total di invoice = bukti ketidakselarasan. Semua booking uji dicancel
 setelah diverifikasi.
+
+## Unit test backend
+
+```bash
+pnpm --filter backend test:unit   # tests/*.test.ts (node:test, tanpa framework)
+```
+
+- `migration-contract.test.ts` — invariant DB (overlap penginapan, kuota edu,
+  hold, bucket dokumen, reserve_booking).
+- `email.test.ts` — lapisan email/Resend dengan fetch di-stub (tanpa API key asli).
+
+## Runbook manual (tidak diotomatiskan penuh)
+
+- **Email**: daftar resend.com → verifikasi domain `arenankalikesek.com` (DNS
+  TXT/MX) → set `RESEND_API_KEY` + `EMAIL_FROM` (Vercel env & `.env.local`) →
+  pastikan toggle "Notifikasi Email" aktif di admin → buat booking (email asli)
+  → terima "Booking Diterima" → tandai lunas → terima "Pembayaran Lunas" → cek
+  tidak dobel via `email_sent_created_at`/`email_sent_paid_at`.
+- **Midtrans**: redirect Snap sandbox + fallback `GET /payment` sungguhan.
+- **Dokumen identitas**: signed URL di `/admin/bookings`.
+- **`import-jadwal --check`** + tinjau `EXPECTED_ROWS` tiap bulan baru.
+- Audit keamanan: pastikan anon tidak dapat INSERT/UPDATE `bookings`/
+  `rental_bookings`/`accommodation_bookings`/`edu_trip_reservations` (semua
+  penulisan lewat service role / `reserve_booking`).
 
 ---
 

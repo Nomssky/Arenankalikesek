@@ -18,6 +18,7 @@ const groupLabels: Record<string, string> = {
   homestay: 'Homestay',
   edu_trip: 'Edu Trip',
   rental: 'Add-on Sewa Tempat',
+  email: 'Notifikasi Email',
 }
 
 const nullableKeys = new Set([
@@ -26,6 +27,8 @@ const nullableKeys = new Set([
   'addon.nesting_price',
   'addon.camping_chair_price',
 ])
+
+const toggleKeys = new Set(['email_notification.enabled'])
 
 export default function BookingSettingsPage() {
   const [rows, setRows] = useState<SettingRow[]>([])
@@ -97,17 +100,33 @@ export default function BookingSettingsPage() {
                   <label key={row.key} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                     <span className="text-sm font-semibold text-gray-800">{row.label}</span>
                     <span className="mt-1 block text-xs text-gray-500">{row.unit || row.key}</span>
-                    <input
-                      type="number"
-                      min={row.key.includes('capacity') || row.key.includes('quota') ? 1 : 0}
-                      step={1}
-                      disabled={!row.editable}
-                      className="form-input mt-3 bg-white"
-                      value={values[row.key] ?? ''}
-                      placeholder={nullableKeys.has(row.key) ? 'Belum ditetapkan' : '0'}
-                      required={!nullableKeys.has(row.key)}
-                      onChange={(event) => setValues((current) => ({ ...current, [row.key]: event.target.value }))}
-                    />
+                    {toggleKeys.has(row.key) ? (
+                      <>
+                        <span className="mt-3 flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={values[row.key] === '1' || values[row.key] === 'true'}
+                            disabled={!row.editable}
+                            onChange={(event) => setValues((current) => ({ ...current, [row.key]: event.target.checked ? '1' : '0' }))}
+                            className="h-4 w-4 rounded border-gray-300 text-emerald-600"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Kirim notifikasi email ke pelanggan</span>
+                        </span>
+                        <span className="mt-2 block text-xs text-gray-500">Konfirmasi booking & pembayaran lunas dikirim otomatis. Berfungsi hanya bila RESEND_API_KEY dipasang dan domain sudah diverifikasi.</span>
+                      </>
+                    ) : (
+                      <input
+                        type="number"
+                        min={row.key.includes('capacity') || row.key.includes('quota') ? 1 : 0}
+                        step={1}
+                        disabled={!row.editable}
+                        className="form-input mt-3 bg-white"
+                        value={values[row.key] ?? ''}
+                        placeholder={nullableKeys.has(row.key) ? 'Belum ditetapkan' : '0'}
+                        required={!nullableKeys.has(row.key)}
+                        onChange={(event) => setValues((current) => ({ ...current, [row.key]: event.target.value }))}
+                      />
+                    )}
                     {nullableKeys.has(row.key) && values[row.key] === '' && <span className="mt-2 block text-xs font-medium text-orange-600">Frontend menampilkan “Hubungi pengelola”.</span>}
                   </label>
                 ))}
