@@ -43,7 +43,7 @@ export interface TourService {
 export interface StoreProductPricing {
   id: string
   name: string
-  category: 'paket-makanan'
+  category: 'paket-makanan' | 'pupuk' | 'fishing' | 'oleh-oleh'
   priceType: 'fixed' | 'contact'
   price: number | null
   unit: string
@@ -591,28 +591,40 @@ export const tourServices: TourService[] = [
 ]
 
 export const storeProducts: StoreProductPricing[] = [
-  ['paket-menu-1', 'Paket 1', 8000, true],
-  ['paket-menu-2', 'Paket 2', 9000, true],
-  ['paket-menu-3', 'Paket 3', 12000, true],
-  ['paket-menu-4', 'Paket 4', 15000, true],
-  ['paket-menu-5', 'Paket 5', 15000, true],
-  ['paket-menu-6', 'Paket 6', 17000, true],
-  ['paket-menu-7', 'Paket 7', 22000, true],
-  ['paket-menu-8', 'Paket 8', 25000, true],
-  ['paket-menu-9', 'Paket 9', 25000, true],
-  ['paket-menu-10', 'Paket 10', null, false],
-].map(([id, name, price, purchasable]) => ({
-  id: id as string,
-  name: name as string,
-  category: 'paket-makanan' as const,
-  priceType: purchasable ? ('fixed' as const) : ('contact' as const),
-  price: price as number | null,
-  unit: 'paket',
-  description: 'Paket menu makanan Arenan Kalikesek',
-  image:
-    '/images/paket-makan.jpg',
-  purchasable: purchasable as boolean,
-}))
+  {
+    id: '6b54364d-409d-4289-9bd5-913765ace100',
+    name: 'Pupuk Kompos',
+    category: 'pupuk',
+    priceType: 'fixed',
+    price: 25000,
+    unit: 'karung',
+    description: 'Pupuk kompos organik',
+    image: '/images/village-panen.jpg',
+    purchasable: true
+  },
+  {
+    id: 'dd2ade9f-4808-42d7-ab6d-d89cf1f24212',
+    name: 'Pupuk Cair Organik',
+    category: 'pupuk',
+    priceType: 'fixed',
+    price: 15000,
+    unit: 'botol',
+    description: 'Pupuk cair untuk tanaman',
+    image: '/images/village-landscape.jpg',
+    purchasable: true
+  },
+  {
+    id: 'fc9a31e5-e91b-46b0-b3e8-f6e00218c8fd',
+    name: 'Gula Aren Murni',
+    category: 'oleh-oleh',
+    priceType: 'fixed',
+    price: 35000,
+    unit: 'kg',
+    description: 'Gula aren asli 100% alami',
+    image: '/images/wisata-jelajah.jpg',
+    purchasable: true
+  }
+]
 
 export function formatRupiah(amount: number) {
   return `Rp${amount.toLocaleString('id-ID')}`
