@@ -515,7 +515,7 @@ export default function JadwalPage() {
                         type="button"
                         disabled={disabled}
                         onClick={() => setSelectedEduTripDate(date)}
-                        aria-label={`${date}${isFull ? ', kuota penuh' : ', tersedia'}`}
+                        aria-label={`${date}${isFull ? ', kuota penuh' : isPast ? ', sudah lewat' : ', tersedia'}`}
                         className={`relative flex aspect-square min-h-9 items-center justify-center rounded-xl text-xs font-semibold transition sm:text-sm ${
                           isSelected
                             ? 'bg-orange-500 text-white shadow-sm'

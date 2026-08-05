@@ -128,7 +128,7 @@ export default function AdminDashboardPage() {
         const [rentalResponse, accommodationResponse, edutripResponse] = await Promise.all([
           fetch(`/api/admin/rentals?${params}`, { cache: 'no-store' }),
           fetch(`/api/admin/accommodations?${params}`, { cache: 'no-store' }),
-          fetch(`/api/admin/bookings?${params}`, { cache: 'no-store' }),
+          fetch(`/api/bookings?${params}`, { cache: 'no-store' }),
         ])
 
         if (!rentalResponse.ok || !accommodationResponse.ok || !edutripResponse.ok) {

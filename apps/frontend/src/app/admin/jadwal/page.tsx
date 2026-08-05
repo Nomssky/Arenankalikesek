@@ -206,7 +206,7 @@ export default function AdminJadwalPage() {
         fetch('/api/admin/booking-date-blocks'),
         fetch('/api/tour-packages?available=true'),
         fetch('/api/admin/booking-holiday-dates'),
-        fetch(`/api/admin/bookings?${params}`),
+        fetch(`/api/bookings?${params}`),
         fetch(`/api/edu-trip-availability?month=${selectedMonth}`),
       ])
 
