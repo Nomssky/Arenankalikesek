@@ -53,7 +53,7 @@ function CheckoutForm() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
-  const [address, setAddress] = useState('')
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [waitingPayment, setWaitingPayment] = useState<PaymentWaitingData | null>(null)
@@ -166,7 +166,7 @@ const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 
           customerName,
           customerPhone,
           customerEmail,
-          customerAddress: address || undefined,
+
           items: cart.map((ci) => ({
             id: ci.id,
             name: ci.name,
@@ -332,18 +332,7 @@ const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 
               onChange={(e) => setCustomerEmail(e.target.value)}
             />
           </div>
-          <div>
-            <label className="form-label">Alamat Pengiriman</label>
-            <textarea
-              aria-label="Alamat pengiriman"
-              maxLength={500}
-              className="form-input"
-              rows={3}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Alamat lengkap untuk pengiriman"
-            />
-          </div>
+
 
           {submitError && (
             <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">

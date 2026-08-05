@@ -37,7 +37,6 @@ interface Product {
 
 const categories = [
   { id: 'semua', name: 'Semua' },
-  { id: 'paket-makanan', name: 'Paket Menu Makanan' },
 ]
 
 export default function TokoPage() {
@@ -198,7 +197,7 @@ export default function TokoPage() {
         </div>
 
         <div className="mb-8 flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 hidden">
             {categories.map((cat) => (
               <button
                 key={cat.id}
