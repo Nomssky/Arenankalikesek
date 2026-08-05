@@ -434,7 +434,7 @@ Aturan:
 Setelah migration:
 
 1. Jalankan di dashboard Supabase (atau via `apply_migration` untuk pengembangan).
-2. Salin migrasi baru ke `scripts/apply-migrations-live.sql` (header saat ini 010-023).
+2. Salin migrasi baru ke `scripts/apply-migrations-live.sql` (header saat ini 010-024).
 
 Catatan: `supabase-schema.sql` tidak ada di repo — skema bersumber dari `supabase/migrations/`.
 

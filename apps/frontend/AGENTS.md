@@ -38,6 +38,7 @@ The frontend must not:
 - Decide that a payment is successful.
 - Treat browser-supplied price, total, booking status, or availability as authoritative.
 - Write production database records directly when an internal API route already owns the operation.
+- Hardcode business rules or authoritative lists that the backend owns (store products, selected categories, price thresholds) — fetch them from backend APIs or `@repo/shared-utils` instead; display what the server sends.
 
 The frontend may calculate an estimated total for display, but the backend response is the final authority.
 

@@ -6,10 +6,13 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category')
   const search = searchParams.get('search')?.toLowerCase().trim()
   const available = searchParams.get('available')
+  // Halaman Toko hanya menampilkan produk bertanda store_visible (osisi di backend).
+  const storeOnly = searchParams.get('store') === 'true'
 
   try {
     const catalog = await loadProductCatalog()
     const data = catalog.data.filter((product) => {
+      if (storeOnly && !product.store_visible) return false
       if (category && category !== 'semua' && product.category !== category) return false
       if (available === 'true' && !product.available) return false
       if (

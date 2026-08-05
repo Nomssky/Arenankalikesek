@@ -100,7 +100,7 @@ export default function TokoPage() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const res = await fetch('/api/products')
+        const res = await fetch('/api/products?store=true')
         if (res.ok) {
           const data: Product[] = await res.json()
           setProducts(data)
@@ -132,10 +132,9 @@ export default function TokoPage() {
     fetchProducts()
   }, [])
 
-  const ALLOWED_PRODUCTS = ['Pupuk Kompos', 'Pupuk Cair Organik', 'Gula Aren Murni']
-
+  // Daftar produk toko dikirim backend (?store=true) — tidak di-hardcode di
+  // frontend (backend source of truth). Di sini hanya pencarian teks.
   const filteredProducts = products.filter((p) => {
-    if (!ALLOWED_PRODUCTS.includes(p.name)) return false
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchSearch
   })

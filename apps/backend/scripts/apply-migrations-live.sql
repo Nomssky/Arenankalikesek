@@ -846,3 +846,8 @@ $$;
 
 REVOKE ALL ON FUNCTION public.record_admin_login_attempt(TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.record_admin_login_attempt(TEXT) TO service_role;
+
+-- ---------- 024: produk toko bersumber dari backend (store_visible) ----------
+ALTER TABLE products ADD COLUMN IF NOT EXISTS store_visible BOOLEAN NOT NULL DEFAULT false;
+UPDATE products SET store_visible = true
+WHERE name IN ('Pupuk Kompos', 'Pupuk Cair Organik', 'Gula Aren Murni');

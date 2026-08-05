@@ -146,4 +146,21 @@ test.describe('API Contract Tests', () => {
     const badRes = await request.get('/api/accommodation-availability?month=nonsense')
     expect(badRes.status()).toBe(400)
   })
+
+  test('GET /api/products?store=true hanya mengirim produk store_visible (backend-driven toko)', async ({ request }) => {
+    const res = await request.get('/api/products?store=true')
+    expect(res.status()).toBe(200)
+    const items = await res.json()
+    expect(Array.isArray(items)).toBe(true)
+    expect(items.length).toBeGreaterThan(0)
+    for (const product of items) {
+      expect(product.store_visible, `${product.name} harus store_visible`).toBe(true)
+    }
+
+    // Tanpa flag store, endpoint tetap mengirim semua produk (kontrak lama utuh).
+    const all = await request.get('/api/products')
+    expect(all.status()).toBe(200)
+    const allItems = await all.json()
+    expect(allItems.length).toBeGreaterThanOrEqual(items.length)
+  })
 })

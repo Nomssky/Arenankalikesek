@@ -37,6 +37,7 @@ export interface FallbackProduct {
   unit: string
   available: boolean
   purchasable: boolean
+  store_visible: boolean
   sort_order: number
 }
 
@@ -87,6 +88,7 @@ export const fallbackProducts: FallbackProduct[] = storeProducts.map(
     unit: product.unit,
     available: true,
     purchasable: product.purchasable,
+    store_visible: false,
     sort_order: index + 1,
   })
 )

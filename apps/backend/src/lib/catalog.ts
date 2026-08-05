@@ -45,6 +45,7 @@ interface ProductRow {
   description: string | null
   unit: string | null
   available: boolean | null
+  store_visible: boolean | null
   sort_order: number | null
 }
 
@@ -164,6 +165,7 @@ export function mapProductRow(row: ProductRow): FallbackProduct {
     unit,
     available,
     purchasable: available && price > 0,
+    store_visible: Boolean(row.store_visible) || Boolean(fallback?.store_visible),
     sort_order: row.sort_order ?? fallback?.sort_order ?? 0,
   }
 }
@@ -195,7 +197,7 @@ export async function loadProductCatalog(): Promise<CatalogResult<FallbackProduc
 
   const { data, error } = await getSupabaseAdmin()
     .from('products')
-    .select('id,slug,name,price,price_type,category,image,description,unit,available,sort_order')
+    .select('id,slug,name,price,price_type,category,image,description,unit,available,store_visible,sort_order')
     .order('sort_order', { ascending: true })
 
   if (error) throw new Error(`Gagal memuat harga produk dari database: ${error.message}`)

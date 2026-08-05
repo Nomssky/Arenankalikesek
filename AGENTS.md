@@ -45,6 +45,8 @@ Ini berlaku untuk semua commit, dikerjakan oleh manusia maupun agent.
 7. **Validasi client** untuk UX, tapi **validasi server** adalah yang final
 8. **Semua operasi database** menggunakan service role di backend, bukan anon client di frontend
 9. **Semua state yang wajib konsisten lintas instance / bersifat anti-exploit disimpan di database** (service role), bukan di memori per-instance. Contoh: rate-limit login admin (`admin_login_attempts`), anti-duplikat email (`email_sent_*`), hold slot. Jangan menaruh counter/lock/state di Map in-memory karena instance Serverless (Vercel) bisa ditinggal bebas.
+10. **Jangan hardcode data/aturan bisnis otoritatif di frontend.** Daftar/aturan (mis. produk yang boleh tampil di toko, kategori terpilih, ambang harga) diambil dari backend (`products`, `booking_settings`, katalog) lewat API atau `@repo/shared-utils`; frontend boleh memfilter/menampilkan dari data yang dikirim server, tapi tidak boleh memutuskan daftar/aturan sendiri. Anti-pattern yang sudah dihilangkan (jangan dikembalikan): `ALLOWED_PRODUCTS` hardcoded di `toko/page.tsx` → kini `GET /api/products?store=true` (kolom `products.store_visible`).
+11. **Keselarasan frontend–backend wajib diverifikasi.** Saat frontend menampilkan perilaku yang ditentukan backend (ketersediaan hold+active, kuota, harga, status store), jangan mengubah shape `response` API; ikuti kontrak yang ada dan tinggalkan satu cek yang bisa dijalankan (e2e Playwright / `scripts/uji-integrasi.mjs`).
 
 ### Contoh yang Benar:
 
