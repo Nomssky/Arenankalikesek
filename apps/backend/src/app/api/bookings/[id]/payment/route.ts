@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../../lib/supabase-server'
-import { digits, timeToMinutes } from '../../../../../lib/utils'
+import { digits, timeOverlaps } from '../../../../../lib/utils'
 import { sendBookingPaid } from '../../../../../lib/email'
 import {
   getTransactionStatus,
@@ -10,21 +10,6 @@ import {
 } from '../../../../../lib/midtrans'
 
 type PaymentState = 'pending' | 'paid' | 'expired' | 'cancelled' | 'failed' | 'refunded' | 'conflict'
-
-function overlaps(
-  start: string | null,
-  end: string | null,
-  otherStart: string | null,
-  otherEnd: string | null,
-) {
-  if (!start || !otherStart) return true
-  const startMinute = timeToMinutes(start)
-  const endMinute = timeToMinutes(end) ?? (startMinute === null ? null : startMinute + 60)
-  const otherStartMinute = timeToMinutes(otherStart)
-  const otherEndMinute = timeToMinutes(otherEnd) ?? (otherStartMinute === null ? null : otherStartMinute + 60)
-  if (startMinute === null || endMinute === null || otherStartMinute === null || otherEndMinute === null) return true
-  return startMinute < otherEndMinute && endMinute > otherStartMinute
-}
 
 async function hasScheduleConflict(
   supabase: ReturnType<typeof getSupabaseAdmin>,
@@ -110,7 +95,7 @@ async function hasScheduleConflict(
   if ((rentals.data || []).some((rental) => (liveRentals.data || []).some((row) =>
     row.item_id === rental.item_id &&
     row.booking_date === rental.booking_date &&
-    overlaps(rental.time_start, rental.time_end, row.time_start, row.time_end)
+    timeOverlaps(rental.time_start, rental.time_end, row.time_start, row.time_end)
   ))) return true
 
   if ((stays.data || []).some((stay) =>

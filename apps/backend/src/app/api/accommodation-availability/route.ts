@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         .from('accommodation_bookings')
         .select('check_in_date, check_out_date')
         .eq('item_id', itemId)
-        .eq('status', 'active')
+        .in('status', ['hold', 'active'])
         .lt('check_in_date', next)
         .gt('check_out_date', start),
       supabase

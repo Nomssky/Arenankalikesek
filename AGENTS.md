@@ -11,6 +11,23 @@ Sebelum commit dan push, selalu cek apakah remote punya commit lebih baru:
 
 Jangan pernah push langsung tanpa memeriksa pull terlebih dahulu — memaksa remote force-update berisiko menghilangkan commit orang lain.
 
+### Judul Commit & Identitas
+
+Judul commit WAJIB mencantumkan nama orang yang melakukan push, dipisahkan tanda hubung di akhir judul:
+
+```
+type(scope): deskripsi singkat - <Nama>
+```
+
+Contoh:
+
+```
+fix(frontend): batasi produk toko sesuai daftar yang diizinkan - Kresna
+```
+
+Ini berlaku untuk semua commit, dikerjakan oleh manusia maupun agent.
+
+
 ## Arsitektur Frontend-Backend
 
 **PENTING:** Saat mengerjakan frontend, WAJIB mengikuti arsitektur backend yang sudah ada:
@@ -23,6 +40,7 @@ Jangan pernah push langsung tanpa memeriksa pull terlebih dahulu — memaksa rem
 6. **Harga dan total** dihitung server, frontend hanya menampilkan
 7. **Validasi client** untuk UX, tapi **validasi server** adalah yang final
 8. **Semua operasi database** menggunakan service role di backend, bukan anon client di frontend
+9. **Semua state yang wajib konsisten lintas instance / bersifat anti-exploit disimpan di database** (service role), bukan di memori per-instance. Contoh: rate-limit login admin (`admin_login_attempts`), anti-duplikat email (`email_sent_*`), hold slot. Jangan menaruh counter/lock/state di Map in-memory karena instance Serverless (Vercel) bisa ditinggal bebas.
 
 ### Contoh yang Benar:
 

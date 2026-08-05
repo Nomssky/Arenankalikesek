@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('edu_trip_reservations')
       .select('booking_date')
-      .eq('status', 'active')
+      .in('status', ['hold', 'active'])
       .gte('booking_date', `${month}-01`)
       .lt('booking_date', nextMonth)
 

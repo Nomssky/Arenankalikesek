@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdminAuthConfigured, verifyPassword, setSessionCookie } from '../../../../lib/admin-auth'
+import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../lib/supabase-server'
 
-const BLOCK_STAGES = [
-  { after: 5, duration: 15_000 },
-  { after: 8, duration: 5 * 60_000 },
-  { after: 12, duration: 30 * 60_000 },
-  { after: 16, duration: 60 * 60_000 },
-]
-// ponytail: in-memory per-instance rate limit — a multi-instance deploy or
-// distributed attacker bypasses it. Upgrade: move counters to Supabase/Redis.
-const attempts = new Map<string, { count: number; blockedUntil: number }>()
+// Rate-limit login admin disimpan di tabel admin_login_attempts (migration 023)
+// dan dihitung atomik oleh fungsi record_admin_login_attempt — otoritatif lintas
+// instance Serverless (Vercel), bukan Map in-memory per-instance.
+// Stage: 5× /15 detik, 8× /5 menit, 12× /30 menit, 16× /1 jam.
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,33 +17,47 @@ export async function POST(request: NextRequest) {
     }
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
     const now = Date.now()
-    const record = attempts.get(ip)
 
-    if (record && record.blockedUntil > now) {
-      const remaining = Math.max(1, Math.ceil((record.blockedUntil - now) / 1000))
-      return NextResponse.json(
-        { error: `Terlalu banyak percobaan. Coba lagi dalam ${remaining} detik.` },
-        { status: 429 }
-      )
+    const supabase = isSupabaseConfigured() ? getSupabaseAdmin() : null
+    if (supabase) {
+      const { data: attempt } = await supabase
+        .from('admin_login_attempts')
+        .select('blocked_until')
+        .eq('id_key', ip)
+        .maybeSingle()
+      const blockedUntil = attempt ? Number(new Date(attempt.blocked_until || 0)) : 0
+      if (blockedUntil > now) {
+        const remaining = Math.max(1, Math.ceil((blockedUntil - now) / 1000))
+        return NextResponse.json(
+          { error: `Terlalu banyak percobaan. Coba lagi dalam ${remaining} detik.` },
+          { status: 429 }
+        )
+      }
     }
 
     const { password } = await request.json()
 
     if (!password || !(await verifyPassword(password))) {
-      const nextCount = (record?.count || 0) + 1
-      let blockedUntil = 0
-      for (const stage of BLOCK_STAGES) {
-        if (nextCount >= stage.after) blockedUntil = now + stage.duration
+      if (supabase) {
+        try {
+          await supabase.rpc('record_admin_login_attempt', { p_id_key: ip })
+        } catch (error) {
+          console.error('Record login attempt error:', error)
+        }
       }
-      attempts.set(ip, { count: nextCount, blockedUntil })
-
       return NextResponse.json(
         { error: 'Password salah' },
         { status: 401 }
       )
     }
 
-    attempts.delete(ip)
+    if (supabase) {
+      try {
+        await supabase.from('admin_login_attempts').delete().eq('id_key', ip)
+      } catch (error) {
+        console.error('Reset login attempt error:', error)
+      }
+    }
     await setSessionCookie()
 
     return NextResponse.json({ success: true })

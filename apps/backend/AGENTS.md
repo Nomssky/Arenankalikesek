@@ -386,12 +386,18 @@ Endpoint:
 routes/admin/login.ts
 ```
 
-Gunakan backoff:
+Gunakan backoff (authoritative di DB via `record_admin_login_attempt`, migration 023):
 
 - 5× / 15 detik
 - 8× / 5 menit
 - 12× / 30 menit
 - 16× / 1 jam
+
+Counter tersimpan di tabel `admin_login_attempts` (DB-backed, otoritatif lintas
+instance Serverless — JANGAN pindahkan kembali ke Map in-memory). Pre-check
+membaca `blocked_until`; perangkat gagal memanggil RPC atomik
+`record_admin_login_attempt(ip)` yang meng-increment + menghitung stage, berhasil
+menghapus baris.
 
 Session menggunakan:
 
@@ -428,7 +434,7 @@ Aturan:
 Setelah migration:
 
 1. Jalankan di dashboard Supabase (atau via `apply_migration` untuk pengembangan).
-2. Salin migrasi baru ke `scripts/apply-migrations-live.sql` (header saat ini 010-021).
+2. Salin migrasi baru ke `scripts/apply-migrations-live.sql` (header saat ini 010-023).
 
 Catatan: `supabase-schema.sql` tidak ada di repo — skema bersumber dari `supabase/migrations/`.
 
@@ -477,6 +483,20 @@ Slot dilepas saat hold kedaluwarsa (15 menit, `expires_at` di bookings/route.ts)
 oleh `expire_stale_booking_holds()`.
 
 Migration contract test bergantung pada ini.
+
+## Ketersediaan Publik = hold + active
+
+Endpoint ketersediaan publik (`accommodation-availability`,
+`edu-trip-availability`) WAJIB menghitung `status IN ('hold','active')` — selaras
+dengan `reserve_booking`, trigger overlap (020), dan `hasScheduleConflict`.
+Jangan edit menjadi `status='active'` saja; itu membuat kalender/kuota publik
+tampak bebas padahal slot di-hold dan akhirnya 409 saat booking.
+
+## is_staff
+
+`is_staff()` (SECURITY DEFINER) hanya boleh dieksekusi oleh `authenticated`
+(dipakai policy RLS `staff_manage_*`). anon/PUBLIC tidak boleh execute — ditutup
+sejak migration 023. Jangan re-grant tanpa alasan.
 
 ---
 

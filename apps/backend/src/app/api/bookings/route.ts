@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase-server'
 import { createSnapTransaction, isMidtransConfigured } from '../../../lib/midtrans'
 import { sendBookingCreated } from '../../../lib/email'
-import { digits, generateId, timeToMinutes } from '../../../lib/utils'
+import { digits, generateId, timeOverlaps, timeToMinutes } from '../../../lib/utils'
 import { requireAdmin } from '../../../lib/admin-guard'
 import { loadBookingSettings } from '../../../lib/booking-settings'
 import { loadProductCatalog, loadResolvedTourCatalog } from '../../../lib/catalog'
@@ -184,23 +184,6 @@ function arenaNow() {
     date: `${value('year')}-${value('month')}-${value('day')}`,
     minutes: (Number(value('hour')) * 60) + Number(value('minute')),
   }
-}
-
-function timeOverlaps(
-  newStart: string,
-  newEnd: string | undefined,
-  existingStart: string | null,
-  existingEnd: string | null,
-): boolean {
-  if (!existingStart) return true
-  const newStartMinutes = timeToMinutes(newStart)
-  const newEndMinutes = newEnd ? timeToMinutes(newEnd) : null
-  const existingStartMinutes = timeToMinutes(existingStart)
-  const existingEndMinutes = existingEnd ? timeToMinutes(existingEnd) : null
-  if (newStartMinutes === null || existingStartMinutes === null) return true
-  const normalizedNewEnd = newEndMinutes ?? newStartMinutes + 60
-  const normalizedExistingEnd = existingEndMinutes ?? existingStartMinutes + 60
-  return newStartMinutes < normalizedExistingEnd && normalizedNewEnd > existingStartMinutes
 }
 
 async function checkRentalAvailability(

@@ -15,3 +15,18 @@ export function timeToMinutes(value: string | null | undefined): number | null {
   if (hours > 23 || minutes > 59) return null
   return hours * 60 + minutes
 }
+
+export function timeOverlaps(
+  start: string | null,
+  end: string | null | undefined,
+  otherStart: string | null,
+  otherEnd: string | null,
+): boolean {
+  if (!start || !otherStart) return true
+  const startMinute = timeToMinutes(start)
+  const endMinute = timeToMinutes(end) ?? (startMinute === null ? null : startMinute + 60)
+  const otherStartMinute = timeToMinutes(otherStart)
+  const otherEndMinute = timeToMinutes(otherEnd) ?? (otherStartMinute === null ? null : otherStartMinute + 60)
+  if (startMinute === null || endMinute === null || otherStartMinute === null || otherEndMinute === null) return true
+  return startMinute < otherEndMinute && endMinute > otherStartMinute
+}

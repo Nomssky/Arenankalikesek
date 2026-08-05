@@ -74,6 +74,8 @@ Preserve these routes unless the task explicitly changes them:
 
 When working on `/jadwal` or `/booking/wisata`, keep hourly rental and overnight stays separate.
 
+Availability calendars come from the backend and already count `hold` slots as taken (consistent with `reserve_booking`). Treat any date/time not returned as available as unavailable — do not re-derive availability client-side.
+
 ### Hourly venue rental
 
 - Business hours: 07.00–17.00 WIB.
