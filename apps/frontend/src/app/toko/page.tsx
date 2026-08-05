@@ -37,6 +37,8 @@ interface Product {
 
 const categories = [
   { id: 'semua', name: 'Semua' },
+  { id: 'pupuk', name: 'Pupuk' },
+  { id: 'oleh-oleh', name: 'Oleh-Oleh' },
 ]
 
 export default function TokoPage() {
@@ -132,12 +134,10 @@ export default function TokoPage() {
     fetchProducts()
   }, [])
 
-  const ALLOWED_PRODUCTS = ['Pupuk Kompos', 'Pupuk Cair Organik', 'Gula Aren Murni']
-
   const filteredProducts = products.filter((p) => {
-    if (!ALLOWED_PRODUCTS.includes(p.name)) return false
+    const matchCategory = activeCategory === 'semua' || p.category === activeCategory
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchSearch
+    return matchCategory && matchSearch
   })
 
   const addToCart = (product: Product) => {
@@ -199,7 +199,7 @@ export default function TokoPage() {
         </div>
 
         <div className="mb-8 flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
-          <div className="flex flex-wrap gap-2 hidden">
+          <div className="flex flex-wrap gap-2">
             {categories.map((cat) => (
               <button
                 key={cat.id}
