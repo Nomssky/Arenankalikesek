@@ -132,11 +132,12 @@ export default function TokoPage() {
     fetchProducts()
   }, [])
 
+  const ALLOWED_PRODUCTS = ['Pupuk Kompos', 'Pupuk Cair Organik', 'Gula Aren Murni']
+
   const filteredProducts = products.filter((p) => {
-    if (p.category === 'paket-makanan' || p.name.startsWith('Paket ')) return false
-    const matchCategory = activeCategory === 'semua' || p.category === activeCategory
+    if (!ALLOWED_PRODUCTS.includes(p.name)) return false
     const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchCategory && matchSearch
+    return matchSearch
   })
 
   const addToCart = (product: Product) => {

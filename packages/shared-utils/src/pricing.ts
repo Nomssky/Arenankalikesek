@@ -614,61 +614,6 @@ export const storeProducts: StoreProductPricing[] = [
     purchasable: true
   },
   {
-    id: '0b2c6e46-bb0b-4c24-ab26-24a72134a623',
-    name: 'Sewa Alat Pancing',
-    category: 'fishing',
-    priceType: 'fixed',
-    price: 5000,
-    unit: 'set',
-    description: 'Sewa alat pancing lengkap',
-    image: '/images/wisata-sungai.jpg',
-    purchasable: true
-  },
-  {
-    id: 'db86f371-0b69-47a2-b680-97d6de62ff5d',
-    name: 'Pelet Umpan',
-    category: 'fishing',
-    priceType: 'fixed',
-    price: 5000,
-    unit: 'bungkus',
-    description: 'Pelet umpan ikan berkualitas',
-    image: '/images/wisata-keceh-air.jpg',
-    purchasable: true
-  },
-  {
-    id: '63389c50-8c5b-44b8-92da-4e8913e03dfa',
-    name: 'Ikan Nila Segar',
-    category: 'fishing',
-    priceType: 'fixed',
-    price: 38000,
-    unit: 'kg',
-    description: 'Ikan nila segar',
-    image: '/images/wisata-sungai.jpg',
-    purchasable: true
-  },
-  {
-    id: '0ed9426d-2046-421d-bded-8ce03c89fe5c',
-    name: 'Ikan Bawal Segar',
-    category: 'fishing',
-    priceType: 'fixed',
-    price: 32000,
-    unit: 'kg',
-    description: 'Ikan bawal segar',
-    image: '/images/wisata-keceh-air.jpg',
-    purchasable: true
-  },
-  {
-    id: '6974770d-4352-4301-ae5f-d5c34d1f8a78',
-    name: 'Ikan Kalper Segar',
-    category: 'fishing',
-    priceType: 'fixed',
-    price: 38000,
-    unit: 'kg',
-    description: 'Ikan kalper segar',
-    image: '/images/wisata-sungai.jpg',
-    purchasable: true
-  },
-  {
     id: 'fc9a31e5-e91b-46b0-b3e8-f6e00218c8fd',
     name: 'Gula Aren Murni',
     category: 'oleh-oleh',
