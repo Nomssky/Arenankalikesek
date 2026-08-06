@@ -33,11 +33,11 @@ export default function MonthFilter({ value, onChange }: MonthFilterProps) {
   years.sort((a, b) => a - b)
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <select
         id={monthSelectId}
         aria-label="Bulan"
-        className="form-select"
+        className="form-select w-auto flex-1"
         value={MONTHS.some(([code]) => code === month) ? month : ''}
         onChange={(event) => onChange(`${year || String(currentYear)}-${event.target.value}`)}
       >
@@ -49,7 +49,7 @@ export default function MonthFilter({ value, onChange }: MonthFilterProps) {
       <select
         id={yearSelectId}
         aria-label="Tahun"
-        className="form-select"
+        className="form-select w-auto"
         value={year || String(currentYear)}
         onChange={(event) => onChange(`${event.target.value}-${month || '01'}`)}
       >
