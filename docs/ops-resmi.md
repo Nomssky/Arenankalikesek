@@ -4,6 +4,11 @@ Checklist langkah demi langkah untuk memindahkan domain `arenankalikesek.com`
 dari Hostinger (web WordPress lama, hosting sudah tidak aktif) ke Vercel resmi,
 plus menyiapkan notifikasi email Resend.
 
+> **STATUS: SELESAI (2026-08-06).** Semua langkah di bawah sudah dieksekusi.
+> Ringkas hasil: domain pindah ke team Vercel resmi (`arenankalikesek`), NS ke
+> Vercel DNS, email records disalin, Resend verified, deploy production live
+> dengan env vars lengkap, test email terkirim. Detail per langkah di bawah.
+
 Status saat penulisan (diverifikasi via DNS publik):
 
 | Record | Nilai sekarang | Arti |
