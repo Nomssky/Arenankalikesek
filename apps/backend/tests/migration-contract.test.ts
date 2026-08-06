@@ -30,6 +30,14 @@ const paymentHoldMigration = readFileSync(
   new URL('../supabase/migrations/017_payment_hold_before_active_schedule.sql', import.meta.url),
   'utf8',
 )
+const bookingRateLimitMigration = readFileSync(
+  new URL('../supabase/migrations/026_booking_create_rate_limit.sql', import.meta.url),
+  'utf8',
+)
+const bookingsRoute = readFileSync(
+  new URL('../src/app/api/bookings/route.ts', import.meta.url),
+  'utf8',
+)
 
 test('migrasi memiliki proteksi overlap penginapan di database', () => {
   assert.match(migration, /EXCLUDE USING gist/)
@@ -84,4 +92,18 @@ test('hold mengunci slot: overlap trigger & penginapan menyertakan status hold (
   assert.match(holdBlocksMigration, /NEW\.status IN \('cancelled', 'returned'\)/)
   assert.match(holdBlocksMigration, /existing\.status IN \('hold', 'active'\)/)
   assert.match(holdBlocksMigration, /WHERE \(status IN \('hold', 'active'\)\)/)
+})
+
+test('rate-limit pembuatan booking per-IP: tabel + RPC atomik + direvoke dari anon (migrasi 026)', () => {
+  assert.match(bookingRateLimitMigration, /CREATE TABLE IF NOT EXISTS public\.booking_create_attempts/)
+  assert.match(bookingRateLimitMigration, /ON CONFLICT \(id_key\) DO UPDATE/)
+  assert.match(bookingRateLimitMigration, /window_started_at <= now\(\) - make_interval\(mins => p_window_minutes\)/)
+  assert.match(bookingRateLimitMigration, /REVOKE ALL ON FUNCTION public\.record_booking_create_attempt/)
+  assert.match(bookingRateLimitMigration, /GRANT EXECUTE ON FUNCTION public\.record_booking_create_attempt\(TEXT, INT\) TO service_role/)
+})
+
+test('route bookings memanggil RPC rate-limit per-IP sebelum reserve_booking', () => {
+  assert.match(bookingsRoute, /record_booking_create_attempt/)
+  assert.match(bookingsRoute, /x-forwarded-for/)
+  assert.match(bookingsRoute, /creationCount > MAX_CREATE_PER_IP/)
 })

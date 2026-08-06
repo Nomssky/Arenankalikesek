@@ -73,6 +73,11 @@ function optionalQuantity(value: unknown) {
 }
 
 const MAX_PENDING_PER_PHONE = 3
+// Anti spam slot-hold lintas nomor: batas percobaan reserve per-IP dalam jendela
+// 15 menit (DB-backed via record_booking_create_attempt, migration 026 — sama
+// polanya dengan admin_login_attempts, bukan Map in-memory). Hanya percobaan
+// yang lolos validasi & sampai tahap reserve yang dihitung.
+const MAX_CREATE_PER_IP = 10
 const RENTAL_VENUE_CATEGORIES = new Set(['area-kegiatan', 'tempat-pertemuan'])
 
 function isRentalVenueItem(item: ClientBookingItem) {
@@ -612,6 +617,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin()
+    const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    const { data: creationCount } = await supabase.rpc('record_booking_create_attempt', {
+      p_id_key: clientIp,
+    })
+    // RPC gagal (migrasi belum jalan) tidak memblokir booking — batasan hanya
+    // aktif bila fungsi tersedia.
+    if (typeof creationCount === 'number' && creationCount > MAX_CREATE_PER_IP) {
+      return NextResponse.json(
+        { error: 'Terlalu banyak percobaan membuat booking dari perangkat ini. Silakan coba lagi beberapa saat.' },
+        { status: 429 },
+      )
+    }
     // Anti slot-hold spam: satu nomor maksimal 3 booking pending aktif.
     // Berbasis DB sehingga tetap otoritatif lintas instance serverless.
     const { data: pendingRows } = await supabase
