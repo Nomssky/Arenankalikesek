@@ -61,7 +61,7 @@ export function getAllPosts() {
 }
 
 export function getPostBySlug(slug: string): Post | null {
-  if (!/^[a-z0-9-]+$/i.test(slug)) return null
+  if (!/^[a-z0-9_-]+$/i.test(slug)) return null
 
   for (const dir of [postsDir, reportaseDir]) {
     const file = listPostFiles(dir).find(
