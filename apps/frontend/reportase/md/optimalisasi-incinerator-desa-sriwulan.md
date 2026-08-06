@@ -1,11 +1,16 @@
 ---
-title: "Mahasiswa KKN-T IDBU 10 UNDIP Optimalkan Mesin Incinerator untuk Mengurangi Volume Sampah di Desa Sriwulan"
-date: 2026-07-30
-author: "Arik"
-category: "Lingkungan"
-excerpt: "Tim KKN-T IDBU 10 UNDIP Kelompok 1 mengoptimalkan desain, mekanisme, dan sistem operasional mesin incinerator di TPS Desa Sriwulan."
+title: >-
+  Mahasiswa KKN-T IDBU 10 UNDIP Optimalkan Mesin Incinerator untuk Mengurangi
+  Volume Sampah di Desa Sriwulan
+date: 2026-07-30T00:00:00.000Z
+author: Arik
+category: Lingkungan
+excerpt: >-
+  Tim KKN-T IDBU 10 UNDIP Kelompok 1 mengoptimalkan desain, mekanisme, dan
+  sistem operasional mesin incinerator di TPS Desa Sriwulan.
 image: /images/blog-incinerator-desa-sriwulan.jpg
 published: true
+type: Reportase
 ---
 
 **KENDAL** — Mahasiswa Kuliah Kerja Nyata Tematik (KKN-T) IPTEK bagi Desa Binaan (IDBU) 10 Universitas Diponegoro Kelompok 1 melaksanakan program optimalisasi mesin *incinerator* di Tempat Pembuangan Sampah (TPS) Desa Sriwulan, Kecamatan Limbangan, Kabupaten Kendal.

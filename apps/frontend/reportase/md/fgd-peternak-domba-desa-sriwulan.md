@@ -1,7 +1,8 @@
 ---
+type: "Reportase"
 title: "KKNT IDBU 10 UNDIP Dampingi Peternak Domba melalui Focus Group Discussion untuk Meningkatkan Produktivitas Ternak di Desa Sriwulan sebagai Bentuk Dukungan terhadap SDGs"
 date: 2026-07-31
-author: "KKNT IDBU 10 UNDIP Kelompok 2"
+author: "Admin Arenan Kalikesek"
 category: "Peternakan"
 excerpt: "Mahasiswa KKNT IDBU 10 UNDIP mendampingi peternak domba melalui Focus Group Discussion mengenai biosecurity, manajemen pakan, kesehatan ternak, dan pengelolaan limbah."
 image: /images/mono-peternakan1.png

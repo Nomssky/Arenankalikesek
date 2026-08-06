@@ -1,4 +1,5 @@
 ---
+type: "Reportase"
 title: "Membuat Paving Block dari Sampah Plastik: Bisa Menjadi Solusi Ramah Lingkungan"
 date: 2025-07-29
 author: "Admin Arenan Kalikesek"

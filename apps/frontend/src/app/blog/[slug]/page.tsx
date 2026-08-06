@@ -87,6 +87,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         </h1>
 
         <div className="mb-8 flex flex-wrap items-center gap-3 text-sm text-gray-500 sm:gap-4">
+          {post.type === 'Reportase' && (
+            <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-orange-600">
+              Reportase
+            </span>
+          )}
           {post.author && <span>Oleh: {post.author}</span>}
           {post.date && <time dateTime={post.date}>{formatDate(post.date)}</time>}
         </div>

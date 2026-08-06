@@ -1,6 +1,8 @@
 ---
+type: "Reportase"
 title: "Tim KKNT IDBU 10 UNDIP Dorong Penerapan Ekonomi Sirkular melalui Edukasi dan Pemanfaatan Maggot untuk Pengolahan Sampah Organik di Desa Sriwulan, Kabupaten Kendal sebagai Upaya Mendukung Pencapaian SDGs"
-author: "KKNT IDBU 10 UNDIP Kelompok 2"
+author: "Admin Arenan Kalikesek"
+date: 2026-07-30
 category: "Lingkungan"
 excerpt: "Mahasiswa KKNT IDBU 10 UNDIP memberikan edukasi dan pelatihan budidaya maggot sebagai solusi pengolahan sampah organik dan penerapan ekonomi sirkular di Desa Sriwulan."
 image: /images/multikel2a.png
