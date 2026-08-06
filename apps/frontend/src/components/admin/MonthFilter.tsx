@@ -10,10 +10,10 @@ export default function MonthFilter({ value, onChange }: MonthFilterProps) {
   return (
     <input
       id={id}
-      type="month"
+      type="date"
       className="form-input"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
+      value={value ? `${value}-01` : ''}
+      onChange={(event) => onChange(event.target.value.slice(0, 7))}
     />
   )
 }
