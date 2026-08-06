@@ -31,7 +31,6 @@ const emptyProduct = {
 
 const categories = [
   'pupuk',
-  'fishing',
   'oleh-oleh',
 ]
 
@@ -83,6 +82,25 @@ export default function AdminProductsPage() {
     })
     setEditingId(product.id)
     setShowForm(true)
+  }
+
+  async function toggleStoreVisible(product: Product) {
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ store_visible: !product.store_visible }),
+      })
+      if (res.ok) fetchProducts()
+      else {
+        const data = await res.json()
+        setError(data.error || 'Gagal mengubah visibilitas')
+      }
+    } catch (e) {
+      console.error(e)
+      setError('Gagal mengubah visibilitas')
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -285,15 +303,20 @@ export default function AdminProductsPage() {
                   <td className="px-4 py-3 text-gray-900">{formatPrice(p.price)}</td>
                   <td className="px-4 py-3 text-gray-500">{p.unit}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                    <button
+                      type="button"
+                      onClick={() => toggleStoreVisible(p)}
+                      aria-pressed={p.store_visible}
+                      title={p.store_visible ? 'Klik untuk sembunyikan dari toko' : 'Klik untuk tampilkan di toko'}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                         p.store_visible
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-gray-100 text-gray-600'
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
-                      {p.store_visible ? 'Ya' : 'Tidak'}
-                    </span>
+                      <span className={`h-2 w-2 rounded-full ${p.store_visible ? 'bg-white' : 'bg-gray-400'}`} />
+                      {p.store_visible ? 'Tampil' : 'Tersembunyi'}
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <span

@@ -851,3 +851,6 @@ GRANT EXECUTE ON FUNCTION public.record_admin_login_attempt(TEXT) TO service_rol
 ALTER TABLE products ADD COLUMN IF NOT EXISTS store_visible BOOLEAN NOT NULL DEFAULT false;
 UPDATE products SET store_visible = true
 WHERE name IN ('Pupuk Kompos', 'Pupuk Cair Organik', 'Gula Aren Murni');
+
+-- ---------- 025: hapus produk toko yang bukan tempatnya (paket makanan & fishing) ----------
+DELETE FROM products WHERE category IN ('paket-makanan', 'fishing');
