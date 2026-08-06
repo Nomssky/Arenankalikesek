@@ -31,12 +31,34 @@ function hexEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
-async function sha256(message: string): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message))
-  return Array.from(new Uint8Array(hash))
+// PBKDF2-SHA256 via WebCrypto (Edge-safe, tanpa dependency) — memperlambat
+// brute-force per percobaan dibanding SHA256 polos. Salt statis karena password
+// admin tunggal dibandingkan live (tidak ada hash tersimpan yang bisa di-crack
+// offline); iterasi dipilih seimbang untuk login sekali-sekali.
+const PASSWORD_SALT = 'arenankalikesek-admin-pbkdf2'
+const PASSWORD_ITERATIONS = 100_000
+
+async function derivePasswordKey(password: string): Promise<string> {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  )
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: new TextEncoder().encode(PASSWORD_SALT), iterations: PASSWORD_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    256,
+  )
+  return Array.from(new Uint8Array(bits))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
 }
+
+// Hash dihitung sekali di module scope, bukan per-request login
+// (top-level await aman di Edge & Node).
+const ADMIN_PASSWORD_KEY = isAdminAuthConfigured() ? await derivePasswordKey(ADMIN_PASSWORD) : ''
 
 export async function generateSessionToken(): Promise<string> {
   const payload = JSON.stringify({ created: Date.now() })
@@ -65,9 +87,8 @@ export async function verifySessionToken(token: string): Promise<boolean> {
 
 export async function verifyPassword(password: string): Promise<boolean> {
   if (!isAdminAuthConfigured()) return false
-  const hash = await sha256(password)
-  const expected = await sha256(ADMIN_PASSWORD)
-  return hexEqual(hash, expected)
+  const hash = await derivePasswordKey(password)
+  return hexEqual(hash, ADMIN_PASSWORD_KEY)
 }
 
 export async function setSessionCookie() {
