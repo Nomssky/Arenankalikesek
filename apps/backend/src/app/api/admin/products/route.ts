@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
         sort_order: body.sort_order || 0,
         slug: body.slug,
         price_type: body.price_type || 'fixed',
+        store_visible: body.store_visible ?? false,
       })
       .select()
       .single()

@@ -13,22 +13,23 @@ interface Product {
   description: string
   unit: string
   available: boolean
+  store_visible: boolean
   sort_order: number
 }
 
 const emptyProduct = {
   name: '',
   price: 0,
-  category: 'paket-makanan',
+  category: 'pupuk',
   image: '',
   description: '',
   unit: 'paket',
   available: true,
+  store_visible: false,
   sort_order: 0,
 }
 
 const categories = [
-  'paket-makanan',
   'pupuk',
   'fishing',
   'oleh-oleh',
@@ -77,6 +78,7 @@ export default function AdminProductsPage() {
       description: product.description,
       unit: product.unit,
       available: product.available,
+      store_visible: product.store_visible,
       sort_order: product.sort_order,
     })
     setEditingId(product.id)
@@ -219,6 +221,17 @@ export default function AdminProductsPage() {
                   Tersedia
                 </label>
               </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="store-visible"
+                  checked={form.store_visible}
+                  onChange={(e) => setForm({ ...form, store_visible: e.target.checked })}
+                />
+                <label htmlFor="store-visible" className="form-label !mb-0">
+                  Tampil di Toko
+                </label>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button type="submit" className="btn-primary flex-1">
                   Simpan
@@ -259,6 +272,7 @@ export default function AdminProductsPage() {
                 <th className="px-4 py-3 font-semibold text-gray-700">Kategori</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Harga</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Satuan</th>
+                <th className="px-4 py-3 font-semibold text-gray-700">Tampil di Toko</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Tersedia</th>
                 <th className="px-4 py-3 font-semibold text-gray-700">Aksi</th>
               </tr>
@@ -270,6 +284,17 @@ export default function AdminProductsPage() {
                   <td className="px-4 py-3 text-gray-500">{p.category}</td>
                   <td className="px-4 py-3 text-gray-900">{formatPrice(p.price)}</td>
                   <td className="px-4 py-3 text-gray-500">{p.unit}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                        p.store_visible
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {p.store_visible ? 'Ya' : 'Tidak'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${

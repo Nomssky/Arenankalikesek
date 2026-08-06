@@ -43,7 +43,7 @@ export interface TourService {
 export interface StoreProductPricing {
   id: string
   name: string
-  category: 'paket-makanan' | 'pupuk' | 'fishing' | 'oleh-oleh'
+  category: 'pupuk' | 'fishing' | 'oleh-oleh'
   priceType: 'fixed' | 'contact'
   price: number | null
   unit: string
