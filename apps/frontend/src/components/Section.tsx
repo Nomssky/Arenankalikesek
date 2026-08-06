@@ -4,9 +4,10 @@ interface SectionProps {
   className?: string
   children: React.ReactNode
   id?: string
+  noReveal?: boolean
 }
 
-export default function Section({ title, subtitle, className = '', children, id }: SectionProps) {
+export default function Section({ title, subtitle, className = '', children, id, noReveal = false }: SectionProps) {
   return (
     <section id={id} className={`py-12 sm:py-16 md:py-24 ${className}`}>
       <div className="container-page">
@@ -16,9 +17,13 @@ export default function Section({ title, subtitle, className = '', children, id 
             {subtitle && <p className="section-subtitle">{subtitle}</p>}
           </div>
         )}
-        <div data-reveal="up" data-reveal-delay={title || subtitle ? '1' : '0'}>
-          {children}
-        </div>
+        {noReveal ? (
+          <div>{children}</div>
+        ) : (
+          <div data-reveal="up" data-reveal-delay={title || subtitle ? '1' : '0'}>
+            {children}
+          </div>
+        )}
       </div>
     </section>
   )
