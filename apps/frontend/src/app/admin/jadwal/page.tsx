@@ -155,6 +155,12 @@ function prettyAccommodationType(value: string | null) {
   return mapped[value] || value
 }
 
+function cellBadgeClasses(used: number, full: boolean) {
+  if (full) return 'bg-red-100 text-red-700'
+  if (used > 0) return 'bg-amber-100 text-amber-700'
+  return 'bg-white text-gray-400'
+}
+
 function eduPackageName(booking: EduTripBooking) {
   const first = Array.isArray(booking.items) ? booking.items[0] : null
   return first?.name || '-'
@@ -180,6 +186,7 @@ export default function AdminJadwalPage() {
   const [holidayDates, setHolidayDates] = useState<HolidayDate[]>([])
   const [eduTrips, setEduTrips] = useState<EduTripBooking[]>([])
   const [eduQuota, setEduQuota] = useState(2)
+  const [selectedEduDate, setSelectedEduDate] = useState<string | null>(null)
   const [eduUsedByDate, setEduUsedByDate] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -315,6 +322,11 @@ export default function AdminJadwalPage() {
     }
     return map
   }, [eduTrips])
+
+  const visibleEduTrips = useMemo(
+    () => (selectedEduDate ? (eduTripsByDate.get(selectedEduDate) || []) : sortedEduTrips),
+    [selectedEduDate, eduTripsByDate, sortedEduTrips],
+  )
 
   const eduDays = useMemo(
     () => monthDateColumns.map(({ day, dateKey }) => {
@@ -968,14 +980,98 @@ export default function AdminJadwalPage() {
         </>
       ) : (
         <>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-bold text-gray-900">Kuota rombongan per tanggal</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Maksimal {eduQuota} rombongan per hari untuk semua paket eduwisata & kegiatan (Edu Trip Kesek dan Package 1–3).
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="inline-block h-3 w-3 rounded border-2 border-dashed border-gray-200 bg-white" aria-hidden="true" />
+                  0 rombongan
+                </span>
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="inline-block h-3 w-3 rounded bg-amber-100 ring-1 ring-amber-300" aria-hidden="true" />
+                  1 rombongan
+                </span>
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="inline-block h-3 w-3 rounded bg-red-100 ring-1 ring-red-300" aria-hidden="true" />
+                  {eduQuota} rombongan (penuh)
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl border border-gray-200"
+              data-lenis-prevent
+              data-scroll-container
+            >
+              <div className="overflow-auto">
+                <table className="w-full border-separate border-spacing-0 text-left text-xs">
+                  <thead>
+                    <tr>
+                      <th className="sticky left-0 top-0 z-30 border-b border-r border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+                        Tanggal
+                      </th>
+                      {monthDateColumns.map(({ day, dateKey }) => {
+                        const used = eduUsedByDate[dateKey] || 0
+                        const full = used >= eduQuota
+                        const isSelected = selectedEduDate === dateKey
+
+                        return (
+                          <th
+                            key={dateKey}
+                            className={`sticky top-0 z-20 min-w-[120px] border-b border-r border-gray-200 bg-gray-50 px-2 py-3 text-center text-sm font-semibold text-gray-700 ${isSelected ? 'bg-emerald-50' : ''}`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setSelectedEduDate(isSelected ? null : dateKey)}
+                              aria-pressed={isSelected}
+                              className={`mx-auto flex w-full flex-col items-center gap-1 rounded-lg px-2 py-1.5 transition ${isSelected ? 'font-bold' : ''}`}
+                            >
+                              <span>{day}</span>
+                              <span className={`mt-0.5 inline-flex min-w-9 justify-center rounded-full px-2 py-0.5 font-medium ${cellBadgeClasses(used, full)}`}>
+                                {used}/{eduQuota}
+                              </span>
+                              <span className="text-[9px] font-normal text-gray-500">{formatDate(dateKey)}</span>
+                            </button>
+                          </th>
+                        )
+                      })}
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
             <div
               className="admin-table-scroll admin-table-scroll--wide rounded-xl bg-white shadow-sm"
               data-lenis-prevent
               data-scroll-container
             >
-              {sortedEduTrips.length === 0 ? (
-                <p className="py-12 text-center text-gray-500">Belum ada booking eduwisata pada bulan ini.</p>
+              <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="font-bold text-gray-900">
+                  {selectedEduDate ? `Booking ${formatDate(selectedEduDate)}` : 'Semua booking bulan ini'}
+                </h2>
+                {selectedEduDate && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEduDate(null)}
+                    className="text-sm font-semibold text-emerald-700 hover:underline"
+                  >
+                    Tampilkan semua
+                  </button>
+                )}
+              </div>
+              {visibleEduTrips.length === 0 ? (
+                <p className="py-12 text-center text-gray-500">
+                  {selectedEduDate ? `Tidak ada booking eduwisata pada ${formatDate(selectedEduDate)}.` : 'Belum ada booking eduwisata pada bulan ini.'}
+                </p>
               ) : (
                 <div className="overflow-auto">
                   <table className="min-w-[820px] w-full text-left text-sm">
@@ -991,7 +1087,7 @@ export default function AdminJadwalPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y bg-white">
-                      {sortedEduTrips.map((booking) => (
+                      {visibleEduTrips.map((booking) => (
                         <tr key={booking.id} className="hover:bg-gray-50">
                           <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-900">
                             {formatDate(booking.booking_date)}
@@ -1022,7 +1118,7 @@ export default function AdminJadwalPage() {
             </div>
 
             <aside className="rounded-xl bg-white p-4 shadow-sm lg:self-start">
-              <h2 className="font-bold text-gray-900">Kuota harian</h2>
+              <h2 className="font-bold text-gray-900">Ringkasan kuota</h2>
               <p className="mt-1 text-sm leading-5 text-gray-500">
                 Maksimal {eduQuota} rombongan per hari untuk seluruh paket eduwisata dan kegiatan (Edu Trip Kesek dan Package 1–3).
               </p>
@@ -1041,11 +1137,17 @@ export default function AdminJadwalPage() {
                 <ul className="mt-2 space-y-1.5 text-xs text-gray-600">
                   {eduDays.map((day) => (
                     <li key={day.dateKey} className="flex items-center justify-between gap-2">
-                      <span>{formatDate(day.dateKey)}</span>
-                      <span className={day.remaining <= 0 ? 'font-semibold text-red-600' : 'font-medium text-emerald-700'}>
-                        {day.used}/{eduQuota}
-                        {day.remaining <= 0 ? ' penuh' : ''}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEduDate(selectedEduDate === day.dateKey ? null : day.dateKey)}
+                        className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left ${selectedEduDate === day.dateKey ? 'bg-emerald-50' : ''}`}
+                      >
+                        <span>{formatDate(day.dateKey)}</span>
+                        <span className={day.remaining <= 0 ? 'font-semibold text-red-600' : 'font-medium text-emerald-700'}>
+                          {day.used}/{eduQuota}
+                          {day.remaining <= 0 ? ' penuh' : ''}
+                        </span>
+                      </button>
                     </li>
                   ))}
                 </ul>
