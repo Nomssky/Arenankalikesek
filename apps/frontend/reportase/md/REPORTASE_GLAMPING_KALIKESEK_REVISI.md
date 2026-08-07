@@ -5,7 +5,7 @@ date: 2026-08-02
 author: "Admin Pengelola Sriwulan"
 category: "Wisata"
 excerpt: "Mahasiswa Arsitektur UNDIP merancang desain glamping di kawasan wisata Kalikesek sebagai infrastruktur prioritas untuk meningkatkan pariwisata lokal, dengan pendekatan eco-architecture yang berkelanjutan."
-image: /images/mono-peternakan1.jpg
+image: /images/desain-glamping.jpeg
 imageAlt: "Desain glamping di Area Wisata Kalikesek"
 published: true
 ---
