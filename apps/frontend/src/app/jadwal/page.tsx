@@ -96,10 +96,9 @@ function monthLabel(month: string) {
   return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
-function dateLabel(date: string) {
+function shortDateLabel(date: string) {
   const parsed = new Date(`${date}T00:00:00.000Z`)
   return parsed.toLocaleDateString('id-ID', {
-    weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -197,26 +196,15 @@ export default function JadwalPage() {
       .filter(([, used]) => used >= edutripQuota)
       .map(([date]) => date),
   )
-  const selectedEduTripUsed = selectedEduTripDate
-    ? (edutripUsedByMonth[selectedEduTripDate.slice(0, 7)]?.[selectedEduTripDate] ?? 0)
-    : 0
-  const selectedEduTripRemaining = Math.max(0, edutripQuota - selectedEduTripUsed)
-  const selectedEduTripPackageInfo = edutripPackages.find((item) => item.id === selectedEduTripPackage)
-  const canContinueEduTripBooking = Boolean(
-    selectedEduTripDate
-    && selectedEduTripRemaining > 0
-    && selectedEduTripPackageInfo?.bookable,
-  )
-  const edutripBookingHref = selectedEduTripPackageInfo
-    ? `/booking/wisata?item=${encodeURIComponent(selectedEduTripPackageInfo.id)}${
-        selectedEduTripDate ? `&bookingDate=${encodeURIComponent(selectedEduTripDate)}` : ''
-      }&directBooking=1`
-    : '/booking/wisata?category=paket-edukasi'
 
   const [edutripYear, edutripMonthNumber] = edutripMonth.split('-').map(Number)
   const edutripFirstDay = new Date(Date.UTC(edutripYear, edutripMonthNumber - 1, 1))
   const edutripNumberOfDays = new Date(Date.UTC(edutripYear, edutripMonthNumber, 0)).getUTCDate()
   const edutripMondayOffset = (edutripFirstDay.getUTCDay() + 6) % 7
+  const edutripDates = Array.from(
+    { length: edutripNumberOfDays },
+    (_, index) => `${edutripMonth}-${String(index + 1).padStart(2, '0')}`,
+  )
   const edutripPreviousMonth = shiftMonth(edutripMonth, -1)
   const canGoPreviousEduTrip = !today || `${edutripPreviousMonth}-31` >= today
 
@@ -445,136 +433,128 @@ export default function JadwalPage() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-              <aside className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 lg:self-start">
-                <label className="form-label">Pilih paket</label>
-                <select
-                  aria-label="Pilih paket eduwisata atau kegiatan"
-                  className="form-select"
-                  value={selectedEduTripPackage}
-                  onChange={(event) => setSelectedEduTripPackage(event.target.value)}
-                >
-                  <option value="">-- Pilih paket --</option>
-                  {edutripPackages.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} — {item.price_label}/orang
-                    </option>
-                  ))}
-                </select>
-                {selectedEduTripPackageInfo && (
-                  <div className="mt-4 rounded-xl bg-white p-4">
-                    <p className="font-bold text-emerald-950">{selectedEduTripPackageInfo.name}</p>
-                    <p className="mt-1 text-sm text-orange-600">{selectedEduTripPackageInfo.price_label}/orang</p>
-                    {!selectedEduTripPackageInfo.bookable && <p className="mt-2 text-xs text-gray-500">Harga belum tersedia; hubungi pengelola.</p>}
-                  </div>
-                )}
-                <div className="mt-4 text-xs leading-5 text-gray-600">
-                  <p className="flex items-center gap-2 font-semibold text-emerald-900"><CalendarDaysIcon className="h-4 w-4" />Cara memilih</p>
-                  <p className="mt-1">Pilih paket, lalu pilih satu tanggal. Kuota maksimal {edutripQuota} rombongan per hari untuk seluruh paket eduwisata dan kegiatan. Harga berlaku untuk minimal 25 anak.</p>
-                </div>
-              </aside>
-              <div>
-                <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-emerald-50 px-3 py-3 sm:px-4">
-                  <button
-                    type="button"
-                    aria-label="Bulan sebelumnya"
-                    disabled={!canGoPreviousEduTrip}
-                    onClick={() => { setEduTripMonth(edutripPreviousMonth); setSelectedEduTripDate('') }}
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <ChevronLeftIcon className="h-5 w-5" />
-                  </button>
-                  <p className="text-sm font-bold capitalize text-emerald-950">{monthLabel(edutripMonth)}</p>
-                  <button
-                    type="button"
-                    aria-label="Bulan berikutnya"
-                    onClick={() => { setEduTripMonth(shiftMonth(edutripMonth, 1)); setSelectedEduTripDate('') }}
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-emerald-800 transition hover:bg-emerald-50"
-                  >
-                    <ChevronRightIcon className="h-5 w-5" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-7 gap-1 p-2 sm:p-4">
-                  {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((label) => (
-                    <div key={label} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400 sm:text-xs">
-                      {label}
+            <div className="grid gap-5 lg:grid-cols-2">
+              {edutripPackages.map((item) => {
+                const isActive = selectedEduTripPackage === item.id && Boolean(selectedEduTripDate)
+                const bookingHref = isActive
+                  ? `/booking/wisata?item=${encodeURIComponent(item.id)}&bookingDate=${encodeURIComponent(selectedEduTripDate)}&directBooking=1`
+                  : '#'
+                const availableDateCount = edutripDates.filter((date) => date >= today && !edutripBlockedSet.has(date)).length
+                const categoryLabel = item.category === 'paket-kegiatan' ? 'Kegiatan' : 'Eduwisata'
+                return (
+                  <article key={item.id} className={`rounded-2xl border bg-white p-5 shadow-sm transition ${isActive ? 'border-orange-300 ring-2 ring-orange-100' : 'border-emerald-950/5'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">{categoryLabel}</p>
+                        <h2 className="mt-1 font-bold text-emerald-950">{item.name}</h2>
+                      </div>
+                      {availableDateCount > 0 ? <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-500" /> : <XCircleIcon className="h-6 w-6 shrink-0 text-red-500" />}
                     </div>
-                  ))}
-                  {Array.from({ length: edutripMondayOffset }, (_, index) => <div key={`empty-${index}`} />)}
-                  {Array.from({ length: edutripNumberOfDays }, (_, index) => {
-                    const date = `${edutripMonth}-${String(index + 1).padStart(2, '0')}`
-                    const isPast = Boolean(today && date < today)
-                    const isFull = edutripBlockedSet.has(date)
-                    const isSelected = date === selectedEduTripDate
-                    const disabled = isPast || isFull
-                    return (
-                      <button
-                        key={date}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => setSelectedEduTripDate(date)}
-                        aria-label={`${date}${isFull ? ', kuota penuh' : isPast ? ', sudah lewat' : ', tersedia'}`}
-                        className={`relative flex aspect-square min-h-9 items-center justify-center rounded-xl text-xs font-semibold transition sm:text-sm ${
-                          isSelected
-                            ? 'bg-orange-500 text-white ring-2 ring-orange-600 shadow-sm'
-                            : isFull
-                              ? 'cursor-not-allowed border border-red-300 bg-red-100 text-red-600 line-through'
-                              : isPast
-                                ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
-                                : 'border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:ring-2 hover:ring-emerald-300'
-                        }`}
-                      >
-                        {index + 1}
-                      </button>
-                    )
-                  })}
-                </div>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-emerald-50 px-4 py-3 text-[11px] text-gray-600">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-block h-3.5 w-3.5 rounded-md border border-emerald-300 bg-emerald-50" />
-                    Tersedia
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-block h-3.5 w-3.5 rounded-md border border-red-300 bg-red-100" />
-                    Kuota penuh
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-block h-3.5 w-3.5 rounded-md border border-gray-200 bg-gray-100" />
-                    Sudah lewat
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-block h-3.5 w-3.5 rounded-md bg-orange-500 ring-2 ring-orange-600" />
-                    Pilihan Anda
-                  </span>
-                </div>
-                </div>
+                    <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+                      <span className="font-semibold text-emerald-700">{availableDateCount} tanggal tersedia</span>
+                      <span className="text-gray-500">Pilih per hari</span>
+                    </div>
 
-                <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-emerald-950 p-4 text-white sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs text-white/60">Pilihan tanggal</p>
-                    <p className="font-semibold">
-                      {selectedEduTripDate ? dateLabel(selectedEduTripDate) : 'Tanggal belum dipilih'}
-                      {selectedEduTripDate && (
-                        <span className="text-white/70">
-                          {selectedEduTripRemaining > 0
-                            ? ` · tersisa ${selectedEduTripRemaining} dari ${edutripQuota} kuota`
-                            : ' · kuota penuh'}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <Link
-                    href={edutripBookingHref}
-                    aria-disabled={!canContinueEduTripBooking}
-                    className={`rounded-full px-5 py-3 text-center text-sm font-bold ${canContinueEduTripBooking ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-white/10 text-white/40'}`}
-                  >
-                    {canContinueEduTripBooking ? 'Lanjut booking' : 'Pilih tanggal & paket'}
-                  </Link>
-                </div>
-              </div>
+                    <div className="mt-3 overflow-hidden rounded-xl border border-emerald-100">
+                      <div className="flex items-center justify-between border-b border-emerald-50 px-2 py-2">
+                        <button
+                          type="button"
+                          aria-label="Bulan sebelumnya"
+                          disabled={!canGoPreviousEduTrip}
+                          onClick={() => { setEduTripMonth(edutripPreviousMonth); setSelectedEduTripPackage('') }}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          <ChevronLeftIcon className="h-4 w-4" />
+                        </button>
+                        <p className="text-sm font-bold capitalize text-emerald-950">{monthLabel(edutripMonth)}</p>
+                        <button
+                          type="button"
+                          aria-label="Bulan berikutnya"
+                          onClick={() => { setEduTripMonth(shiftMonth(edutripMonth, 1)); setSelectedEduTripPackage('') }}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-emerald-800 transition hover:bg-emerald-50"
+                        >
+                          <ChevronRightIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-7 gap-1 p-2">
+                        {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((label) => (
+                          <div key={label} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                            {label}
+                          </div>
+                        ))}
+                        {Array.from({ length: edutripMondayOffset }, (_, index) => <div key={`empty-${index}`} />)}
+                        {edutripDates.map((date, index) => {
+                          const isPast = Boolean(today && date < today)
+                          const isFull = edutripBlockedSet.has(date)
+                          const isToday = !isPast && !isFull && date === today
+                          const isSelected = isActive && date === selectedEduTripDate
+                          const disabled = isPast || isFull
+                          return (
+                            <button
+                              key={date}
+                              type="button"
+                              disabled={disabled}
+                              onClick={() => { setSelectedEduTripPackage(item.id); setSelectedEduTripDate(date) }}
+                              aria-label={`${date}${isFull ? ', kuota penuh' : isPast ? ', sudah lewat' : ', tersedia'}`}
+                              className={`relative flex h-9 min-h-9 items-center justify-center rounded-xl text-xs font-semibold transition sm:text-sm ${
+                                isSelected
+                                  ? 'bg-emerald-600 text-white ring-2 ring-emerald-300 shadow-sm'
+                                  : isFull
+                                    ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400 line-through'
+                                    : isPast
+                                      ? 'cursor-not-allowed border border-gray-100 bg-gray-50 text-gray-300'
+                                      : `border text-emerald-800 hover:ring-2 hover:ring-emerald-300 ${isToday ? 'border-orange-300 bg-orange-50 hover:bg-orange-100' : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100'}`
+                              }`}
+                            >
+                              {index + 1}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-gray-600">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-emerald-300 bg-emerald-50" />
+                        Tersedia
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-gray-200 bg-gray-100 line-through" />
+                        Penuh
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-gray-100 bg-gray-50" />
+                        Sudah lewat
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-orange-300 bg-orange-50" />
+                        Hari ini
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block h-3.5 w-3.5 rounded-md bg-emerald-600 ring-2 ring-emerald-300" />
+                        Pilihan Anda
+                      </span>
+                    </div>
+
+                    {isActive && (
+                      <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs text-emerald-800">
+                        <CalendarDaysIcon className="h-4 w-4 shrink-0" />
+                        <span className="font-semibold">Dipilih {shortDateLabel(selectedEduTripDate)}</span>
+                      </div>
+                    )}
+
+                    <Link
+                      href={bookingHref}
+                      aria-disabled={!isActive}
+                      className={`mt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${isActive ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
+                    >
+                      {isActive ? `Lanjut Booking • ${shortDateLabel(selectedEduTripDate)}` : 'Pilih tanggal terlebih dahulu'}
+                    </Link>
+                  </article>
+                )
+              })}
             </div>
           )}
         </div>
