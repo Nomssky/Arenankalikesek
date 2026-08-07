@@ -6,6 +6,7 @@ author: "Admin Arenan Kalikesek"
 category: "Lingkungan"
 excerpt: "Sampah plastik dapat diolah menjadi paving block sebagai alternatif pemanfaatan limbah yang lebih berguna."
 image: /images/blog-paving-block.jpeg
+imageAlt: "Paving block dari sampah plastik"
 published: true
 source: "https://arenankalikesek.com/2025/07/29/membuat-paving-block-dari-sampah-plastik-bisa-menjadi-solusi-ramah-lingkungan/"
 ---

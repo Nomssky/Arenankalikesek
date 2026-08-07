@@ -10,11 +10,7 @@ imageAlt: "Optimasi incinerator di TPS Desa Sriwulan"
 published: true
 ---
 
-# **Mahasiswa KKN-T IDBU 10 UNDIP Optimalkan Fasilitas Pengelolaan Sampah di Desa Sriwulan untuk Pengelolaan Berkelanjutan** 
-
-**Author (Admin Pengelola Kalikesek)**
-
-Kendal, 2 Agustus 2026 **–** Mahasiswa Kuliah Kerja Nyata Tematik (KKN-T) IPTEK bagi Desa Binaan (IDBU) 10 Universitas Diponegoro Kelompok 1 melaksanakan program optimalisasi mesin incinerator di Tempat Pembuangan Sampah (TPS) Desa Sriwulan, Kecamatan Limbangan, Kabupaten Kendal yang merupakan program kerja multidisiplin 1 dengan tema “Optimalisasi Alat Pengurang Volume Sampah di Desa Sriwulan untuk mendukung pembangunan yang berkelanjutan”. 
+Kendal, 2 Agustus 2026 – Mahasiswa Kuliah Kerja Nyata Tematik (KKN-T) IPTEK bagi Desa Binaan (IDBU) 10 Universitas Diponegoro Kelompok 1 melaksanakan program optimalisasi mesin incinerator di Tempat Pembuangan Sampah (TPS) Desa Sriwulan, Kecamatan Limbangan, Kabupaten Kendal yang merupakan program kerja multidisiplin 1 dengan tema "Optimalisasi Alat Pengurang Volume Sampah di Desa Sriwulan untuk mendukung pembangunan yang berkelanjutan".
 
 Program ini bertujuan meningkatkan efektivitas pengelolaan sampah melalui penyempurnaan desain, mekanisme, dan sistem operasional mesin. Kegiatan ini juga mendukung pencapaian Tujuan Pembangunan Berkelanjutan (Sustainable Development Goals/SDGs), khususnya poin 11 (*Sustainable Cities and Communities*) serta poin 12 (*Responsible Consumption and Production*), melalui pengelolaan sampah yang lebih efektif dan berkelanjutan di Desa Sriwulan.
 

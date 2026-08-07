@@ -10,7 +10,7 @@ imageAlt: "Budidaya maggot di Desa Sriwulan"
 published: true
 ---
 
-Mahasiswa Kelompok 2 Kuliah Kerja Nyata Tematik IPTEK Bagi Desa Binaan Universitas (KKNT IDBU) 10 Universitas Diponegoro (Undip) melaksanakan program inovatif berupa edukasi dan pelatihan budidaya maggot (larva Black Soldier Fly atau BSF) sebagai solusi pengelolaan sampah organik di Desa Sriwulan, Kabupaten Kendal. Program ini menjadi salah satu bentuk implementasi Sustainable Development Goals (SDGs), khususnya SDG 11 (Kota dan Permukiman yang Berkelanjutan), SDG 12 (Konsumsi dan Produksi yang Bertanggung Jawab), SDG 13 (Penanganan Perubahan Iklim), dan SDG 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi).
+**KENDAL** – Mahasiswa Kelompok 2 Kuliah Kerja Nyata Tematik IPTEK Bagi Desa Binaan Universitas (KKNT IDBU 10) Universitas Diponegoro (Undip) melaksanakan program inovatif berupa edukasi dan pelatihan budidaya maggot (larva Black Soldier Fly atau BSF) sebagai solusi pengelolaan sampah organik di Desa Sriwulan, Kabupaten Kendal. Program ini menjadi salah satu bentuk implementasi Sustainable Development Goals (SDGs), khususnya SDG 11 (Kota dan Permukiman yang Berkelanjutan), SDG 12 (Konsumsi dan Produksi yang Bertanggung Jawab), SDG 13 (Penanganan Perubahan Iklim), dan SDG 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi).
 
 ![Budidaya maggot di Desa Sriwulan](/images/multikel2a.jpeg)
 
@@ -18,7 +18,7 @@ Program ini digagas oleh Kelompok 2 KKNT IDBU 10 yang diketuai oleh Bagus Kresna
 
 Melalui kegiatan sosialisasi dan pelatihan, mahasiswa memberikan edukasi kepada masyarakat mengenai pentingnya pengelolaan sampah organik yang berkelanjutan. Warga juga memperoleh pelatihan teknis mulai dari persiapan media budidaya, pemberian pakan berbahan limbah organik, hingga proses pemanenan maggot.
 
-â€œProgram ini bertujuan membantu masyarakat mengurangi volume sampah organik sekaligus membuka peluang ekonomi baru melalui pemanfaatan maggot sebagai pakan alternatif ternak,â€ ujar Aldo Budi Christanto selaku wakil ketua Kelompok 2.
+"Program ini bertujuan membantu masyarakat mengurangi volume sampah organik sekaligus membuka peluang ekonomi baru melalui pemanfaatan maggot sebagai pakan alternatif ternak," ujar Aldo Budi Christanto selaku wakil ketua Kelompok 2.
 
 ![Pelatihan budidaya maggot](/images/multikel2b.png)
 
