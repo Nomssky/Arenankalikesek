@@ -518,27 +518,37 @@ export default function JadwalPage() {
                         aria-label={`${date}${isFull ? ', kuota penuh' : isPast ? ', sudah lewat' : ', tersedia'}`}
                         className={`relative flex aspect-square min-h-9 items-center justify-center rounded-xl text-xs font-semibold transition sm:text-sm ${
                           isSelected
-                            ? 'bg-orange-500 text-white shadow-sm'
+                            ? 'bg-orange-500 text-white ring-2 ring-orange-600 shadow-sm'
                             : isFull
-                              ? 'cursor-not-allowed border-red-100 bg-red-50 text-red-400 line-through'
+                              ? 'cursor-not-allowed border border-red-300 bg-red-100 text-red-600 line-through'
                               : isPast
-                                ? 'cursor-not-allowed text-gray-300'
-                                : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-800'
+                                ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400'
+                                : 'border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:ring-2 hover:ring-emerald-300'
                         }`}
                       >
                         {index + 1}
-                        {!disabled && !isSelected && (
-                          <span className="absolute bottom-1 h-1 w-1 rounded-full bg-emerald-400" />
-                        )}
                       </button>
                     )
                   })}
                 </div>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-emerald-50 px-4 py-3 text-[11px] text-gray-500">
-                  <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-emerald-400" />Tersedia</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-red-200" />Kuota penuh</span>
-                  <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-orange-500" />Pilihan Anda</span>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-emerald-50 px-4 py-3 text-[11px] text-gray-600">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block h-3.5 w-3.5 rounded-md border border-emerald-300 bg-emerald-50" />
+                    Tersedia
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block h-3.5 w-3.5 rounded-md border border-red-300 bg-red-100" />
+                    Kuota penuh
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block h-3.5 w-3.5 rounded-md border border-gray-200 bg-gray-100" />
+                    Sudah lewat
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block h-3.5 w-3.5 rounded-md bg-orange-500 ring-2 ring-orange-600" />
+                    Pilihan Anda
+                  </span>
                 </div>
                 </div>
 
