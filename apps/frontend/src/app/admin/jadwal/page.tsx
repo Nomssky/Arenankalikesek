@@ -1013,10 +1013,14 @@ export default function AdminJadwalPage() {
             </div>
 
             <div
-              className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl border border-gray-200"
-              data-lenis-prevent
-              data-scroll-container
+              className="rounded-xl bg-white shadow-sm"
             >
+              <div className="flex items-center justify-between border-b border-gray-100 px-3 py-3 sm:px-4">
+                <p className="text-sm font-bold text-gray-800">{monthBounds?.label}</p>
+                <p className="text-xs text-gray-500">
+                  Kuota {eduQuota} rombongan/hari
+                </p>
+              </div>
               <div className="overflow-auto p-2 sm:p-4">
                 <div className="grid min-w-[560px] grid-cols-7 gap-1">
                   {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((label) => (
@@ -1039,17 +1043,18 @@ export default function AdminJadwalPage() {
                         onClick={() => setSelectedEduDate(isSelected ? null : dateKey)}
                         aria-pressed={isSelected}
                         aria-label={`${formatDate(dateKey)}${full ? ', kuota penuh' : used > 0 ? ', terisi sebagian' : ', tersedia'}`}
-                        className={`relative flex aspect-square min-h-10 flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-semibold transition sm:text-sm ${
+                        className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg border text-xs font-semibold transition sm:text-sm ${
                           isSelected
-                            ? 'bg-orange-500 text-white ring-2 ring-orange-600 shadow-sm'
+                            ? 'border-orange-400 bg-orange-500 text-white shadow-sm'
                             : full
-                              ? 'cursor-pointer border border-red-300 bg-red-100 text-red-600'
+                              ? 'cursor-pointer border-red-200 bg-red-50 text-red-600'
                               : used > 0
-                                ? 'cursor-pointer border border-amber-300 bg-amber-200 text-amber-900 hover:bg-amber-100'
-                                : 'cursor-pointer border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:ring-2 hover:ring-emerald-300'
+                                ? 'cursor-pointer border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-50'
+                                : 'cursor-pointer border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
                         }`}
                       >
                         <span>{day}</span>
+                        <span className="text-[9px] font-normal text-gray-500">{formatDate(dateKey)}</span>
                         <span className={`inline-flex min-w-8 justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isSelected ? 'bg-white/25 text-white' : cellBadgeClasses(used, full)}`}>
                           {used}/{eduQuota}
                         </span>
