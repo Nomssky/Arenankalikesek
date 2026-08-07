@@ -94,6 +94,10 @@ function pad2(value: number) {
   return String(value).padStart(2, '0')
 }
 
+function weekdayLabel(dateKey: string) {
+  return new Date(`${dateKey}T00:00:00Z`).toLocaleDateString('id-ID', { weekday: 'short', timeZone: 'UTC' })
+}
+
 function currentMonthKey() {
   const now = new Date()
   return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`
@@ -1031,7 +1035,7 @@ export default function AdminJadwalPage() {
                   {Array.from({ length: eduMondayOffset }, (_, index) => (
                     <div key={`empty-${index}`} />
                   ))}
-                  {monthDateColumns.map(({ day, dateKey }) => {
+                  {monthDateColumns.map(({ dateKey }) => {
                     const used = eduUsedByDate[dateKey] || 0
                     const full = used >= eduQuota
                     const isSelected = selectedEduDate === dateKey
@@ -1053,8 +1057,8 @@ export default function AdminJadwalPage() {
                                 : 'cursor-pointer border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
                         }`}
                       >
-                        <span>{day}</span>
-                        <span className="text-[9px] font-normal text-gray-500">{formatDate(dateKey)}</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-wide">{weekdayLabel(dateKey)}</span>
+                        <span className="text-[10px] font-normal text-gray-500">{formatDate(dateKey)}</span>
                         <span className={`inline-flex min-w-8 justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isSelected ? 'bg-white/25 text-white' : cellBadgeClasses(used, full)}`}>
                           {full ? 'Penuh' : used > 0 ? 'Terisi' : 'Tersedia'}
                         </span>
