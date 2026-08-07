@@ -10,6 +10,9 @@ imageAlt: "Desain glamping di Area Wisata Kalikesek"
 published: true
 ---
 
+**Reportase oleh:** Kelompok 1 Tim KKN-T IDBU 10 Universitas Diponegoro  
+**Editor/Pembimbing:** Irfan Murthado Yusuf, S.A.P., MPM.
+
 Kendal, 2 Agustus 2026 – Pembuatan desain glamping di kawasan wisata Desa Kalikesek, Kecamatan Limbangan, Kabupaten Kendal, kini menjadi salah satu prioritas dalam upaya pengembangan potensi pariwisata daerah. Program kerja sosial kemasyarakatan ini dilaksanakan oleh Mochamad Rizqul Akbar, mahasiswa Program Studi S1 Arsitektur, Fakultas Teknik, Universitas Diponegoro, yang tergabung dalam Tim Kuliah Kerja Nyata Tematik (KKN-T) IPTEK bagi Desa Binaan (IDBU) 10 Universitas Diponegoro.
 
 Program ini turut mendukung pencapaian Tujuan Pembangunan Berkelanjutan (*Sustainable Development Goals*/SDGs) poin 8 mengenai *Decent Work and Economic Growth* serta poin 11 tentang *Sustainable Cities and Communities* melalui perancangan infrastruktur pariwisata yang berkelanjutan dan berdaya saing di Desa Kalikesek.
