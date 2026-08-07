@@ -347,6 +347,28 @@ export default function AdminJadwalPage() {
     return { totalRombongan, fullDays }
   }, [eduDays])
 
+  const eduPackageNames = useMemo(() => {
+    const names = new Set<string>()
+    for (const booking of eduTrips) {
+      const name = eduPackageName(booking)
+      if (name && name !== '-') names.add(name)
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, 'id'))
+  }, [eduTrips])
+
+  const eduBookingsByPackageDate = useMemo(() => {
+    const map = new Map<string, Map<string, EduTripBooking[]>>()
+    for (const booking of eduTrips) {
+      const pkg = eduPackageName(booking)
+      const byDate = map.get(pkg) || new Map<string, EduTripBooking[]>()
+      const list = byDate.get(booking.booking_date) || []
+      list.push(booking)
+      byDate.set(booking.booking_date, list)
+      map.set(pkg, byDate)
+    }
+    return map
+  }, [eduTrips])
+
   const accommodationUnits = useMemo(() => {
     const map = new Map<string, { id: string; name: string; type: string | null }>()
 
@@ -1018,7 +1040,7 @@ export default function AdminJadwalPage() {
                   <thead>
                     <tr>
                       <th className="sticky left-0 top-0 z-30 border-b border-r border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-                        Tanggal
+                        Paket
                       </th>
                       {monthDateColumns.map(({ day, dateKey }) => {
                         const used = eduUsedByDate[dateKey] || 0
@@ -1028,7 +1050,7 @@ export default function AdminJadwalPage() {
                         return (
                           <th
                             key={dateKey}
-                            className={`sticky top-0 z-20 min-w-[140px] border-b border-r border-gray-200 px-2 py-3 text-center ${isSelected ? 'bg-emerald-600' : used > 0 ? 'bg-amber-500' : 'bg-gray-50'}`}
+                            className={`sticky top-0 z-20 min-w-[130px] border-b border-r border-gray-200 px-2 py-3 text-center ${isSelected ? 'bg-emerald-600' : used > 0 ? 'bg-amber-500' : 'bg-gray-50'}`}
                           >
                             <button
                               type="button"
@@ -1050,55 +1072,68 @@ export default function AdminJadwalPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <th className="sticky left-0 z-10 border-b border-r border-gray-200 bg-white px-4 py-2 align-top text-sm font-semibold text-gray-700">
-                        Booking
-                      </th>
-                      {monthDateColumns.map(({ dateKey }) => {
-                        const used = eduUsedByDate[dateKey] || 0
-                        const full = used >= eduQuota
-                        const bookings = eduTripsByDate.get(dateKey) || []
-                        const isSelected = selectedEduDate === dateKey
+                    {eduPackageNames.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={monthDateColumns.length + 1}
+                          className="py-12 text-center text-gray-500"
+                        >
+                          Belum ada paket eduwisata terbooking pada bulan ini.
+                        </td>
+                      </tr>
+                    ) : (
+                      eduPackageNames.map((pkg) => (
+                        <tr key={pkg}>
+                          <th className="sticky left-0 z-10 border-b border-r border-gray-200 bg-white px-4 py-3 align-top text-sm font-semibold text-gray-700">
+                            {pkg}
+                          </th>
+                          {monthDateColumns.map(({ dateKey }) => {
+                            const used = eduUsedByDate[dateKey] || 0
+                            const full = used >= eduQuota
+                            const bookings = eduBookingsByPackageDate.get(pkg)?.get(dateKey) || []
+                            const isSelected = selectedEduDate === dateKey
 
-                        return (
-                          <td
-                            key={dateKey}
-                            className={`min-w-[140px] border-b border-r border-gray-200 px-2 py-2 align-top ${
-                              isSelected ? 'bg-emerald-50' : full ? 'bg-red-50' : used > 0 ? 'bg-amber-50' : 'bg-white'
-                            }`}
-                          >
-                            <div className={`flex min-h-24 flex-col gap-1 ${bookings.length === 0 ? 'items-center justify-center' : ''} rounded-lg p-1.5 ${isSelected ? 'ring-2 ring-emerald-500' : full ? 'ring-1 ring-red-200' : used > 0 ? 'ring-1 ring-amber-200' : 'border border-dashed border-gray-200'}`}>
-                              {bookings.length === 0 ? (
-                                <span className="text-[10px] text-gray-300">-</span>
-                              ) : (
-                                bookings.map((row) => (
-                                  <div
-                                    key={row.id}
-                                    className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 shadow-sm"
-                                  >
-                                    <p className="line-clamp-1 font-semibold text-emerald-900">
-                                      {row.customer_name || eduPackageName(row) || '-'}
-                                    </p>
-                                    <p className="mt-0.5 truncate text-[10px] text-emerald-700">
-                                      {eduPackageName(row)} · {eduParticipantCount(row)}
-                                    </p>
-                                    <span className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium ${badgeClasses(row.status)}`}>
-                                      {row.status}
-                                    </span>
-                                    <Link
-                                      href={`/invoice/${row.id}?phone=${encodeURIComponent(row.customer_phone || '')}`}
-                                      className="mt-0.5 inline-flex text-[10px] font-semibold text-emerald-700 hover:underline"
-                                    >
-                                      Invoice
-                                    </Link>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </td>
-                        )
-                      })}
-                    </tr>
+                            return (
+                              <td
+                                key={dateKey}
+                                className={`min-w-[130px] border-b border-r border-gray-200 px-2 py-2 align-top ${
+                                  isSelected ? 'bg-emerald-50' : full ? 'bg-red-50' : used > 0 ? 'bg-amber-50' : 'bg-white'
+                                }`}
+                              >
+                                <div className={`flex min-h-20 flex-col gap-1 ${bookings.length === 0 ? 'items-center justify-center' : ''} rounded-lg p-1.5 ${isSelected ? 'ring-2 ring-emerald-500' : full ? 'ring-1 ring-red-200' : used > 0 ? 'ring-1 ring-amber-200' : 'border border-dashed border-gray-200'}`}>
+                                  {bookings.length === 0 ? (
+                                    <span className="text-[10px] text-gray-300">-</span>
+                                  ) : (
+                                    bookings.map((row) => (
+                                      <div
+                                        key={row.id}
+                                        className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 shadow-sm"
+                                      >
+                                        <p className="line-clamp-1 font-semibold text-emerald-900">
+                                          {row.customer_name || '-'}
+                                        </p>
+                                        <p className="mt-0.5 truncate text-[10px] text-emerald-700">
+                                          {eduParticipantCount(row)}
+                                        </p>
+                                        <span className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium ${badgeClasses(row.status)}`}>
+                                          {row.status}
+                                        </span>
+                                        <Link
+                                          href={`/invoice/${row.id}?phone=${encodeURIComponent(row.customer_phone || '')}`}
+                                          className="mt-0.5 inline-flex text-[10px] font-semibold text-emerald-700 hover:underline"
+                                        >
+                                          Invoice
+                                        </Link>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
