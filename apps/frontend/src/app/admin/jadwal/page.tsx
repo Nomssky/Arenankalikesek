@@ -1056,7 +1056,7 @@ export default function AdminJadwalPage() {
                         <span>{day}</span>
                         <span className="text-[9px] font-normal text-gray-500">{formatDate(dateKey)}</span>
                         <span className={`inline-flex min-w-8 justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isSelected ? 'bg-white/25 text-white' : cellBadgeClasses(used, full)}`}>
-                          {used}/{eduQuota}
+                          {full ? 'Penuh' : used > 0 ? 'Terisi' : 'Tersedia'}
                         </span>
                       </button>
                     )
