@@ -156,9 +156,9 @@ function prettyAccommodationType(value: string | null) {
 }
 
 function cellBadgeClasses(used: number, full: boolean) {
-  if (full) return 'bg-red-100 text-red-700'
-  if (used > 0) return 'bg-amber-100 text-amber-700'
-  return 'bg-white text-gray-400'
+  if (full) return 'bg-red-700 text-white ring-1 ring-red-800'
+  if (used > 0) return 'bg-amber-500 text-amber-950 ring-1 ring-amber-700'
+  return 'bg-white text-gray-400 ring-1 ring-gray-200'
 }
 
 function eduPackageName(booking: EduTripBooking) {
@@ -985,21 +985,25 @@ export default function AdminJadwalPage() {
               <div>
                 <h2 className="font-bold text-gray-900">Kuota rombongan per tanggal</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Maksimal {eduQuota} rombongan per hari untuk semua paket eduwisata & kegiatan (Edu Trip Kesek dan Package 1–3).
+                  Maksimal {eduQuota} rombongan per hari untuk semua paket eduwisata & kegiatan (Edu Trip Kesek dan Package 1–3). Pilih tanggal untuk melihat detail booking.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
                 <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="inline-block h-3 w-3 rounded border-2 border-dashed border-gray-200 bg-white" aria-hidden="true" />
-                  0 rombongan
+                  <span className="inline-block h-3.5 w-3.5 rounded bg-white ring-2 ring-gray-300" aria-hidden="true" />
+                  Kosong
                 </span>
                 <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="inline-block h-3 w-3 rounded bg-amber-100 ring-1 ring-amber-300" aria-hidden="true" />
-                  1 rombongan
+                  <span className="inline-block h-3.5 w-3.5 rounded bg-amber-500 ring-2 ring-amber-700" aria-hidden="true" />
+                  1 rombongan terisi
                 </span>
                 <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="inline-block h-3 w-3 rounded bg-red-100 ring-1 ring-red-300" aria-hidden="true" />
+                  <span className="inline-block h-3.5 w-3.5 rounded bg-red-700 ring-2 ring-red-800" aria-hidden="true" />
                   {eduQuota} rombongan (penuh)
+                </span>
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="inline-block h-3.5 w-3.5 rounded bg-emerald-600 ring-2 ring-emerald-800" aria-hidden="true" />
+                  Tanggal terpilih
                 </span>
               </div>
             </div>
@@ -1024,7 +1028,7 @@ export default function AdminJadwalPage() {
                         return (
                           <th
                             key={dateKey}
-                            className={`sticky top-0 z-20 min-w-[120px] border-b border-r border-gray-200 bg-gray-50 px-2 py-3 text-center text-sm font-semibold text-gray-700 ${isSelected ? 'bg-emerald-50' : ''}`}
+                            className={`sticky top-0 z-20 min-w-[140px] border-b border-r border-gray-200 px-2 py-3 text-center ${isSelected ? 'bg-emerald-600' : used > 0 ? 'bg-amber-500' : 'bg-gray-50'}`}
                           >
                             <button
                               type="button"
@@ -1032,47 +1036,98 @@ export default function AdminJadwalPage() {
                               aria-pressed={isSelected}
                               className={`mx-auto flex w-full flex-col items-center gap-1 rounded-lg px-2 py-1.5 transition ${isSelected ? 'font-bold' : ''}`}
                             >
-                              <span>{day}</span>
-                              <span className={`mt-0.5 inline-flex min-w-9 justify-center rounded-full px-2 py-0.5 font-medium ${cellBadgeClasses(used, full)}`}>
+                              <span className={isSelected ? 'text-white' : used > 0 ? 'text-amber-950' : 'text-gray-700'}>
+                                {day}
+                              </span>
+                              <span className={`mt-0.5 inline-flex min-w-9 justify-center rounded-full px-2 py-0.5 text-xs font-bold ${cellBadgeClasses(used, full)}`}>
                                 {used}/{eduQuota}
                               </span>
-                              <span className="text-[9px] font-normal text-gray-500">{formatDate(dateKey)}</span>
+                              <span className={`text-[9px] font-normal ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>{formatDate(dateKey)}</span>
                             </button>
                           </th>
                         )
                       })}
                     </tr>
                   </thead>
+                  <tbody>
+                    <tr>
+                      <th className="sticky left-0 z-10 border-b border-r border-gray-200 bg-white px-4 py-2 align-top text-sm font-semibold text-gray-700">
+                        Booking
+                      </th>
+                      {monthDateColumns.map(({ dateKey }) => {
+                        const used = eduUsedByDate[dateKey] || 0
+                        const full = used >= eduQuota
+                        const bookings = eduTripsByDate.get(dateKey) || []
+                        const isSelected = selectedEduDate === dateKey
+
+                        return (
+                          <td
+                            key={dateKey}
+                            className={`min-w-[140px] border-b border-r border-gray-200 px-2 py-2 align-top ${
+                              isSelected ? 'bg-emerald-50' : full ? 'bg-red-50' : used > 0 ? 'bg-amber-50' : 'bg-white'
+                            }`}
+                          >
+                            <div className={`flex min-h-24 flex-col gap-1 ${bookings.length === 0 ? 'items-center justify-center' : ''} rounded-lg p-1.5 ${isSelected ? 'ring-2 ring-emerald-500' : full ? 'ring-1 ring-red-200' : used > 0 ? 'ring-1 ring-amber-200' : 'border border-dashed border-gray-200'}`}>
+                              {bookings.length === 0 ? (
+                                <span className="text-[10px] text-gray-300">-</span>
+                              ) : (
+                                bookings.map((row) => (
+                                  <div
+                                    key={row.id}
+                                    className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 shadow-sm"
+                                  >
+                                    <p className="line-clamp-1 font-semibold text-emerald-900">
+                                      {row.customer_name || eduPackageName(row) || '-'}
+                                    </p>
+                                    <p className="mt-0.5 truncate text-[10px] text-emerald-700">
+                                      {eduPackageName(row)} · {eduParticipantCount(row)}
+                                    </p>
+                                    <span className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium ${badgeClasses(row.status)}`}>
+                                      {row.status}
+                                    </span>
+                                    <Link
+                                      href={`/invoice/${row.id}?phone=${encodeURIComponent(row.customer_phone || '')}`}
+                                      className="mt-0.5 inline-flex text-[10px] font-semibold text-emerald-700 hover:underline"
+                                    >
+                                      Invoice
+                                    </Link>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <div
-              className="admin-table-scroll admin-table-scroll--wide rounded-xl bg-white shadow-sm"
-              data-lenis-prevent
-              data-scroll-container
-            >
-              <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
                 <h2 className="font-bold text-gray-900">
-                  {selectedEduDate ? `Booking ${formatDate(selectedEduDate)}` : 'Semua booking bulan ini'}
+                  {selectedEduDate ? `Detail booking ${formatDate(selectedEduDate)}` : 'Semua booking bulan ini'}
                 </h2>
-                {selectedEduDate && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedEduDate(null)}
-                    className="text-sm font-semibold text-emerald-700 hover:underline"
-                  >
-                    Tampilkan semua
-                  </button>
-                )}
               </div>
-              {visibleEduTrips.length === 0 ? (
-                <p className="py-12 text-center text-gray-500">
-                  {selectedEduDate ? `Tidak ada booking eduwisata pada ${formatDate(selectedEduDate)}.` : 'Belum ada booking eduwisata pada bulan ini.'}
-                </p>
-              ) : (
+              {selectedEduDate && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedEduDate(null)}
+                  className="text-sm font-semibold text-emerald-700 hover:underline"
+                >
+                  Tampilkan semua
+                </button>
+              )}
+            </div>
+            {visibleEduTrips.length === 0 ? (
+              <p className="py-10 text-center text-gray-500">
+                {selectedEduDate ? `Tidak ada booking eduwisata pada ${formatDate(selectedEduDate)}.` : 'Belum ada booking eduwisata pada bulan ini.'}
+              </p>
+            ) : (
+              <div className="admin-table-scroll mt-3 rounded-xl border border-gray-100" data-lenis-prevent data-scroll-container>
                 <div className="overflow-auto">
                   <table className="min-w-[820px] w-full text-left text-sm">
                     <thead className="border-b bg-gray-50">
@@ -1114,45 +1169,19 @@ export default function AdminJadwalPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            <aside className="rounded-xl bg-white p-4 shadow-sm lg:self-start">
-              <h2 className="font-bold text-gray-900">Ringkasan kuota</h2>
-              <p className="mt-1 text-sm leading-5 text-gray-500">
-                Maksimal {eduQuota} rombongan per hari untuk seluruh paket eduwisata dan kegiatan (Edu Trip Kesek dan Package 1–3).
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-                <div className="rounded-lg bg-emerald-50 p-3">
-                  <p className="text-2xl font-bold text-emerald-700">{eduSummary.totalRombongan}</p>
-                  <p className="mt-1 text-xs text-gray-500">Total rombongan bulan ini</p>
-                </div>
-                <div className="rounded-lg bg-orange-50 p-3">
-                  <p className="text-2xl font-bold text-orange-700">{eduSummary.fullDays}</p>
-                  <p className="mt-1 text-xs text-gray-500">Hari kuota penuh</p>
-                </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:max-w-md">
+              <div className="rounded-lg bg-emerald-50 p-3 text-center">
+                <p className="text-2xl font-bold text-emerald-700">{eduSummary.totalRombongan}</p>
+                <p className="mt-1 text-xs text-gray-500">Total rombongan bulan ini</p>
               </div>
-              <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Kuota terisi per tanggal</p>
-                <ul className="mt-2 space-y-1.5 text-xs text-gray-600">
-                  {eduDays.map((day) => (
-                    <li key={day.dateKey} className="flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedEduDate(selectedEduDate === day.dateKey ? null : day.dateKey)}
-                        className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left ${selectedEduDate === day.dateKey ? 'bg-emerald-50' : ''}`}
-                      >
-                        <span>{formatDate(day.dateKey)}</span>
-                        <span className={day.remaining <= 0 ? 'font-semibold text-red-600' : 'font-medium text-emerald-700'}>
-                          {day.used}/{eduQuota}
-                          {day.remaining <= 0 ? ' penuh' : ''}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              <div className="rounded-lg bg-red-50 p-3 text-center">
+                <p className="text-2xl font-bold text-red-700">{eduSummary.fullDays}</p>
+                <p className="mt-1 text-xs text-gray-500">Hari kuota penuh</p>
               </div>
-            </aside>
+            </div>
           </div>
         </>
       )}
