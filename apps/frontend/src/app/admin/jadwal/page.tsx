@@ -278,6 +278,10 @@ export default function AdminJadwalPage() {
   )
 
   const monthBounds = useMemo(() => getMonthBounds(selectedMonth) || getMonthBounds(currentMonthKey()), [selectedMonth])
+  const eduMondayOffset = useMemo(() => {
+    if (!monthBounds) return 0
+    return (new Date(monthBounds.year, monthBounds.month - 1, 1).getDay() + 6) % 7
+  }, [monthBounds])
   const rentalDayColumns = useMemo(() => {
     if (!monthBounds) return []
     return Array.from({ length: monthBounds.daysInMonth }, (_, index) => index + 1)
@@ -346,28 +350,6 @@ export default function AdminJadwalPage() {
     }
     return { totalRombongan, fullDays }
   }, [eduDays])
-
-  const eduPackageNames = useMemo(() => {
-    const names = new Set<string>()
-    for (const booking of eduTrips) {
-      const name = eduPackageName(booking)
-      if (name && name !== '-') names.add(name)
-    }
-    return Array.from(names).sort((a, b) => a.localeCompare(b, 'id'))
-  }, [eduTrips])
-
-  const eduBookingsByPackageDate = useMemo(() => {
-    const map = new Map<string, Map<string, EduTripBooking[]>>()
-    for (const booking of eduTrips) {
-      const pkg = eduPackageName(booking)
-      const byDate = map.get(pkg) || new Map<string, EduTripBooking[]>()
-      const list = byDate.get(booking.booking_date) || []
-      list.push(booking)
-      byDate.set(booking.booking_date, list)
-      map.set(pkg, byDate)
-    }
-    return map
-  }, [eduTrips])
 
   const accommodationUnits = useMemo(() => {
     const map = new Map<string, { id: string; name: string; type: string | null }>()
@@ -1012,20 +994,20 @@ export default function AdminJadwalPage() {
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
                 <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="inline-block h-3.5 w-3.5 rounded bg-white ring-2 ring-gray-300" aria-hidden="true" />
-                  Kosong
+                  <span className="inline-block h-3.5 w-3.5 rounded-md border border-emerald-300 bg-emerald-50" aria-hidden="true" />
+                  Tersedia
                 </span>
                 <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="inline-block h-3.5 w-3.5 rounded bg-amber-500 ring-2 ring-amber-700" aria-hidden="true" />
-                  1 rombongan terisi
+                  <span className="inline-block h-3.5 w-3.5 rounded-md border border-amber-300 bg-amber-200" aria-hidden="true" />
+                  Terisi sebagian
                 </span>
                 <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="inline-block h-3.5 w-3.5 rounded bg-red-700 ring-2 ring-red-800" aria-hidden="true" />
+                  <span className="inline-block h-3.5 w-3.5 rounded-md border border-red-300 bg-red-100" aria-hidden="true" />
                   {eduQuota} rombongan (penuh)
                 </span>
                 <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="inline-block h-3.5 w-3.5 rounded bg-emerald-600 ring-2 ring-emerald-800" aria-hidden="true" />
-                  Tanggal terpilih
+                  <span className="inline-block h-3.5 w-3.5 rounded-md bg-orange-500 ring-2 ring-orange-600" aria-hidden="true" />
+                  Terpilih
                 </span>
               </div>
             </div>
@@ -1035,107 +1017,46 @@ export default function AdminJadwalPage() {
               data-lenis-prevent
               data-scroll-container
             >
-              <div className="overflow-auto">
-                <table className="w-full border-separate border-spacing-0 text-left text-xs">
-                  <thead>
-                    <tr>
-                      <th className="sticky left-0 top-0 z-30 border-b border-r border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-                        Paket
-                      </th>
-                      {monthDateColumns.map(({ day, dateKey }) => {
-                        const used = eduUsedByDate[dateKey] || 0
-                        const full = used >= eduQuota
-                        const isSelected = selectedEduDate === dateKey
+              <div className="overflow-auto p-2 sm:p-4">
+                <div className="grid min-w-[560px] grid-cols-7 gap-1">
+                  {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((label) => (
+                    <div key={label} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400 sm:text-xs">
+                      {label}
+                    </div>
+                  ))}
+                  {Array.from({ length: eduMondayOffset }, (_, index) => (
+                    <div key={`empty-${index}`} />
+                  ))}
+                  {monthDateColumns.map(({ day, dateKey }) => {
+                    const used = eduUsedByDate[dateKey] || 0
+                    const full = used >= eduQuota
+                    const isSelected = selectedEduDate === dateKey
 
-                        return (
-                          <th
-                            key={dateKey}
-                            className={`sticky top-0 z-20 min-w-[130px] border-b border-r border-gray-200 px-2 py-3 text-center ${isSelected ? 'bg-emerald-600' : used > 0 ? 'bg-amber-500' : 'bg-gray-50'}`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => setSelectedEduDate(isSelected ? null : dateKey)}
-                              aria-pressed={isSelected}
-                              className={`mx-auto flex w-full flex-col items-center gap-1 rounded-lg px-2 py-1.5 transition ${isSelected ? 'font-bold' : ''}`}
-                            >
-                              <span className={isSelected ? 'text-white' : used > 0 ? 'text-amber-950' : 'text-gray-700'}>
-                                {day}
-                              </span>
-                              <span className={`mt-0.5 inline-flex min-w-9 justify-center rounded-full px-2 py-0.5 text-xs font-bold ${cellBadgeClasses(used, full)}`}>
-                                {used}/{eduQuota}
-                              </span>
-                              <span className={`text-[9px] font-normal ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>{formatDate(dateKey)}</span>
-                            </button>
-                          </th>
-                        )
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {eduPackageNames.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={monthDateColumns.length + 1}
-                          className="py-12 text-center text-gray-500"
-                        >
-                          Belum ada paket eduwisata terbooking pada bulan ini.
-                        </td>
-                      </tr>
-                    ) : (
-                      eduPackageNames.map((pkg) => (
-                        <tr key={pkg}>
-                          <th className="sticky left-0 z-10 border-b border-r border-gray-200 bg-white px-4 py-3 align-top text-sm font-semibold text-gray-700">
-                            {pkg}
-                          </th>
-                          {monthDateColumns.map(({ dateKey }) => {
-                            const used = eduUsedByDate[dateKey] || 0
-                            const full = used >= eduQuota
-                            const bookings = eduBookingsByPackageDate.get(pkg)?.get(dateKey) || []
-                            const isSelected = selectedEduDate === dateKey
-
-                            return (
-                              <td
-                                key={dateKey}
-                                className={`min-w-[130px] border-b border-r border-gray-200 px-2 py-2 align-top ${
-                                  isSelected ? 'bg-emerald-50' : full ? 'bg-red-50' : used > 0 ? 'bg-amber-50' : 'bg-white'
-                                }`}
-                              >
-                                <div className={`flex min-h-20 flex-col gap-1 ${bookings.length === 0 ? 'items-center justify-center' : ''} rounded-lg p-1.5 ${isSelected ? 'ring-2 ring-emerald-500' : full ? 'ring-1 ring-red-200' : used > 0 ? 'ring-1 ring-amber-200' : 'border border-dashed border-gray-200'}`}>
-                                  {bookings.length === 0 ? (
-                                    <span className="text-[10px] text-gray-300">-</span>
-                                  ) : (
-                                    bookings.map((row) => (
-                                      <div
-                                        key={row.id}
-                                        className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 shadow-sm"
-                                      >
-                                        <p className="line-clamp-1 font-semibold text-emerald-900">
-                                          {row.customer_name || '-'}
-                                        </p>
-                                        <p className="mt-0.5 truncate text-[10px] text-emerald-700">
-                                          {eduParticipantCount(row)}
-                                        </p>
-                                        <span className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium ${badgeClasses(row.status)}`}>
-                                          {row.status}
-                                        </span>
-                                        <Link
-                                          href={`/invoice/${row.id}?phone=${encodeURIComponent(row.customer_phone || '')}`}
-                                          className="mt-0.5 inline-flex text-[10px] font-semibold text-emerald-700 hover:underline"
-                                        >
-                                          Invoice
-                                        </Link>
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                    return (
+                      <button
+                        key={dateKey}
+                        type="button"
+                        onClick={() => setSelectedEduDate(isSelected ? null : dateKey)}
+                        aria-pressed={isSelected}
+                        aria-label={`${formatDate(dateKey)}${full ? ', kuota penuh' : used > 0 ? ', terisi sebagian' : ', tersedia'}`}
+                        className={`relative flex aspect-square min-h-10 flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-semibold transition sm:text-sm ${
+                          isSelected
+                            ? 'bg-orange-500 text-white ring-2 ring-orange-600 shadow-sm'
+                            : full
+                              ? 'cursor-pointer border border-red-300 bg-red-100 text-red-600'
+                              : used > 0
+                                ? 'cursor-pointer border border-amber-300 bg-amber-200 text-amber-900 hover:bg-amber-100'
+                                : 'cursor-pointer border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:ring-2 hover:ring-emerald-300'
+                        }`}
+                      >
+                        <span>{day}</span>
+                        <span className={`inline-flex min-w-8 justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isSelected ? 'bg-white/25 text-white' : cellBadgeClasses(used, full)}`}>
+                          {used}/{eduQuota}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>
