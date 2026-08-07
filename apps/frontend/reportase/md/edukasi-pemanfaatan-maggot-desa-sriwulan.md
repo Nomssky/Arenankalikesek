@@ -5,7 +5,7 @@ author: "Admin Arenan Kalikesek"
 date: 2026-07-30
 category: "Lingkungan"
 excerpt: "Mahasiswa KKNT IDBU 10 UNDIP memberikan edukasi dan pelatihan budidaya maggot sebagai solusi pengolahan sampah organik dan penerapan ekonomi sirkular di Desa Sriwulan."
-image: /images/multikel2a.jpeg
+image: /images/multikel2a.jpg
 imageAlt: "Budidaya maggot di Desa Sriwulan"
 published: true
 ---
@@ -15,7 +15,7 @@ published: true
 
 **KENDAL** – Mahasiswa Kelompok 2 Kuliah Kerja Nyata Tematik IPTEK Bagi Desa Binaan Universitas (KKNT IDBU 10) Universitas Diponegoro (Undip) melaksanakan program inovatif berupa edukasi dan pelatihan budidaya maggot (larva Black Soldier Fly atau BSF) sebagai solusi pengelolaan sampah organik di Desa Sriwulan, Kabupaten Kendal. Program ini menjadi salah satu bentuk implementasi Sustainable Development Goals (SDGs), khususnya SDG 11 (Kota dan Permukiman yang Berkelanjutan), SDG 12 (Konsumsi dan Produksi yang Bertanggung Jawab), SDG 13 (Penanganan Perubahan Iklim), dan SDG 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi).
 
-![Budidaya maggot di Desa Sriwulan](/images/multikel2a.jpeg)
+![Budidaya maggot di Desa Sriwulan](/images/multikel2a.jpg)
 
 Program ini digagas oleh Kelompok 2 KKNT IDBU 10 yang diketuai oleh Bagus Kresna Aji (FEB) dengan Aldo Budi Christanto (FPP) sebagai wakil ketua, serta beranggotakan Adita Putri Ramadhani (FPIK), Keysha Zahriya Salma (FPIK), Iffa Nazhatina (FT), Kalya Salma (FPP), Roy Natanael Purba (FPP), Dzulfikar Ali Akmal (FPP), Arsya Haykal Rifai (FPP), dan Zahiruddin Imtiyazul Fikri (SV). Kegiatan ini berfokus pada pemanfaatan sampah organik rumah tangga melalui budidaya maggot sebagai penerapan konsep ekonomi sirkular yang mengubah limbah menjadi sumber daya bernilai ekonomi.
 
