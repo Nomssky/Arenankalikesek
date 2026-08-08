@@ -95,7 +95,7 @@ function pad2(value: number) {
 }
 
 function weekdayLabel(dateKey: string) {
-  return new Date(`${dateKey}T00:00:00Z`).toLocaleDateString('id-ID', { weekday: 'short', timeZone: 'UTC' })
+  return new Date(`${dateKey}T00:00:00Z`).toLocaleDateString('id-ID', { weekday: 'long', timeZone: 'UTC' })
 }
 
 function currentMonthKey() {
@@ -676,7 +676,7 @@ export default function AdminJadwalPage() {
                           key={dateKey}
                           className="sticky top-0 z-20 min-w-[150px] border-b border-r border-gray-200 bg-gray-50 px-3 py-3 text-center text-sm font-semibold text-gray-700"
                         >
-                          <div>{day}</div>
+                          <div>{weekdayLabel(dateKey)}</div>
                           <div className="mt-0.5 text-[10px] font-normal text-gray-500">
                             {formatDate(dateKey)}
                           </div>
@@ -763,12 +763,12 @@ export default function AdminJadwalPage() {
                       <th className="sticky left-0 top-0 z-30 border-b border-r border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
                         Unit
                       </th>
-                      {monthDateColumns.map(({ day, dateKey }) => (
+                      {monthDateColumns.map(({ dateKey }) => (
                         <th
                           key={dateKey}
                           className="sticky top-0 z-20 min-w-[140px] border-b border-r border-gray-200 bg-gray-50 px-2 py-3 text-center text-sm font-semibold text-gray-700"
                         >
-                          <div>{day}</div>
+                          <div>{weekdayLabel(dateKey)}</div>
                           <div className="mt-0.5 text-[10px] font-normal text-gray-500">
                             {formatDate(dateKey)}
                           </div>
@@ -1032,14 +1032,14 @@ export default function AdminJadwalPage() {
               <div className="overflow-auto p-2 sm:p-4">
                 <div className="grid min-w-[560px] grid-cols-7 gap-1">
                   {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((label) => (
-                    <div key={label} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400 sm:text-xs">
+                    <div key={label} className="py-1 text-center text-[10px] font-bold uppercase tracking-wide text-gray-500 sm:text-xs">
                       {label}
                     </div>
                   ))}
                   {Array.from({ length: eduMondayOffset }, (_, index) => (
                     <div key={`empty-${index}`} />
                   ))}
-                  {monthDateColumns.map(({ dateKey }) => {
+                  {monthDateColumns.map(({ day, dateKey }) => {
                     const used = eduUsedByDate[dateKey] || 0
                     const full = used >= eduQuota
                     const isSelected = selectedEduDate === dateKey
@@ -1051,18 +1051,17 @@ export default function AdminJadwalPage() {
                         onClick={() => setSelectedEduDate(isSelected ? null : dateKey)}
                         aria-pressed={isSelected}
                         aria-label={`${formatDate(dateKey)}${full ? ', kuota penuh' : used > 0 ? ', terisi sebagian' : ', tersedia'}`}
-                        className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg border text-xs font-semibold transition sm:text-sm ${
+                        className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border text-sm font-bold transition ${
                           isSelected
                             ? 'border-orange-400 bg-orange-500 text-white shadow-sm'
                             : full
                               ? 'cursor-pointer border-red-200 bg-red-50 text-red-600'
                               : used > 0
                                 ? 'cursor-pointer border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-50'
-                                : 'cursor-pointer border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
+                                : 'cursor-pointer border-gray-200 bg-white text-gray-800 hover:border-emerald-300 hover:bg-emerald-50'
                         }`}
                       >
-                        <span className="text-[11px] font-semibold uppercase tracking-wide">{weekdayLabel(dateKey)}</span>
-                        <span className="text-[10px] font-normal text-gray-500">{formatDate(dateKey)}</span>
+                        <span className="font-semibold text-gray-800">{day}</span>
                         <span className={`inline-flex min-w-8 justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isSelected ? 'bg-white/25 text-white' : cellBadgeClasses(used, full)}`}>
                           {full ? 'Penuh' : used > 0 ? 'Terisi' : 'Tersedia'}
                         </span>
