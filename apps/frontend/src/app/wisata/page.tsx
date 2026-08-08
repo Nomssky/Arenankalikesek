@@ -66,6 +66,17 @@ function formatItemPrice(item: TourPackage): string {
   return item.price_label || formatPrice(item.price)
 }
 
+// ponytail: penyembunyian tampilan (kunikan dari daftar Wahana & Aktivitas) —
+// item ikan tidak dihapus dari DB; daftar tetap datang dari backend, frontend
+// hanya memilih menampilkan ulang. Ceiling: jika item harus hilang total dari
+// katalog, beri `available=false` di DB (admin Produk).
+const HIDDEN_ACTIVITY_IDS = new Set([
+  'terapi-ikan',
+  'kolam-pancing',
+  'sewa-alat-pancing',
+  'pelet-umpan',
+])
+
 const sectionCategories: Record<string, string[]> = {
   aktivitas: ['aktivitas', 'gratis', 'fishing'],
   'paket-edukasi': ['paket-edukasi', 'paket-kegiatan'],
@@ -152,6 +163,7 @@ export default function WisataPage() {
   for (const pkg of packages) {
     if (!pkg.available) continue
     if (['extra-bed', 'tambahan-tamu'].includes(pkg.id)) continue
+    if (HIDDEN_ACTIVITY_IDS.has(pkg.id)) continue
     for (const [sectionKey, cats] of Object.entries(sectionCategories)) {
       if (cats.includes(pkg.category)) {
         packagesBySection[sectionKey].push(pkg)
@@ -335,7 +347,7 @@ export default function WisataPage() {
                   </VisualCard>
                 ))}
               </div>
-              {homestayPackages.length > 0 && (
+{homestayPackages.length > 0 && (
                 <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/90 p-4 text-sm text-gray-700">
                   <p className="font-medium">Informasi Penginapan</p>
                   <p>Check-in: 14.00 | Check-out: 12.00</p>
@@ -344,6 +356,14 @@ export default function WisataPage() {
                     {extraGuestFee === null ? '.' : `, tambahan ${formatPrice(extraGuestFee)}/orang untuk satu booking.`}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">Total akhir dihitung dari harga database dan tanggal yang dipilih.</p>
+                </div>
+              )}
+              {accommodationPackages.some((p) => ['camping', 'glamping'].includes(p.category)) && (
+                <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/90 p-4 text-sm text-gray-700">
+                  <p className="font-medium">Informasi Camping</p>
+                  <p>Bawa tenda sendiri: membayar HTM camping + spot tenda.</p>
+                  <p>Sewa tenda: membayar biaya sewa tenda.</p>
+                  <p className="mt-1 text-xs text-gray-500">Biaya final disesuaikan kebijakan admin ketika booking diproses.</p>
                 </div>
               )}
               <div className="mt-6 text-center"><Link href="/booking/wisata?category=penginapan-camping" className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700">Booking Penginapan & Camping</Link></div>

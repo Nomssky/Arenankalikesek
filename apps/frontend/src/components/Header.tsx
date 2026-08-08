@@ -16,16 +16,16 @@ const navItems = [
 ]
 
 const mobileNavItems = [
-  ...navItems.slice(0, 2),
-  { label: 'Booking', href: '/booking/wisata' },
+  ...navItems,
   { label: 'Jadwal', href: '/jadwal' },
-  ...navItems.slice(2),
+  { label: 'Riwayat Booking', href: '/booking' },
 ]
 
 const transparentHeroRoutes = new Set([
   '/',
   '/wisata',
   '/booking/wisata',
+  '/booking',
   '/jadwal',
   '/toko',
   '/blog',
@@ -187,17 +187,17 @@ export default function Header() {
             >
               Jadwal
             </Link>
-            <Link
-              href="/booking/wisata"
-              aria-current={isNavPathActive(pathname, '/booking/wisata') ? 'page' : undefined}
-              onClick={() => selectMenu('/booking/wisata')}
+<Link
+              href="/booking"
+              aria-current={isNavPathActive(pathname, '/booking') ? 'page' : undefined}
+              onClick={() => selectMenu('/booking')}
               className={`nav-booking-button rounded-full px-4 py-2.5 text-[13px] font-semibold ${
-                isSelected('/booking/wisata')
+                isSelected('/booking')
                   ? 'nav-booking-button--active bg-orange-500/15 text-orange-700 ring-1 ring-inset ring-orange-400/25 backdrop-blur-md'
                   : 'bg-orange-500 text-white shadow-lg shadow-orange-950/15'
               }`}
             >
-              Booking
+              Riwayat Booking
             </Link>
 
             {cartCount > 0 && (

@@ -107,6 +107,9 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} Arenan Kalikesek. All rights
             reserved.
           </p>
+          <p className="text-xs text-white/40">
+            Creator: Bagus Kresna ALS dan Ardi Salim
+          </p>
           <div className="flex gap-4">
             <a
               href="https://www.instagram.com/arenankalikesek/"
