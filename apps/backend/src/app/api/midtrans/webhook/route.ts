@@ -78,7 +78,13 @@ export async function POST(request: NextRequest) {
         .from('bookings')
         .update(cancelledPatch)
         .eq('id', orderId)
+        .eq('status', existing.status)
       if (cancelledError) {
+        // Status booking sudah berubah bersamaan dengan webhook (mis. re-activate
+        // vs cancel race) — anggap sudah diproses, jangan 500 biar Midtrans berhenti retry.
+        if (cancelledError instanceof Error && /No rows found|update returned no rows/i.test(cancelledError.message)) {
+          return NextResponse.json({ status: 'already_processed' })
+        }
         console.error('Supabase update error:', cancelledError)
         return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
       }
@@ -108,8 +114,14 @@ export async function POST(request: NextRequest) {
       .from('bookings')
       .update(updateData)
       .eq('id', orderId)
+      .eq('status', existing.status)
 
     if (error) {
+      // Compare-and-set: status sudah berubah sejak SELECT (mis. dibatalkan)
+      // — abaikan webhook lama, jangan menimpa status terbaru.
+      if (error instanceof Error && /No rows found|update returned no rows/i.test(error.message)) {
+        return NextResponse.json({ status: 'already_processed' })
+      }
       console.error('Supabase update error:', error)
       return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
     }

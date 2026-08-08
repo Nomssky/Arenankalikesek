@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAdminAuthConfigured, verifyPassword, setSessionCookie } from '../../../../lib/admin-auth'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../lib/supabase-server'
+import { clientIp } from '../../../../lib/utils'
 
 // Rate-limit login admin disimpan di tabel admin_login_attempts (migration 023)
 // dan dihitung atomik oleh fungsi record_admin_login_attempt — otoritatif lintas
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
         { status: 503 },
       )
     }
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    const ip = clientIp(request)
     const now = Date.now()
 
     const supabase = isSupabaseConfigured() ? getSupabaseAdmin() : null

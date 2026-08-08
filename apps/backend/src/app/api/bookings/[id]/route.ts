@@ -2,41 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '../../../../lib/supabase-server'
 import { requireAdmin } from '../../../../lib/admin-guard'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = await requireAdmin(request)
-  if (auth) return auth
-  const { id } = await params
-  const supabase = getSupabaseAdmin()
-  try {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('id', id)
-      .single()
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Booking tidak ditemukan' },
-          { status: 404 }
-        )
-      }
-      return NextResponse.json({ error: 'Gagal memproses booking' }, { status: 500 })
-    }
-
-    return NextResponse.json(data)
-  } catch (error) {
-    console.error('Fetch booking error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

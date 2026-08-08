@@ -104,7 +104,7 @@ test('rate-limit pembuatan booking per-IP: tabel + RPC atomik + direvoke dari an
 
 test('route bookings memanggil RPC rate-limit per-IP sebelum reserve_booking', () => {
   assert.match(bookingsRoute, /record_booking_create_attempt/)
-  assert.match(bookingsRoute, /x-forwarded-for/)
+  assert.match(bookingsRoute, /clientIp\(request\)/)
   assert.match(bookingsRoute, /creationCount > MAX_CREATE_PER_IP/)
 })
 

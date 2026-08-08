@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase-server'
 import { createSnapTransaction, isMidtransConfigured } from '../../../lib/midtrans'
 import { sendBookingCreated } from '../../../lib/email'
-import { digits, generateId, timeOverlaps, timeToMinutes } from '../../../lib/utils'
+import { digits, generateId, timeOverlaps, timeToMinutes, clientIp } from '../../../lib/utils'
+import { RENTAL_VENUE_CATEGORIES } from '../../../lib/inventory'
 import { requireAdmin } from '../../../lib/admin-guard'
 import { loadBookingSettings } from '../../../lib/booking-settings'
 import { loadProductCatalog, loadResolvedTourCatalog } from '../../../lib/catalog'
@@ -14,6 +15,7 @@ import {
   differenceInNights,
   isAccommodationItem,
   isEduTripItem,
+  resolveBookingQuantity,
 } from '@repo/shared-utils'
 import type { BookingType } from '@repo/shared-types'
 
@@ -78,10 +80,9 @@ const MAX_PENDING_PER_PHONE = 3
 // polanya dengan admin_login_attempts, bukan Map in-memory). Hanya percobaan
 // yang lolos validasi & sampai tahap reserve yang dihitung.
 const MAX_CREATE_PER_IP = 10
-const RENTAL_VENUE_CATEGORIES = new Set(['area-kegiatan', 'tempat-pertemuan'])
 
 function isRentalVenueItem(item: ClientBookingItem) {
-  return Boolean(item.category && RENTAL_VENUE_CATEGORIES.has(item.category))
+  return Boolean(item.category && RENTAL_VENUE_CATEGORIES.includes(item.category))
 }
 
 function isValidWhatsAppNumber(value: string) {
@@ -199,6 +200,9 @@ async function checkRentalAvailability(
 ): Promise<string | null> {
   if (!isSupabaseConfigured() || !bookingDate || !items.length) return null
   const supabase = getSupabaseAdmin()
+  // E5: buang hold yang sudah kedaluwarsa dulu supaya slot yang sebelumnya
+  // di-hold (tetapi booking-nya gagal/batal) tidak memicu 409 palsu saat dicek.
+  await supabase.rpc('expire_stale_booking_holds').then(() => undefined, () => undefined)
   for (const item of items) {
     if (!item.id) continue
     const { data: conflicts, error } = await supabase
@@ -373,6 +377,9 @@ export async function POST(request: NextRequest) {
       if (!service || !accommodationType) {
         return NextResponse.json({ error: 'Data penginapan tidak valid' }, { status: 400 })
       }
+      if (!service.available) {
+        return NextResponse.json({ error: 'Penginapan sedang ditutup sementara' }, { status: 409 })
+      }
       const settings = await loadBookingSettings()
       const guestCount = positiveInteger(payload.guestCount, 1)
       const addOns: { id: string; name: string; quantity: number; price: number | null }[] = []
@@ -494,7 +501,15 @@ export async function POST(request: NextRequest) {
         if (price === null) {
           return NextResponse.json({ error: `Harga untuk "${item.name}" tidak valid` }, { status: 400 })
         }
-        const quantity = isRentalVenueItem(item) ? rentalDurationHours : item.quantity ?? 1
+        const service = tourCatalog.find((entry) => entry.id === item.id)
+        const quantity = resolveBookingQuantity({
+          isEdu: isEduTripItem(item),
+          isRentalVenue: isRentalVenueItem(item),
+          venueUnit: service?.unit ?? null,
+          clientQuantity: item.quantity,
+          participantCount,
+          rentalDurationHours,
+        })
         validated.push({ ...item, quantity, price })
         computedTotal += price * quantity
       }
@@ -617,9 +632,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin()
-    const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    const ipKey = clientIp(request)
     const { data: creationCount } = await supabase.rpc('record_booking_create_attempt', {
-      p_id_key: clientIp,
+      p_id_key: ipKey,
     })
     // RPC gagal (migrasi belum jalan) tidak memblokir booking — batasan hanya
     // aktif bila fungsi tersedia.
@@ -749,7 +764,7 @@ export async function POST(request: NextRequest) {
       await getSupabaseAdmin().storage.from('booking-documents').remove([uploadedDocumentPath]).catch(() => undefined)
     }
     console.error('Booking error:', error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal memproses booking. Silakan coba lagi.' }, { status: 500 })
   }
 }
 

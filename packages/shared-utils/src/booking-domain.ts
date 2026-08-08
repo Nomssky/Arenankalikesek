@@ -75,6 +75,27 @@ export function isEduTripItem(item: { id?: string; category?: string }): boolean
   return item.category === 'paket-edukasi' || Boolean(item.id?.startsWith('edu-trip-'))
 }
 
+export interface BookingQuantityParams {
+  isEdu: boolean
+  isRentalVenue: boolean
+  venueUnit?: string | null
+  clientQuantity?: number
+  participantCount?: number
+  rentalDurationHours?: number
+}
+
+// Kuantitas penagihan yang otoritatif (dipakai backend saat menghitung total):
+// - paket edu-trip: per orang → ikuti jumlah peserta
+// - venue sewa: hanya satuan per jam yang dikali durasi; per_hari/malam/flat = 1×
+// - lainnya: ikuti quantity yang dikirim client (positif, sudah dinormalisasi)
+export function resolveBookingQuantity(params: BookingQuantityParams): number {
+  if (params.isEdu) return Math.max(1, params.participantCount || 1)
+  if (params.isRentalVenue) {
+    return params.venueUnit === 'jam' ? Math.max(1, params.rentalDurationHours || 1) : 1
+  }
+  return Math.max(1, params.clientQuantity || 1)
+}
+
 interface RateOption {
   label: string
   price: number
