@@ -69,7 +69,7 @@ export default function HomeFeaturedWisata() {
       {items.map((item) => (
         <Link
           key={item.id}
-          href={`/booking/wisata?category=${item.category}`}
+          href={`/jadwal?category=${item.category}`}
           className="motion-card group relative aspect-[3/4.6] min-h-[205px] overflow-hidden rounded-b-[1.25rem] rounded-t-[5rem] bg-emerald-950 shadow-[0_16px_32px_-18px_rgba(12,54,27,0.55)] min-[380px]:min-h-[230px] sm:min-h-[285px]"
         >
           <div

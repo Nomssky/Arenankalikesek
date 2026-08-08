@@ -14,7 +14,7 @@ const quickLinks = [
 ]
 
 const bookingLinks = [
-  { label: 'Booking Wisata', href: '/booking/wisata' },
+  { label: 'Booking & Jadwal', href: '/jadwal' },
   { label: 'Cek Jadwal', href: '/jadwal' },
 ]
 

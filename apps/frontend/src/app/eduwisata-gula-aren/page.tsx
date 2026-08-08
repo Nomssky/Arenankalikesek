@@ -59,7 +59,7 @@ export default function EduwisataPage() {
               secara langsung. Cocok untuk study tour keluarga, sekolah, maupun komunitas.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Link href="/booking/wisata" className="btn-primary">
+              <Link href="/jadwal" className="btn-primary">
                 Pesan Sekarang
               </Link>
               <a

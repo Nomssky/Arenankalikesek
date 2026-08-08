@@ -253,7 +253,7 @@ export default function WisataPage() {
               </div>
               <div className="mt-6 text-center">
                 <Link
-                  href="/booking/wisata"
+                  href="/jadwal"
                   className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
                 >
                   Booking Aktivitas
@@ -286,7 +286,7 @@ export default function WisataPage() {
               </div>
               <div className="mt-6 text-center">
                 <Link
-                  href="/booking/wisata"
+                  href="/jadwal"
                   className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
                 >
                   Booking Paket Edukasi
@@ -321,7 +321,7 @@ export default function WisataPage() {
 
               <div className="mt-6 text-center">
                 <Link
-                  href="/booking/wisata"
+                  href="/jadwal"
                   className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
                 >
                   Booking Sewa Tempat
@@ -366,13 +366,13 @@ export default function WisataPage() {
                   <p className="mt-1 text-xs text-gray-500">Biaya final disesuaikan kebijakan admin ketika booking diproses.</p>
                 </div>
               )}
-              <div className="mt-6 text-center"><Link href="/booking/wisata?category=penginapan-camping" className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700">Booking Penginapan & Camping</Link></div>
+              <div className="mt-6 text-center"><Link href="/jadwal" className="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700">Booking Penginapan & Camping</Link></div>
             </Section>
           )}
 
           <Section className="bg-[#f3f0e6]">
             <div className="text-center">
-              <Link href="/booking/wisata" className="btn-primary text-lg">
+              <Link href="/jadwal" className="btn-primary text-lg">
                 Booking Sekarang
               </Link>
             </div>

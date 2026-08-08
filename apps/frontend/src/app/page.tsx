@@ -16,7 +16,7 @@ const upgradeFeatures = [
   {
     title: 'Booking Wisata',
     description: 'Pesan paket kunjungan secara online dan dapatkan konfirmasi tanpa antre.',
-    href: '/booking/wisata',
+    href: '/jadwal',
     label: 'Mulai booking',
     icon: TicketIcon,
   },
@@ -137,7 +137,7 @@ export default function HomePage() {
                   Lihat Pengalaman
                 </Link>
                 <Link
-                  href="/booking/wisata"
+                  href="/jadwal"
                   className="inline-flex items-center rounded-full border border-white/25 px-6 py-3 text-sm font-semibold transition hover:bg-white/10"
                 >
                   Pesan Paket
@@ -257,7 +257,7 @@ export default function HomePage() {
               </h3>
               <HomeHomestayInfo />
             </div>
-            <Link href="/booking/wisata" className="btn-primary mt-8 w-full">
+            <Link href="/jadwal" className="btn-primary mt-8 w-full">
               Cek Ketersediaan
             </Link>
           </div>

@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { CalendarDaysIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
+import BookingModal from '@/components/BookingModal'
+import type { BookingPreset } from '@/components/BookingModal'
 import { isAccommodationItem } from '@repo/shared-utils'
 
 interface InventoryItem {
@@ -13,6 +14,7 @@ interface InventoryItem {
   name: string
   category: string
   available: boolean
+  price_per_unit?: number
 }
 
 interface RentalBooking {
@@ -38,6 +40,7 @@ interface EduTripPackage {
   category: string
   price_label: string
   bookable: boolean
+  price?: number
 }
 
 type ScheduleType = 'rental' | 'accommodation' | 'edutrip'
@@ -128,6 +131,7 @@ export default function JadwalPage() {
   const [edutripPackages, setEduTripPackages] = useState<EduTripPackage[]>([])
   const [selectedEduTripDate, setSelectedEduTripDate] = useState('')
   const [selectedEduTripPackage, setSelectedEduTripPackage] = useState('')
+  const [bookingModalPreset, setBookingModalPreset] = useState<BookingPreset | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -182,13 +186,6 @@ export default function JadwalPage() {
   const blockedDates = Object.values(blockedByMonth).flat()
   const selectedAccommodation = accommodationItems.find((item) => item.id === selectedAccommodationId)
   const canContinueAccommodationBooking = Boolean(selectedAccommodation?.bookable && checkIn && checkOut)
-  const accommodationBookingHref = selectedAccommodation
-    ? `/booking/wisata?item=${encodeURIComponent(selectedAccommodation.id)}${
-        checkIn && checkOut
-          ? `&checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&directBooking=1`
-          : ''
-      }`
-    : '/booking/wisata?category=penginapan-camping'
 
   const edutripUsedByDate = edutripUsedByMonth[edutripMonth] || {}
   const edutripBlockedSet = new Set(
@@ -309,9 +306,6 @@ export default function JadwalPage() {
                     const selectedEnd = selectedIndexes.length
                       ? rentalHourlySlots[selectedIndexes[selectedIndexes.length - 1]].end
                       : ''
-                    const bookingHref = itemIsSelected
-                      ? `/booking/wisata?item=${encodeURIComponent(item.id)}&bookingDate=${encodeURIComponent(selectedDate)}&timeStart=${encodeURIComponent(selectedStart)}&timeEnd=${encodeURIComponent(selectedEnd)}&directBooking=1`
-                      : '#'
                     return (
                       <article key={item.id} className={`rounded-2xl border bg-white p-5 shadow-sm transition ${itemIsSelected ? 'border-orange-300 ring-2 ring-orange-100' : 'border-emerald-950/5'}`}>
                         <div className="flex items-start justify-between gap-3">
@@ -365,13 +359,25 @@ export default function JadwalPage() {
                           </div>
                         )}
 
-                        <Link
-                          href={bookingHref}
+                        <button
+                          type="button"
                           aria-disabled={!itemIsSelected}
+                          onClick={() => {
+                            if (!itemIsSelected) return
+                            setBookingModalPreset({
+                              kind: 'rental',
+                              itemId: item.id,
+                              itemName: item.name,
+                              item: { id: item.id, name: item.name, category: item.category, price: item.price_per_unit || 0 },
+                              bookingDate: selectedDate,
+                              timeStart: selectedStart,
+                              timeEnd: selectedEnd,
+                            })
+                          }}
                           className={`mt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${itemIsSelected ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
                         >
                           {itemIsSelected ? 'Lanjut isi data booking' : 'Pilih jam terlebih dahulu'}
-                        </Link>
+                        </button>
                       </article>
                     )
                   })}
@@ -422,13 +428,24 @@ export default function JadwalPage() {
                     <p className="text-xs text-white/60">Pilihan tanggal</p>
                     <p className="font-semibold">{checkIn || 'Check-in belum dipilih'}{checkOut ? ` → ${checkOut}` : ''}</p>
                   </div>
-                  <Link
-                    href={accommodationBookingHref}
+                  <button
+                    type="button"
                     aria-disabled={!canContinueAccommodationBooking}
-                    className={`rounded-full px-5 py-3 text-center text-sm font-bold ${canContinueAccommodationBooking ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-white/10 text-white/40'}`}
+                    onClick={() => {
+                      if (!canContinueAccommodationBooking || !selectedAccommodation) return
+                      setBookingModalPreset({
+                        kind: 'stay',
+                        itemId: selectedAccommodation.id,
+                        itemName: selectedAccommodation.name,
+                        item: { id: selectedAccommodation.id, name: selectedAccommodation.name, category: 'homestay' },
+                        checkIn,
+                        checkOut,
+                      })
+                    }}
+                    className={`inline-block w-full rounded-full px-5 py-3 text-center text-sm font-bold ${canContinueAccommodationBooking ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-white/10 text-white/40'}`}
                   >
                     {checkIn && checkOut ? 'Lanjut booking' : 'Pilih tanggal dahulu'}
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>
@@ -436,9 +453,6 @@ export default function JadwalPage() {
             <div className="grid gap-5 lg:grid-cols-2">
               {edutripPackages.map((item) => {
                 const isActive = selectedEduTripPackage === item.id && Boolean(selectedEduTripDate)
-                const bookingHref = isActive
-                  ? `/booking/wisata?item=${encodeURIComponent(item.id)}&bookingDate=${encodeURIComponent(selectedEduTripDate)}&directBooking=1`
-                  : '#'
                 const availableDateCount = edutripDates.filter((date) => date >= today && !edutripBlockedSet.has(date)).length
                 const categoryLabel = item.category === 'paket-kegiatan' ? 'Kegiatan' : 'Eduwisata'
                 return (
@@ -545,13 +559,23 @@ export default function JadwalPage() {
                       </div>
                     )}
 
-                    <Link
-                      href={bookingHref}
+                    <button
+                      type="button"
                       aria-disabled={!isActive}
+                      onClick={() => {
+                        if (!isActive) return
+                        setBookingModalPreset({
+                          kind: 'edutrip',
+                          itemId: item.id,
+                          itemName: item.name,
+                          item: { id: item.id, name: item.name, category: item.category, price: item.price || 0 },
+                          bookingDate: selectedEduTripDate,
+                        })
+                      }}
                       className={`mt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${isActive ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
                     >
                       {isActive ? `Lanjut Booking • ${shortDateLabel(selectedEduTripDate)}` : 'Pilih tanggal terlebih dahulu'}
-                    </Link>
+                    </button>
                   </article>
                 )
               })}
@@ -559,6 +583,12 @@ export default function JadwalPage() {
           )}
         </div>
       </Section>
+
+      <BookingModal
+        open={Boolean(bookingModalPreset)}
+        onClose={() => setBookingModalPreset(null)}
+        preset={bookingModalPreset}
+      />
     </>
   )
 }
