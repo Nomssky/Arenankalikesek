@@ -343,7 +343,7 @@ export default function WisataPage() {
                         {item.rate_options.map((rate) => <span key={rate.label} className="rounded-full bg-white/80 px-2 py-1 text-[10px] text-gray-700">{rate.label}: {formatPrice(rate.price)}</span>)}
                       </div>
                     )}
-                    {!item.bookable && <p className="mt-2 text-xs text-orange-600">Harga belum ditetapkan oleh admin.</p>}
+                    {!item.bookable && <p className="mt-2 text-xs font-medium text-orange-600">Harga belum tersedia — hubungi pengelola.</p>}
                   </VisualCard>
                 ))}
               </div>

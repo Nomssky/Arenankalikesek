@@ -128,6 +128,21 @@ export default function AdminInventoryPage() {
     }
   }
 
+  async function toggleAvailable(item: { id: string; available: boolean }) {
+    try {
+      const res = await fetch(`/api/admin/inventory/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ available: !item.available }),
+      })
+      if (res.ok) fetchItems()
+      else setError('Gagal mengubah status aktif')
+    } catch (e) {
+      console.error(e)
+      setError('Gagal mengubah status aktif')
+    }
+  }
+
   return (
     <div>
       <div className="admin-page-header flex items-center justify-between gap-3">
@@ -302,15 +317,21 @@ export default function AdminInventoryPage() {
                       : '-'}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        item.available
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
+                    <button
+                      type="button"
+                      aria-pressed={item.available}
+                      onClick={() => toggleAvailable(item)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                        item.available ? 'bg-emerald-600' : 'bg-gray-300'
                       }`}
+                      title={item.available ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
                     >
-                      {item.available ? 'Ya' : 'Tidak'}
-                    </span>
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                          item.available ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">

@@ -15,6 +15,7 @@ interface TourPackage {
   image: string
   available: boolean
   sort_order: number
+  price_type: string | null
 }
 
 const emptyPackage = {
@@ -27,6 +28,7 @@ const emptyPackage = {
   image: '',
   available: true,
   sort_order: 0,
+  price_type: 'fixed',
 }
 
 const categories = [
@@ -86,6 +88,7 @@ export default function AdminTourPackagesPage() {
       image: pkg.image || '',
       available: pkg.available,
       sort_order: pkg.sort_order,
+      price_type: pkg.price_type || 'fixed',
     })
     setEditingId(pkg.id)
     setShowForm(true)
@@ -127,6 +130,21 @@ export default function AdminTourPackagesPage() {
     } catch (e) {
       console.error(e)
       setError('Gagal menghapus paket')
+    }
+  }
+
+  async function toggleAvailable(pkg: TourPackage) {
+    try {
+      const res = await fetch(`/api/admin/tour-packages/${pkg.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ available: !pkg.available }),
+      })
+      if (res.ok) fetchPackages()
+      else setError('Gagal mengubah status aktif')
+    } catch (e) {
+      console.error(e)
+      setError('Gagal mengubah status aktif')
     }
   }
 
@@ -198,6 +216,23 @@ export default function AdminTourPackagesPage() {
                   onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
                   required
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="price-unset-tp"
+                  checked={form.price_type === 'contact' || form.price_type === 'market'}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      price_type: e.target.checked ? 'contact' : 'fixed',
+                      price: e.target.checked ? 0 : form.price,
+                    })
+                  }
+                />
+                <label htmlFor="price-unset-tp" className="form-label !mb-0">
+                  Harga belum diatur (hanya penanda, tampil di publik sebagai info & tidak bisa dipesan)
+                </label>
               </div>
               <div>
                 <label className="form-label">Harga Max (Rp, opsional)</label>
@@ -294,23 +329,35 @@ export default function AdminTourPackagesPage() {
                   <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
                   <td className="px-4 py-3 text-gray-500">{categoryLabel(p.category)}</td>
                   <td className="px-4 py-3 text-gray-900">
-                    {p.price === 0
-                      ? 'Gratis'
-                      : formatPrice(p.price)}
-                    {p.max_price && ` - ${formatPrice(p.max_price)}`}
+                    {p.price_type === 'contact' || p.price_type === 'market'
+                      ? (
+                        <span className="inline-block rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                          Harga belum diatur
+                        </span>
+                      )
+                      : p.price_type === 'free' || p.price === 0
+                        ? 'Gratis'
+                        : formatPrice(p.price)}
+                    {p.max_price ? ` - ${formatPrice(p.max_price)}` : ''}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{p.capacity || '-'}</td>
                   <td className="px-4 py-3 text-gray-500">{p.note || '-'}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        p.available
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
+                    <button
+                      type="button"
+                      aria-pressed={p.available}
+                      onClick={() => toggleAvailable(p)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                        p.available ? 'bg-emerald-600' : 'bg-gray-300'
                       }`}
+                      title={p.available ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
                     >
-                      {p.available ? 'Ya' : 'Tidak'}
-                    </span>
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                          p.available ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
