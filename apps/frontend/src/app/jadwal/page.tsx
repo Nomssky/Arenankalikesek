@@ -521,7 +521,7 @@ export default function JadwalPage() {
                                 }
                               }}
                               aria-label={`${date}${isFull ? ', kuota penuh' : isPast ? ', sudah lewat' : ', tersedia'}${isSelected ? ', pilihan Anda' : ''}`}
-                              className={`relative flex h-9 min-h-9 items-center justify-center rounded-xl text-xs font-semibold transition sm:text-sm ${
+                              className={`relative isolate flex h-9 min-h-9 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold transition sm:text-sm ${
                                 isSelected
                                   ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
                                   : isFull
@@ -533,11 +533,11 @@ export default function JadwalPage() {
                                         : 'border-emerald-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
                               }`}
                             >
-                              {index + 1}
+                              <span className="relative z-10">{index + 1}</span>
                               {isFull && (
-                                <span className="pointer-events-none absolute right-0.5 top-0.5 text-[10px] font-bold leading-none text-red-500" aria-hidden="true">
-                                  ×
-                                </span>
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="pointer-events-none absolute inset-0 z-0 h-full w-full text-red-400">
+                                  <path d="M4.5 4.5l15 15M19.5 4.5l-15 15" />
+                                </svg>
                               )}
                             </button>
                           )

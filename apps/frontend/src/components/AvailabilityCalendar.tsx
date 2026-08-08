@@ -186,19 +186,24 @@ export default function AvailabilityCalendar({
               disabled={disabled}
               onClick={() => selectDate(date)}
               aria-label={`${date}${isBlocked ? ', terisi' : ', tersedia'}`}
-              className={`relative flex aspect-square min-h-9 items-center justify-center rounded-xl text-xs font-semibold transition sm:text-sm ${
+              className={`relative isolate flex aspect-square min-h-9 items-center justify-center overflow-hidden rounded-xl text-xs font-semibold transition sm:text-sm ${
                 isCheckIn || isCheckOut
                   ? 'bg-orange-500 text-white shadow-sm'
                   : isInRange
                     ? 'bg-orange-100 text-orange-800'
                     : isBlocked
-                      ? 'bg-red-50 text-red-400 line-through'
+                      ? 'cursor-not-allowed border border-red-200 bg-red-50 text-red-500'
                       : disabled
-                        ? 'text-gray-300'
+                        ? 'text-gray-300 disabled:cursor-not-allowed'
                         : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-800'
               }`}
             >
-              {index + 1}
+              <span className="relative z-10">{index + 1}</span>
+              {isBlocked && disabled && (
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="pointer-events-none absolute inset-0 z-0 h-full w-full text-red-400">
+                  <path d="M4.5 4.5l15 15M19.5 4.5l-15 15" />
+                </svg>
+              )}
               {!disabled && !isBlocked && !isCheckIn && !isCheckOut && (
                 <span className="absolute bottom-1 h-1 w-1 rounded-full bg-emerald-400" />
               )}
