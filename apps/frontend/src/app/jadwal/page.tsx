@@ -510,19 +510,35 @@ export default function JadwalPage() {
                               key={date}
                               type="button"
                               disabled={disabled}
-                              onClick={() => { setSelectedEduTripPackage(item.id); setSelectedEduTripDate(date) }}
-                              aria-label={`${date}${isFull ? ', kuota penuh' : isPast ? ', sudah lewat' : ', tersedia'}`}
+                              aria-pressed={isSelected}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedEduTripDate('')
+                                  setSelectedEduTripPackage('')
+                                } else {
+                                  setSelectedEduTripPackage(item.id)
+                                  setSelectedEduTripDate(date)
+                                }
+                              }}
+                              aria-label={`${date}${isFull ? ', kuota penuh' : isPast ? ', sudah lewat' : ', tersedia'}${isSelected ? ', pilihan Anda' : ''}`}
                               className={`relative flex h-9 min-h-9 items-center justify-center rounded-xl text-xs font-semibold transition sm:text-sm ${
                                 isSelected
-                                  ? 'bg-emerald-600 text-white ring-2 ring-emerald-300 shadow-sm'
+                                  ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
                                   : isFull
-                                    ? 'cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400 line-through'
+                                    ? 'cursor-not-allowed border-red-200 bg-red-50 text-red-500'
                                     : isPast
-                                      ? 'cursor-not-allowed border border-gray-100 bg-gray-50 text-gray-300'
-                                      : `border text-emerald-800 hover:ring-2 hover:ring-emerald-300 ${isToday ? 'border-orange-300 bg-orange-50 hover:bg-orange-100' : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100'}`
+                                      ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-70'
+                                      : isToday
+                                        ? 'border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100'
+                                        : 'border-emerald-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50'
                               }`}
                             >
                               {index + 1}
+                              {isFull && (
+                                <span className="pointer-events-none absolute right-0.5 top-0.5 text-[10px] font-bold leading-none text-red-500" aria-hidden="true">
+                                  ×
+                                </span>
+                              )}
                             </button>
                           )
                         })}
@@ -531,23 +547,23 @@ export default function JadwalPage() {
 
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-gray-600">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-emerald-300 bg-emerald-50" />
+                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-emerald-300 bg-white" />
                         Tersedia
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-gray-200 bg-gray-100 line-through" />
+                        <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center rounded-md border border-red-300 bg-red-50 text-[9px] font-bold leading-none text-red-500">×</span>
                         Penuh
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-gray-100 bg-gray-50" />
+                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-gray-300 bg-gray-100 opacity-70" />
                         Sudah lewat
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-orange-300 bg-orange-50" />
+                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-blue-300 bg-blue-50" />
                         Hari ini
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="inline-block h-3.5 w-3.5 rounded-md bg-emerald-600 ring-2 ring-emerald-300" />
+                        <span className="inline-block h-3.5 w-3.5 rounded-md border border-orange-500 bg-orange-500" />
                         Pilihan Anda
                       </span>
                     </div>
