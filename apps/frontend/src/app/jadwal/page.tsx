@@ -525,7 +525,7 @@ export default function JadwalPage() {
                                 isSelected
                                   ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
                                   : isFull
-                                    ? 'cursor-not-allowed border-red-200 bg-red-50 text-red-500'
+                                    ? 'cursor-not-allowed border-red-200 bg-red-50 font-bold text-red-700'
                                     : isPast
                                       ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-70'
                                       : isToday
@@ -535,7 +535,7 @@ export default function JadwalPage() {
                             >
                               <span className="relative z-10">{index + 1}</span>
                               {isFull && (
-                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="pointer-events-none absolute inset-0 z-0 h-full w-full text-red-400">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="pointer-events-none absolute inset-0 z-0 h-full w-full text-red-200">
                                   <path d="M4.5 4.5l15 15M19.5 4.5l-15 15" />
                                 </svg>
                               )}
