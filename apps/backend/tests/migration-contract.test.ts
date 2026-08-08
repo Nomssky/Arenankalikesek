@@ -107,3 +107,24 @@ test('route bookings memanggil RPC rate-limit per-IP sebelum reserve_booking', (
   assert.match(bookingsRoute, /x-forwarded-for/)
   assert.match(bookingsRoute, /creationCount > MAX_CREATE_PER_IP/)
 })
+
+test('catalog DB otoritatif: item fallback tidak disuntikkan saat Supabase aktif (migrasi 027)', () => {
+  const catalogSource = readFileSync(
+    new URL('../src/lib/catalog.ts', import.meta.url),
+    'utf8',
+  )
+  const seedMigration = readFileSync(
+    new URL('../supabase/migrations/027_seed_homestay_addons_to_db.sql', import.meta.url),
+    'utf8',
+  )
+  // DB adalah satu-satunya sumber daftar saat aktif; jangan kembali menambahkan
+  // pola `[...dbItems, ...fallbackOnly]` — itu membuat paket yang dihapus admin
+  // (mis. pelet-umpan) muncul lagi dari pricing.ts.
+  assert.doesNotMatch(catalogSource, /fallbackOnly/)
+  assert.doesNotMatch(catalogSource, /\.\.\.fallbackTourPackages/)
+  assert.doesNotMatch(catalogSource, /\.\.\.fallbackProducts/)
+  // add-on homestay internal (extra-bed, tambahan-tamu) di-seed ke DB
+  assert.match(seedMigration, /'extra-bed'/)
+  assert.match(seedMigration, /'tambahan-tamu'/)
+  assert.match(seedMigration, /WHERE NOT EXISTS/)
+})

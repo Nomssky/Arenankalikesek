@@ -183,11 +183,12 @@ export async function loadTourCatalog(): Promise<CatalogResult<FallbackTourPacka
   if (error) throw new Error(`Gagal memuat harga paket dari database: ${error.message}`)
 
   const dbItems = (data || []).map((row) => mapTourPackageRow(row as TourPackageRow))
-  // barang hanya di pricing.ts (belum di-DB) tetap muncul agar slug id-nya bookable
-  const dbIds = new Set(dbItems.map((item) => item.id))
-  const fallbackOnly = fallbackTourPackages.filter((item) => !dbIds.has(item.id))
-
-  return { data: [...dbItems, ...fallbackOnly], source: 'database' }
+  // ponytail: item fallback TIDAK disuntikkan saat DB aktif — DB adalah satu-satunya
+  // sumber daftar (admin dashboard = otoritatif); fallback hanya untuk mode tanpa
+  // Supabase. Dulu fallback-only ikut ditambahkan, sehingga paket yang dihapus
+  // admin (mis. pelet-umpan) tetap muncul dari pricing.ts. Item internal yang
+  // masih dibutuhkan (extra-bed, tambahan-tamu) di-seed ke DB via migration 027.
+  return { data: dbItems, source: 'database' }
 }
 
 export async function loadProductCatalog(): Promise<CatalogResult<FallbackProduct>> {
@@ -203,10 +204,9 @@ export async function loadProductCatalog(): Promise<CatalogResult<FallbackProduc
   if (error) throw new Error(`Gagal memuat harga produk dari database: ${error.message}`)
 
   const dbItems = (data || []).map((row) => mapProductRow(row as ProductRow))
-  const dbIds = new Set(dbItems.map((item) => item.id))
-  const fallbackOnly = fallbackProducts.filter((item) => !dbIds.has(item.id))
-
-  return { data: [...dbItems, ...fallbackOnly], source: 'database' }
+  // Saat DB aktif, daftar produk murni dari DB (admin dashboard otoritatif);
+  // fallback statis hanya untuk mode tanpa Supabase (localhost).
+  return { data: dbItems, source: 'database' }
 }
 
 export async function loadResolvedTourCatalog(): Promise<ResolvedTourCatalog> {
