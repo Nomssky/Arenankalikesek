@@ -13,7 +13,7 @@ published: true
 **Reportase oleh:** Kelompok 1 Tim KKN-T IDBU 10 Universitas Diponegoro  
 **Editor/Pembimbing:** Dr. Ir. Baginda Iskandar, M.T., M.Si.
 
-**KENDAL** – Mahasiswa Kelompok 2 Kuliah Kerja Nyata Tematik IPTEK Bagi Desa Binaan Universitas (KKNT IDBU 10) Universitas Diponegoro (Undip) melaksanakan program inovatif berupa edukasi dan pelatihan budidaya maggot (larva Black Soldier Fly atau BSF) sebagai solusi pengelolaan sampah organik di Desa Sriwulan, Kabupaten Kendal. Program ini menjadi salah satu bentuk implementasi Sustainable Development Goals (SDGs), khususnya SDG 11 (Kota dan Permukiman yang Berkelanjutan), SDG 12 (Konsumsi dan Produksi yang Bertanggung Jawab), SDG 13 (Penanganan Perubahan Iklim), dan SDG 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi).
+**DESA SRIWULAN** – Mahasiswa Kelompok 2 Kuliah Kerja Nyata Tematik IPTEK Bagi Desa Binaan Universitas (KKNT IDBU 10) Universitas Diponegoro (Undip) melaksanakan program inovatif berupa edukasi dan pelatihan budidaya maggot (larva Black Soldier Fly atau BSF) sebagai solusi pengelolaan sampah organik di Desa Sriwulan, Kabupaten Kendal. Program ini menjadi salah satu bentuk implementasi Sustainable Development Goals (SDGs), khususnya SDG 11 (Kota dan Permukiman yang Berkelanjutan), SDG 12 (Konsumsi dan Produksi yang Bertanggung Jawab), SDG 13 (Penanganan Perubahan Iklim), dan SDG 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi).
 
 ![Budidaya maggot di Desa Sriwulan](/images/multikel2a.jpg)
 
