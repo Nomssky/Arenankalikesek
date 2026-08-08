@@ -218,7 +218,7 @@ export default function AdminJadwalPage() {
         fetch('/api/admin/booking-date-blocks'),
         fetch('/api/tour-packages?available=true'),
         fetch('/api/admin/booking-holiday-dates'),
-        fetch(`/api/bookings?${params}`),
+        fetch(`/api/admin/edu-trips?${params}`),
         fetch(`/api/edu-trip-availability?month=${selectedMonth}`),
       ])
 
@@ -241,7 +241,7 @@ export default function AdminJadwalPage() {
       setBlocks(blockData)
       setHolidayDates(holidayData)
       setEduTrips((eduTripsData || []).filter(
-        (item: EduTripBooking) => item.booking_mode === 'edu_trip' && item.status !== 'cancelled',
+        (item: EduTripBooking) => item.status !== 'cancelled',
       ))
       setEduQuota(Number(eduAvailabilityData.quota) || 2)
       setEduUsedByDate(eduAvailabilityData.byDate || {})
@@ -745,6 +745,9 @@ export default function AdminJadwalPage() {
         </div>
       ) : tab === 'accommodation' ? (
         <>
+          <p className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Yang tampil hanya booking dengan status lunas/confirmed. Saat tidak ada booking pada bulan ini, semua sel menampilkan kosong.
+          </p>
           <div
             className="admin-table-scroll admin-table-scroll--wide mt-4 rounded-xl bg-white shadow-sm"
             data-lenis-prevent
@@ -993,7 +996,8 @@ export default function AdminJadwalPage() {
               <div>
                 <h2 className="font-bold text-gray-900">Kuota rombongan per tanggal</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Maksimal {eduQuota} rombongan per hari untuk semua paket eduwisata & kegiatan (Edu Trip Kesek dan Package 1–3). Pilih tanggal untuk melihat detail booking.
+                  Maksimal {eduQuota} rombongan per hari untuk semua paket eduwisata & kegiatan (Edu Trip Kesek dan Package 1–3).
+                  Label &quot;Tersedia&quot; berarti kuota belum terpakai (belum ada booking). Pilih tanggal untuk melihat detail booking.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
@@ -1089,7 +1093,9 @@ export default function AdminJadwalPage() {
             </div>
             {visibleEduTrips.length === 0 ? (
               <p className="py-10 text-center text-gray-500">
-                {selectedEduDate ? `Tidak ada booking eduwisata pada ${formatDate(selectedEduDate)}.` : 'Belum ada booking eduwisata pada bulan ini.'}
+                {selectedEduDate
+                  ? `Tidak ada booking pada ${formatDate(selectedEduDate)} — kuota rombongan masih tersedia (${eduUsedByDate[selectedEduDate] || 0}/${eduQuota} terpakai).`
+                  : 'Belum ada booking eduwisata pada bulan ini.'}
               </p>
             ) : (
               <div className="admin-table-scroll mt-3 rounded-xl border border-gray-100" data-lenis-prevent data-scroll-container>
