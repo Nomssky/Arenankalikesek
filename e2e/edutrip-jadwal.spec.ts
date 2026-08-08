@@ -7,28 +7,27 @@ test.describe('Jadwal Eduwisata & Kegiatan', () => {
     await page.goto('/jadwal', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
     await page.getByRole('button', { name: 'Eduwisata dan Kegiatan' }).click()
-    await expect(page.getByLabel('Pilih paket eduwisata atau kegiatan')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Pilih tanggal terlebih dahulu' }).first()).toBeVisible()
   }
 
-  test('tab publik: kalender paket + kuota + tombol lanjut terkunci tanpa pilihan', async ({ page }) => {
+  test('tab publik: kartu paket + kalender kuota + tombol lanjut terkunci tanpa pilihan', async ({ page }) => {
     await openEduTab(page)
 
-    const options = await page.getByLabel('Pilih paket eduwisata atau kegiatan').locator('option').allTextContents()
-    expect(options.length).toBeGreaterThan(1)
+    await expect(page.getByText(/\d+ tanggal tersedia/).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Bulan sebelumnya' }).first()).toBeDisabled()
 
-    await expect(page.getByText(/Kuota maksimal \d+ rombongan per hari/)).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Bulan sebelumnya' })).toBeDisabled()
+    const lockedButton = page.getByRole('button', { name: 'Pilih tanggal terlebih dahulu' }).first()
+    await expect(lockedButton).toHaveAttribute('aria-disabled', 'true')
 
-    const continueLink = page.getByRole('link', { name: /Lanjut booking|Pilih tanggal & paket/ })
-    await expect(continueLink).toHaveAttribute('aria-disabled', 'true')
-
-    await page.getByLabel('Pilih paket eduwisata atau kegiatan').selectOption({ index: 1 })
     const nextDay = page.getByRole('button', { name: /\d{4}-\d{2}-\d{2}, tersedia/ }).first()
     if (await nextDay.count()) {
       await nextDay.click()
-      await expect(page.getByText(/tersisa \d+ dari \d+ kuota/)).toBeVisible()
-      await expect(continueLink).toHaveAttribute('aria-disabled', 'false')
-      await expect(continueLink).toHaveAttribute('href', /\/booking\/wisata\?item=/)
+      await expect(page.getByText(/Dipilih \d+ \w+ \d{4}/).first()).toBeVisible()
+      const continueButton = page.getByRole('button', { name: /Lanjut Booking/ }).first()
+      await expect(continueButton).toHaveAttribute('aria-disabled', 'false')
+      await continueButton.click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await expect(page.getByText('Booking Sekarang').first()).toBeVisible()
     }
   })
 

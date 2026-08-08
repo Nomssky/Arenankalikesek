@@ -318,7 +318,7 @@ function BookingForm({
               )}
               <div>
                 <p className="text-gray-500">Estimasi</p>
-                <p className="font-semibold text-emerald-700">{formatRupiah(estimatedTotal)}</p>
+                <p className="font-semibold text-emerald-700">{isStay ? 'Dihitung server' : formatRupiah(estimatedTotal)}</p>
               </div>
             </div>
 
