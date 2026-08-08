@@ -203,9 +203,9 @@ export default function BookingHistoryPage() {
       try {
         sessionStorage.setItem('pending-booking-id', data.bookingId)
       } catch {
-        // Penyimpanan dibatasi — tab pembayaran tetap dapat dibuka.
+        // Penyimpanan dibatasi — redirect tetap berjalan.
       }
-      window.open(data.paymentUrl, '_blank', 'noopener,noreferrer')
+      window.location.assign(data.paymentUrl)
     }
   }
 

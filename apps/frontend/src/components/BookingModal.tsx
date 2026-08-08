@@ -256,8 +256,7 @@ function BookingForm({
       }
       if (data.paymentUrl) {
         sessionStorage.setItem('pending-booking-id', data.bookingId)
-        window.open(data.paymentUrl, '_blank', 'noopener,noreferrer')
-        onClose()
+        window.location.assign(data.paymentUrl)
         return
       }
       onClose()
@@ -276,7 +275,7 @@ function BookingForm({
       aria-modal="true"
       aria-labelledby="booking-modal-title"
     >
-      <div className="flex max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.5rem] bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-[1.5rem]">
+      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.5rem] bg-white shadow-2xl sm:rounded-[1.5rem]">
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">
@@ -296,7 +295,7 @@ function BookingForm({
           </button>
         </div>
 
-        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="flex-1 space-y-4 px-5 py-5">
             <div className="grid grid-cols-2 gap-3 rounded-2xl bg-emerald-50/60 p-3 text-xs">
               {preset.bookingDate && (
@@ -494,14 +493,13 @@ function BookingForm({
 export default function BookingModal({ open, onClose, preset }: BookingModalProps) {
   useEffect(() => {
     if (!open) return
-    const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.body.style.overflow = prevOverflow
+      document.body.style.overflow = ''
       window.removeEventListener('keydown', closeOnEscape)
     }
   }, [open, onClose])
