@@ -48,3 +48,5 @@ Dalam jangka panjang, pengembangan fasilitas wisata yang sesuai dengan karakter 
 Melalui perancangan ini, diharapkan dapat menjadi salah satu acuan pengembangan fasilitas akomodasi di kawasan Wisata Kalikesek yang selaras dengan karakter lingkungan setempat. Kehadiran fasilitas tersebut tidak hanya ditujukan untuk meningkatkan kenyamanan dan daya tarik wisatawan. 
 
 Dapat juga membuka peluang pengembangan aktivitas ekonomi masyarakat melalui peningkatan kunjungan wisata. Dengan mengedepankan prinsip *eco-architecture*, hasil perancangan diharapkan dapat mendukung pengembangan Wisata Kalikesek secara bertahap tanpa mengesampingkan kelestarian lingkungan dan potensi lokal yang dimiliki Desa Kalikesek.
+
+Editor : Irfan Murthado Yusuf, S.A.P., MPM.

@@ -1,17 +1,23 @@
 ---
-type: "Reportase"
-title: "Membuat Paving Block dari Sampah Plastik: Bisa Menjadi Solusi Ramah Lingkungan"
-date: 2025-07-29
-author: "Admin Arenan Kalikesek"
-category: "Lingkungan"
-excerpt: "Sampah plastik dapat diolah menjadi paving block sebagai alternatif pemanfaatan limbah yang lebih berguna."
+type: Reportase
+title: >-
+  Membuat Paving Block dari Sampah Plastik: Bisa Menjadi Solusi Ramah Lingkungan
+date: 2025-07-29T00:00:00.000Z
+author: Admin Arenan Kalikesek
+category: Lingkungan
+excerpt: >-
+  Sampah plastik dapat diolah menjadi paving block sebagai alternatif pemanfaatan
+  limbah yang lebih berguna.
 image: /images/blog-paving-block.jpeg
-imageAlt: "Paving block dari sampah plastik"
+imageAlt: Paving block dari sampah plastik
 published: true
-source: "https://arenankalikesek.com/2025/07/29/membuat-paving-block-dari-sampah-plastik-bisa-menjadi-solusi-ramah-lingkungan/"
 ---
 
-Sampah plastik masih menjadi salah satu tantangan lingkungan di Indonesia. Salah satu alternatif pemanfaatannya adalah mengolah plastik bekas menjadi paving block.
+**Membuat Paving Block dari Sampah Plastik: Bisa Menjadi Solusi Ramah Lingkungan**
+
+**Author :** Admin Arenan Kalikesek
+
+Sriwulan, 29 Juli 2025 – Sampah plastik masih menjadi salah satu tantangan lingkungan di Indonesia. Salah satu alternatif pemanfaatannya adalah mengolah plastik bekas menjadi paving block.
 
 Sebelum melakukan pengolahan, sampah perlu dipisahkan berdasarkan jenisnya. Sampah organik dapat diolah menjadi kompos, sedangkan sampah anorganik seperti plastik dapat dimanfaatkan kembali melalui proses daur ulang.
 

@@ -1,19 +1,26 @@
 ﻿---
-type: "Reportase"
-title: "KKNT IDBU 10 UNDIP Dampingi Peternak Domba melalui Focus Group Discussion untuk Meningkatkan Produktivitas Ternak di Desa Sriwulan sebagai Bentuk Dukungan terhadap SDGs"
-date: 2026-07-31
-author: "Admin Arenan Kalikesek"
-category: "Peternakan"
-excerpt: "Mahasiswa KKNT IDBU 10 UNDIP mendampingi peternak domba melalui Focus Group Discussion mengenai biosecurity, manajemen pakan, kesehatan ternak, dan pengelolaan limbah."
+type: Reportase
+title: >-
+  KKNT IDBU 10 UNDIP Dampingi Peternak Domba melalui Focus Group Discussion untuk
+  Meningkatkan Produktivitas Ternak di Desa Sriwulan sebagai Bentuk Dukungan
+  terhadap SDGs
+date: 2026-07-31T00:00:00.000Z
+author: Admin Arenan Kalikesek
+category: Peternakan
+excerpt: >-
+  Mahasiswa KKNT IDBU 10 UNDIP mendampingi peternak domba melalui Focus Group
+  Discussion mengenai biosecurity, manajemen pakan, kesehatan ternak, dan
+  pengelolaan limbah.
 image: /images/mono-peternakan1.jpg
-imageAlt: "Focus Group Discussion peternak domba di Desa Sriwulan"
+imageAlt: Focus Group Discussion peternak domba di Desa Sriwulan
 published: true
 ---
 
-**Reportase oleh:** Kelompok 1 Tim KKN-T IDBU 10 Universitas Diponegoro  
-**Editor/Pembimbing:** Dr. Ir. Baginda Iskandar, M.T., M.Si.
+**KKNT IDBU 10 UNDIP Dampingi Peternak Domba melalui Focus Group Discussion untuk Meningkatkan Produktivitas Ternak di Desa Sriwulan sebagai Bentuk Dukungan terhadap SDGs**
 
-**DESA SRIWULAN** – Mahasiswa Kelompok 2 Kuliah Kerja Nyata Tematik IPTEK Bagi Desa Binaan Universitas (KKNT IDBU 10) Universitas Diponegoro (Undip) melaksanakan kegiatan Focus Group Discussion (FGD) bersama peternak domba di Balai Desa Sriwulan, Kecamatan Limbangan, Kabupaten Kendal, pada Jumat (31/07/2026). Kegiatan ini bertujuan meningkatkan produktivitas peternakan melalui penguatan kapasitas peternak sekaligus mendukung pencapaian Sustainable Development Goals (SDGs), khususnya SDG 2 (Tanpa Kelaparan), SDG 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi), SDG 12 (Konsumsi dan Produksi yang Bertanggung Jawab), serta SDG 15 (Menjaga Ekosistem Daratan). Program ini memperoleh sambutan positif dari masyarakat, terutama para peternak domba yang aktif mengikuti diskusi dan berbagi pengalaman mengenai berbagai tantangan dalam usaha peternakan.
+**Author :** Kelompok 1 Tim KKN-T IDBU 10 Universitas Diponegoro
+
+Sriwulan, 31 Juli 2026 – Mahasiswa Kelompok 2 Kuliah Kerja Nyata Tematik IPTEK Bagi Desa Binaan Universitas (KKNT IDBU 10) Universitas Diponegoro (Undip) melaksanakan kegiatan Focus Group Discussion (FGD) bersama peternak domba di Balai Desa Sriwulan, Kecamatan Limbangan, Kabupaten Kendal, pada Jumat (31/07/2026). Kegiatan ini bertujuan meningkatkan produktivitas peternakan melalui penguatan kapasitas peternak sekaligus mendukung pencapaian Sustainable Development Goals (SDGs), khususnya SDG 2 (Tanpa Kelaparan), SDG 8 (Pekerjaan Layak dan Pertumbuhan Ekonomi), SDG 12 (Konsumsi dan Produksi yang Bertanggung Jawab), serta SDG 15 (Menjaga Ekosistem Daratan). Program ini memperoleh sambutan positif dari masyarakat, terutama para peternak domba yang aktif mengikuti diskusi dan berbagi pengalaman mengenai berbagai tantangan dalam usaha peternakan.
 
 ![Focus Group Discussion peternak domba](/images/mono-peternakan1.jpg)
 

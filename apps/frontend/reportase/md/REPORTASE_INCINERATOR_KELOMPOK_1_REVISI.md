@@ -49,3 +49,4 @@ Ketua Unit Sampah Desa Sriwulan, Salafudin mengapresiasi program yang dilaksanak
 
 Melalui program ini, menunjukkan bahwa kolaborasi multidisiplin dapat menghasilkan inovasi dalam meningkatkan kualitas fasilitas pengelolaan sampah, tetapi juga memperkuat tata kelola operasional di tingkat desa. Program ini diharapkan mampu mewujudkan sistem pengelolaan sampah yang lebih efektif, aman, dan berkelanjutan serta berkontribusi pada pencapaian SDGs Tujuan 11 dan 12 di Desa Wisata Kalikesek, Sriwulan.
 
+Editor : Irfan Murthado Yusuf, S.A.P., MPM.
