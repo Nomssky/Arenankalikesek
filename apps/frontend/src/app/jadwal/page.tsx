@@ -43,7 +43,22 @@ interface EduTripPackage {
   price?: number
 }
 
-type ScheduleType = 'rental' | 'accommodation' | 'edutrip'
+interface WahanaItem {
+  id: string
+  name: string
+  category: string
+  price: number | null
+  price_label: string
+  note: string | null
+  bookable: boolean
+}
+
+// ponytail: tab Wahana & Aktivitas di /jadwal menampilkan kategori yang sama
+// dengan section di /wisata (aktivitas/gratis/fishing); item yang disembunyikan
+// di /wisata juga tidak ditampilkan di sini (daftar tetap dari backend).
+const HIDDEN_WAHANA_IDS = new Set(['terapi-ikan', 'kolam-pancing', 'sewa-alat-pancing', 'pelet-umpan'])
+
+type ScheduleType = 'rental' | 'accommodation' | 'edutrip' | 'wahana'
 
 const rentalHourlySlots = Array.from({ length: 10 }, (_, index) => {
   const startHour = index + 7
@@ -131,6 +146,9 @@ export default function JadwalPage() {
   const [edutripPackages, setEduTripPackages] = useState<EduTripPackage[]>([])
   const [selectedEduTripDate, setSelectedEduTripDate] = useState('')
   const [selectedEduTripPackage, setSelectedEduTripPackage] = useState('')
+  const [wahanaItems, setWahanaItems] = useState<WahanaItem[]>([])
+  const [selectedWahanaId, setSelectedWahanaId] = useState('')
+  const [selectedWahanaDate, setSelectedWahanaDate] = useState(today)
   const [bookingModalPreset, setBookingModalPreset] = useState<BookingPreset | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -150,6 +168,11 @@ export default function JadwalPage() {
         setSelectedAccommodationId((current) => current || stays[0]?.id || '')
         setEduTripPackages(packages.filter(
           (item: EduTripPackage) => ['paket-edukasi', 'paket-kegiatan'].includes(item.category),
+        ))
+        setWahanaItems(packages.filter(
+          (item: WahanaItem) =>
+            ['aktivitas', 'gratis', 'fishing'].includes(item.category) &&
+            !HIDDEN_WAHANA_IDS.has(item.id),
         ))
       })
       .catch((fetchError) => {
@@ -257,7 +280,7 @@ export default function JadwalPage() {
 
       <Section>
         <div className="mx-auto max-w-6xl">
-          <div className="mb-7 grid grid-cols-3 rounded-2xl bg-emerald-950 p-1.5 text-sm font-semibold text-white shadow-lg sm:max-w-2xl">
+          <div className="mb-7 grid grid-cols-2 rounded-2xl bg-emerald-950 p-1.5 text-sm font-semibold text-white shadow-lg sm:grid-cols-4 sm:max-w-3xl">
             <button type="button" onClick={() => setScheduleType('rental')} className={`rounded-xl px-3 py-3 transition ${scheduleType === 'rental' ? 'bg-orange-500 shadow-sm' : 'text-white/70 hover:text-white'}`}>
               Sewa Tempat
             </button>
@@ -265,7 +288,10 @@ export default function JadwalPage() {
               Penginapan & Camping
             </button>
             <button type="button" onClick={() => setScheduleType('edutrip')} className={`rounded-xl px-3 py-3 transition ${scheduleType === 'edutrip' ? 'bg-orange-500 shadow-sm' : 'text-white/70 hover:text-white'}`}>
-              Eduwisata dan Kegiatan
+              Eduwisata & Kegiatan
+            </button>
+            <button type="button" onClick={() => setScheduleType('wahana')} className={`rounded-xl px-3 py-3 transition ${scheduleType === 'wahana' ? 'bg-orange-500 shadow-sm' : 'text-white/70 hover:text-white'}`}>
+              Wahana & Aktivitas
             </button>
           </div>
 
@@ -449,7 +475,7 @@ export default function JadwalPage() {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : scheduleType === 'edutrip' ? (
             <div className="grid gap-5 lg:grid-cols-2">
               {edutripPackages.map((item) => {
                 const isActive = selectedEduTripPackage === item.id && Boolean(selectedEduTripDate)
@@ -595,6 +621,90 @@ export default function JadwalPage() {
                   </article>
                 )
               })}
+            </div>
+          ) : (
+            <div>
+              <div className="mb-6 max-w-sm">
+                <label className="form-label">Tanggal kunjungan</label>
+                <input
+                  type="date"
+                  min={today}
+                  aria-label="Tanggal kunjungan"
+                  className="form-input"
+                  value={selectedWahanaDate}
+                  onChange={(event) => {
+                    setSelectedWahanaDate(event.target.value)
+                    setSelectedWahanaId('')
+                  }}
+                />
+                <p className="mt-2 text-xs leading-5 text-gray-500">Pilih wahana atau aktivitas, lalu tentukan jumlah peserta saat booking.</p>
+              </div>
+              {wahanaItems.length === 0 ? (
+                <p className="rounded-2xl bg-gray-50 p-8 text-center text-gray-500">Belum ada wahana & aktivitas.</p>
+              ) : (
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {wahanaItems.map((item) => {
+                    const isSelected = selectedWahanaId === item.id
+                    return (
+                      <article key={item.id} className={`rounded-2xl border bg-white p-5 shadow-sm transition ${isSelected ? 'border-orange-300 ring-2 ring-orange-100' : 'border-emerald-950/5'}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">Wahana & Aktivitas</p>
+                            <h2 className="mt-1 font-bold text-emerald-950">{item.name}</h2>
+                          </div>
+                          {item.bookable ? <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-500" /> : <XCircleIcon className="h-6 w-6 shrink-0 text-red-500" />}
+                        </div>
+                        {item.note && <p className="mt-1 text-xs text-gray-500">{item.note}</p>}
+
+                        <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+                          <span className="font-semibold text-emerald-700">{item.price_label}</span>
+                          <span className="text-gray-500">Pesan per orang / unit</span>
+                        </div>
+
+<button
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          aria-disabled={!item.bookable}
+                          onClick={() => {
+                            if (!item.bookable) return
+                            setSelectedWahanaId(isSelected ? '' : item.id)
+                          }}
+                          className={`mt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${isSelected ? 'bg-orange-500 text-white hover:bg-orange-400' : item.bookable ? 'border border-emerald-200 bg-emerald-50/60 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
+                        >
+                          {isSelected ? 'Terpilih' : item.bookable ? 'Pilih wahana' : 'Belum dapat dipesan'}
+                        </button>
+                      </article>
+                    )
+                  })}
+                </div>
+              )}
+
+              {selectedWahanaId && (
+                <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-emerald-950 p-4 text-white sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs text-white/60">Pilihan kunjungan</p>
+                    <p className="font-semibold">{selectedWahanaDate ? shortDateLabel(selectedWahanaDate) : 'Tanggal belum dipilih'}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const item = wahanaItems.find((entry) => entry.id === selectedWahanaId)
+                      if (!item || !selectedWahanaDate) return
+                      setBookingModalPreset({
+                        kind: 'edutrip',
+                        itemId: item.id,
+                        itemName: item.name,
+                        item: { id: item.id, name: item.name, category: item.category, price: item.price || 0 },
+                        bookingDate: selectedWahanaDate,
+                      })
+                    }}
+                    className="rounded-full bg-orange-500 px-5 py-3 text-center text-sm font-bold text-white hover:bg-orange-400"
+                  >
+                    Lanjut Booking
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
