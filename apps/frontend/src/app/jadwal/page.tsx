@@ -642,11 +642,11 @@ export default function JadwalPage() {
               {wahanaItems.length === 0 ? (
                 <p className="rounded-2xl bg-gray-50 p-8 text-center text-gray-500">Belum ada wahana & aktivitas.</p>
               ) : (
-                <div className="grid gap-5 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {wahanaItems.map((item) => {
                     const isSelected = selectedWahanaId === item.id
                     return (
-                      <article key={item.id} className={`rounded-2xl border bg-white p-5 shadow-sm transition ${isSelected ? 'border-orange-300 ring-2 ring-orange-100' : 'border-emerald-950/5'}`}>
+                      <article key={item.id} className={`flex h-full flex-col rounded-2xl border bg-white p-5 shadow-sm transition ${isSelected ? 'border-orange-300 ring-2 ring-orange-100' : 'border-emerald-950/5'}`}>
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">Wahana & Aktivitas</p>
@@ -670,7 +670,7 @@ export default function JadwalPage() {
                             if (!item.bookable) return
                             setSelectedWahanaId(isSelected ? '' : item.id)
                           }}
-                          className={`mt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${isSelected ? 'bg-orange-500 text-white hover:bg-orange-400' : item.bookable ? 'border border-emerald-200 bg-emerald-50/60 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
+                          className={`mt-auto pt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${isSelected ? 'bg-orange-500 text-white hover:bg-orange-400' : item.bookable ? 'border border-emerald-200 bg-emerald-50/60 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
                         >
                           {isSelected ? 'Terpilih' : item.bookable ? 'Pilih wahana' : 'Belum dapat dipesan'}
                         </button>
