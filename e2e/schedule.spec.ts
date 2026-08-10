@@ -49,7 +49,7 @@ test.describe('Schedule Page', () => {
 
     await expect(page.locator('select')).toBeVisible()
     await expect(page.locator('button[aria-label="Bulan berikutnya"]')).toBeVisible()
-    await expect(page.locator('a').filter({ hasText: /Pilih tanggal dahulu|Lanjut booking/ })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: /Pilih tanggal dahulu|Lanjut booking/ })).toBeVisible()
   })
 
   test('slot lampau tidak dapat dipilih dan memiliki label status', async ({ page }) => {
@@ -87,7 +87,11 @@ test.describe('Schedule Page', () => {
     await expect(ten).toHaveAttribute('aria-pressed', 'false')
 
     await seven.click()
-    const continueLink = page.getByRole('link', { name: 'Lanjut isi data booking' })
-    await expect(continueLink).toHaveAttribute('href', /timeStart=07%3A00&timeEnd=09%3A00/)
+    const continueButton = page.getByRole('button', { name: 'Lanjut isi data booking' })
+    await expect(continueButton).toBeEnabled()
+    await continueButton.click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('07:00–09:00')).toBeVisible()
   })
 })
