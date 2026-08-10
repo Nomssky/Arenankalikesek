@@ -593,13 +593,13 @@ export const tourServices: TourService[] = [
 export const storeProducts: StoreProductPricing[] = [
   {
     id: '6b54364d-409d-4289-9bd5-913765ace100',
-    name: 'Pupuk Kompos',
+    name: 'Pupuk Kompos Sibisa',
     category: 'pupuk',
     priceType: 'fixed',
     price: 25000,
     unit: 'karung',
     description: 'Pupuk kompos organik',
-    image: '/images/village-panen.jpg',
+    image: '/images/pupuk-kompos-sibisa.png',
     purchasable: true
   },
   {
@@ -622,6 +622,17 @@ export const storeProducts: StoreProductPricing[] = [
     unit: 'kg',
     description: 'Gula aren asli 100% alami',
     image: '/images/wisata-jelajah.jpg',
+    purchasable: true
+  },
+  {
+    id: '9f2c1a4e-7b31-4c5d-a6e8-1d2f3a4b5c6d',
+    name: 'Media Tanam Sibisa',
+    category: 'pupuk',
+    priceType: 'fixed',
+    price: 25000,
+    unit: 'karung',
+    description: 'Media tanam organik',
+    image: '/images/media-tanam-sibisa.png',
     purchasable: true
   }
 ]

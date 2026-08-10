@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test'
 
-const ALLOWED = ['Pupuk Kompos', 'Pupuk Cair Organik', 'Gula Aren Murni']
+const ALLOWED = ['Pupuk Kompos Sibisa', 'Pupuk Cair Organik', 'Gula Aren Murni', 'Media Tanam Sibisa']
 
 // Mock backend /api/products: items diberi flag store_visible; saat ?store=true
 // hanya item store_visible yang dikirim (perilaku sama dengan backend asli).
 const mockProducts = [
-  { id: 'pupuk-kompos', name: 'Pupuk Kompos', price: 10000, price_label: 'Rp10.000', category: 'pupuk', image: '/images/pupuk-kompos.jpg', description: 'Kompos', unit: 'karung', purchasable: true, store_visible: true },
+  { id: 'pupuk-kompos', name: 'Pupuk Kompos Sibisa', price: 25000, price_label: 'Rp25.000', category: 'pupuk', image: '/images/pupuk-kompos-sibisa.png', description: 'Pupuk kompos organik', unit: 'karung', purchasable: true, store_visible: true },
   { id: 'pupuk-cair', name: 'Pupuk Cair Organik', price: 25000, price_label: 'Rp25.000', category: 'pupuk', image: '', description: 'Cair', unit: 'botol', purchasable: true, store_visible: true },
   { id: 'gula-aren', name: 'Gula Aren Murni', price: 30000, price_label: 'Rp30.000', category: 'oleh-oleh', image: '/images/gula-aren.jpg', description: 'Gula', unit: 'kg', purchasable: true, store_visible: true },
+  { id: 'media-tanam-sibisa', name: 'Media Tanam Sibisa', price: 25000, price_label: 'Rp25.000', category: 'pupuk', image: '/images/media-tanam-sibisa.png', description: 'Media tanam organik', unit: 'karung', purchasable: true, store_visible: true },
   // Produk yang TIDAK bertanda store_visible → tidak boleh tampil di toko:
   { id: 'paket-nasi', name: 'Paket Nasi Box', price: 15000, price_label: 'Rp15.000', category: 'paket-makanan', image: '', description: 'Makanan', unit: 'porsi', purchasable: true, store_visible: false },
   { id: 'keripik-pisang', name: 'Keripik Pisang', price: 12000, price_label: 'Rp12.000', category: 'oleh-oleh', image: '', description: 'Camilan', unit: 'bungkus', purchasable: true, store_visible: false },
@@ -40,7 +41,7 @@ test.describe('Toko: hanya produk store_visible yang ditampilkan (dari backend)'
     await page.goto('/toko', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
 
-    await page.getByRole('button', { name: /^Tambahkan Pupuk Kompos ke keranjang$/ }).click()
+    await page.getByRole('button', { name: /^Tambahkan Pupuk Kompos Sibisa ke keranjang$/ }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Produk ditambahkan' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Keranjang 1', exact: true })).toBeVisible()
   })
