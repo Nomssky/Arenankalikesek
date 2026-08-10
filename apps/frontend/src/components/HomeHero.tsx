@@ -10,7 +10,7 @@ import {
 
 const slides = [
   {
-    image: '/images/village-hero.jpg',
+    image: '/images/hero-bg.jpg',
     eyebrow: 'Desa Wisata Arenan Kalikesek',
     subtitle:
       'Nikmati hangatnya kehidupan desa, udara pegunungan, dan keramahan warga di lereng Gunung Ungaran.',
