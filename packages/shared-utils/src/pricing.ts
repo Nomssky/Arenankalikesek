@@ -38,6 +38,9 @@ export interface TourService {
   image: string
   imagePosition?: string
   bookable: boolean
+  // false = tidak dikirim backend ?available=true (selaras dengan kolom
+  // tour_packages.available); fallback mode meniru keputusan DB.
+  available?: boolean
 }
 
 export interface StoreProductPricing {
@@ -65,6 +68,7 @@ export const tourServices: TourService[] = [
     price: 0,
     image: '/images/wisata-sungai.jpg',
     bookable: true,
+    available: false,
   },
   {
     id: 'keceh-kali',
@@ -151,6 +155,7 @@ export const tourServices: TourService[] = [
     note: 'Sesuai harga ikan per kilogram',
     image: '/images/booking-fishing.jpg',
     bookable: false,
+    available: false,
   },
   {
     id: 'sewa-alat-pancing',
@@ -160,6 +165,7 @@ export const tourServices: TourService[] = [
     price: 5000,
     image: '/images/wisata-sungai.jpg',
     bookable: true,
+    available: false,
   },
   {
     id: 'pelet-umpan',
@@ -169,6 +175,7 @@ export const tourServices: TourService[] = [
     price: 5000,
     image: '/images/wisata-keceh-air.jpg',
     bookable: true,
+    available: false,
   },
   {
     id: 'jeep',

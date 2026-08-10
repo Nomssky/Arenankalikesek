@@ -66,17 +66,6 @@ function formatItemPrice(item: TourPackage): string {
   return item.price_label || formatPrice(item.price)
 }
 
-// ponytail: penyembunyian tampilan (kunikan dari daftar Wahana & Aktivitas) —
-// item ikan tidak dihapus dari DB; daftar tetap datang dari backend, frontend
-// hanya memilih menampilkan ulang. Ceiling: jika item harus hilang total dari
-// katalog, beri `available=false` di DB (admin Produk).
-const HIDDEN_ACTIVITY_IDS = new Set([
-  'terapi-ikan',
-  'kolam-pancing',
-  'sewa-alat-pancing',
-  'pelet-umpan',
-])
-
 const sectionCategories: Record<string, string[]> = {
   aktivitas: ['aktivitas', 'gratis', 'fishing'],
   'paket-edukasi': ['paket-edukasi', 'paket-kegiatan'],
@@ -163,7 +152,6 @@ export default function WisataPage() {
   for (const pkg of packages) {
     if (!pkg.available) continue
     if (['extra-bed', 'tambahan-tamu'].includes(pkg.id)) continue
-    if (HIDDEN_ACTIVITY_IDS.has(pkg.id)) continue
     for (const [sectionKey, cats] of Object.entries(sectionCategories)) {
       if (cats.includes(pkg.category)) {
         packagesBySection[sectionKey].push(pkg)
