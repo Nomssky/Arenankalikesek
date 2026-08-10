@@ -80,7 +80,7 @@ export const serviceCategories: ServiceCategory[] = [
   {
     id: 'glamping',
     name: 'Glamping',
-    image: '/images/booking-camping.png',
+    image: '/images/glamping.jpg',
     description: 'Pilihan menginap bernuansa alam dengan fasilitas glamping.',
     position: 'center',
   },

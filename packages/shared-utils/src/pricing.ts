@@ -91,7 +91,7 @@ export const tourServices: TourService[] = [
     category: 'aktivitas',
     priceType: 'fixed',
     price: 5000,
-    image: '/images/booking-tiket.png',
+    image: '/images/booking-tiket.jpeg',
     bookable: true,
   },
   {
@@ -110,7 +110,7 @@ export const tourServices: TourService[] = [
     priceType: 'fixed',
     price: 15000,
     note: '2 putaran',
-    image: '/images/village-panen.jpg',
+    image: '/images/kereta-sawah.jpg',
     bookable: true,
   },
   {
@@ -130,7 +130,7 @@ export const tourServices: TourService[] = [
     priceType: 'fixed',
     price: 10000,
     unit: 'wahana',
-    image: '/images/booking-tiket.png',
+    image: '/images/booking-tiket.jpeg',
     bookable: true,
   },
   {
@@ -178,7 +178,7 @@ export const tourServices: TourService[] = [
     price: 120000,
     unit: '4 orang dewasa',
     capacity: '4 orang dewasa',
-    image: '/images/village-landscape.jpg',
+    image: '/images/jeep.jpg',
     bookable: true,
   },
   {
@@ -356,7 +356,7 @@ export const tourServices: TourService[] = [
     priceType: 'contact',
     price: null,
     note: 'Harga belum ditetapkan dan dapat diatur oleh admin.',
-    image: '/images/booking-camping.png',
+    image: '/images/glamping.jpg',
     bookable: false,
   },
   {
@@ -481,7 +481,7 @@ export const tourServices: TourService[] = [
       'Air mineral 2 botol',
       'Wi-Fi gratis',
     ],
-    image: '/images/booking-homestay.jpg',
+    image: '/images/aren1.jpg',
     bookable: true,
   },
   {
@@ -507,7 +507,7 @@ export const tourServices: TourService[] = [
       'Air mineral 2 botol',
       'Wi-Fi gratis',
     ],
-    image: '/images/booking-homestay.jpg',
+    image: '/images/aren2.jpg',
     bookable: true,
   },
   {
@@ -535,7 +535,7 @@ export const tourServices: TourService[] = [
       'Air mineral 4 botol',
       'Wi-Fi gratis',
     ],
-    image: '/images/booking-homestay.jpg',
+    image: '/images/aren3.jpg',
     bookable: true,
   },
   {
@@ -564,7 +564,7 @@ export const tourServices: TourService[] = [
       'Air mineral 4 botol',
       'Wi-Fi gratis',
     ],
-    image: '/images/booking-homestay.jpg',
+    image: '/images/aren4.jpg',
     bookable: true,
   },
   {

@@ -4,7 +4,7 @@ import Section from '@/components/Section'
 export default function KontakPage() {
   return (
     <>
-      <Hero title="Kontak Kami" subtitle="Hubungi kami untuk informasi dan reservasi" image="/images/village-sign.jpg" height="full" />
+      <Hero title="Kontak Kami" subtitle="Hubungi kami untuk informasi dan reservasi" image="/images/navbar-kontak.jpg" height="full" />
 
       <Section>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
