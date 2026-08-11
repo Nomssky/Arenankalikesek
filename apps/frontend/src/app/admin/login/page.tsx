@@ -31,7 +31,8 @@ function LoginForm() {
         router.refresh()
       } else {
         const data = await res.json().catch(() => null)
-        setError(data?.error || 'Kata sandi salah')
+        const message = data?.error || 'Kata sandi salah'
+        setError(res.status === 429 ? `Login tidak valid. ${message}` : message)
       }
     } catch {
       setError('Terjadi kesalahan')

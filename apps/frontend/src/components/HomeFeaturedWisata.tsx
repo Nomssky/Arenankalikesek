@@ -19,6 +19,7 @@ const featuredServiceIds = [
   'rainbow-slide',
   'taman-kelinci',
 ]
+const featuredCategories = new Set(['aktivitas', 'gratis', 'fishing'])
 
 export default function HomeFeaturedWisata() {
   const [items, setItems] = useState<TourPackage[]>([])
@@ -34,10 +35,13 @@ export default function HomeFeaturedWisata() {
       .then((data) => {
         if (cancelled) return
         const byId = new Map(data.map((item) => [item.id, item]))
-        setItems(featuredServiceIds.flatMap((id) => {
+        const preferredItems = featuredServiceIds.flatMap((id) => {
           const item = byId.get(id)
           return item ? [item] : []
-        }))
+        })
+        const preferredIds = new Set(preferredItems.map((item) => item.id))
+        const fallbackItems = data.filter((item) => featuredCategories.has(item.category) && !preferredIds.has(item.id))
+        setItems([...preferredItems, ...fallbackItems].slice(0, 6))
       })
       .catch(() => {
         if (!cancelled) setItems([])
@@ -51,7 +55,7 @@ export default function HomeFeaturedWisata() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-7" aria-label="Memuat harga wisata">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6" aria-label="Memuat harga wisata">
         {featuredServiceIds.map((id) => (
           <div key={id} className="aspect-[3/4.6] min-h-[205px] animate-pulse rounded-b-[1.25rem] rounded-t-[5rem] bg-emerald-950/10 min-[380px]:min-h-[230px] sm:min-h-[285px]" />
         ))}
@@ -64,7 +68,7 @@ export default function HomeFeaturedWisata() {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-7">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
       {items.map((item) => (
         <Link
           key={item.id}

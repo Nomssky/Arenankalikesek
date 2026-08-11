@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { CreditCardIcon, DocumentTextIcon, ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { formatPrice } from '@/lib/utils'
 
@@ -27,24 +27,49 @@ interface PaymentWaitingModalProps {
 }
 
 export default function PaymentWaitingModal({ data, onClose, onContinuePayment, onLater }: PaymentWaitingModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!data) return
     const root = document.documentElement
     const previousRootOverflow = root.style.overflow
     const previousBodyOverflow = document.body.style.overflow
+    const previousBodyPosition = document.body.style.position
+    const previousBodyTop = document.body.style.top
+    const previousBodyWidth = document.body.style.width
     const previousOverscroll = document.body.style.overscrollBehavior
+    const previousScrollY = window.scrollY
     root.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${previousScrollY}px`
+    document.body.style.width = '100%'
     document.body.style.overscrollBehavior = 'none'
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href]') || [])
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', closeOnEscape)
+    window.requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLElement>('button:not([disabled]), a[href]')?.focus())
     return () => {
       root.style.overflow = previousRootOverflow
       document.body.style.overflow = previousBodyOverflow
+      document.body.style.position = previousBodyPosition
+      document.body.style.top = previousBodyTop
+      document.body.style.width = previousBodyWidth
       document.body.style.overscrollBehavior = previousOverscroll
       window.removeEventListener('keydown', closeOnEscape)
+      window.scrollTo(0, previousScrollY)
     }
   }, [data, onClose])
 
@@ -57,8 +82,8 @@ export default function PaymentWaitingModal({ data, onClose, onContinuePayment, 
   const canResume = data.state === 'pending' && !isExpired && !isCancelled && !isFailed && Boolean(data.paymentUrl)
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="payment-waiting-title">
-      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overscroll-contain overflow-y-auto rounded-[1.5rem] bg-white shadow-2xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="payment-waiting-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+      <div ref={dialogRef} className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overscroll-contain overflow-y-auto rounded-[1.5rem] bg-white shadow-2xl">
         <div className="h-1.5 bg-orange-500" />
         <button type="button" onClick={onClose} aria-label="Tutup pemberitahuan" title="Tutup" className="absolute right-4 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-orange-100 hover:text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2">
           <XMarkIcon className="h-5 w-5" />

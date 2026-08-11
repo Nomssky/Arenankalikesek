@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
@@ -81,6 +82,42 @@ interface AccommodationSelection {
   firewoodPackages?: number
   nestingQuantity?: number
   chairQuantity?: number
+}
+
+function QuantityControl({
+  label,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="mt-3 flex min-h-11 items-center justify-between rounded-xl border border-gray-200 bg-white px-2">
+      <button
+        type="button"
+        aria-label={`Kurangi ${label}`}
+        disabled={disabled || value <= 0}
+        onClick={() => onChange(Math.max(0, value - 1))}
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-bold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-300"
+      >
+        −
+      </button>
+      <span className="min-w-8 text-center text-sm font-bold text-emerald-950" aria-live="polite">{value}</span>
+      <button
+        type="button"
+        aria-label={`Tambah ${label}`}
+        disabled={disabled}
+        onClick={() => onChange(value + 1)}
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-bold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-300"
+      >
+        +
+      </button>
+    </div>
+  )
 }
 
 function defaultAccommodationSelection(itemId: string): AccommodationSelection {
@@ -358,6 +395,9 @@ export default function BookingWisataPage() {
   const [pendingBooking, setPendingBooking] = useState<PaymentWaitingData | null>(null)
   const [isCheckingPending, setIsCheckingPending] = useState(false)
   const checkoutSheetRef = useRef<HTMLDivElement>(null)
+  const checkoutPreviousFocusRef = useRef<HTMLElement | null>(null)
+  const checkoutScrollYRef = useRef(0)
+  const requestCloseCheckoutRef = useRef<() => void>(() => undefined)
   const selectedAccommodations = useMemo(() => cart.filter((item) => isAccommodationItem(item.id)), [cart])
   const selectedAccommodationIds = useMemo(() => selectedAccommodations.map((item) => item.id).join(','), [selectedAccommodations])
   const selectedAccommodation = selectedAccommodations[0]
@@ -365,6 +405,23 @@ export default function BookingWisataPage() {
   const isCampingBooking = selectedAccommodation?.id === 'camping-ground'
   const isHomestayBooking = selectedAccommodation?.category === 'homestay'
   const isRentalVenueBooking = cart.some((item) => ['area-kegiatan', 'tempat-pertemuan'].includes(item.category))
+  const requestCloseCheckout = useCallback(() => {
+    if (isSubmitting) return
+    const hasFormData = checkoutStep === 'details' && [
+      customerName,
+      customerPhone,
+      customerEmail,
+      customerAddress,
+      eventName,
+      notes,
+      identityDocument?.name || '',
+    ].some((value) => value.trim())
+    if (hasFormData && !window.confirm('Data booking yang sudah diisi akan tetap tersimpan di halaman ini. Tutup formulir?')) return
+    setCartOpen(false)
+  }, [checkoutStep, customerAddress, customerEmail, customerName, customerPhone, eventName, identityDocument, isSubmitting, notes])
+  useEffect(() => {
+    requestCloseCheckoutRef.current = requestCloseCheckout
+  }, [requestCloseCheckout])
   const extraGuestEligible = Boolean(
     selectedAccommodation && ['aren-1', 'aren-2'].includes(selectedAccommodation.id),
   )
@@ -538,19 +595,55 @@ export default function BookingWisataPage() {
     const root = document.documentElement
     const previousOverflow = document.body.style.overflow
     const previousRootOverflow = root.style.overflow
+    const previousPosition = document.body.style.position
+    const previousTop = document.body.style.top
+    const previousWidth = document.body.style.width
     const previousOverscroll = document.body.style.overscrollBehavior
+    checkoutPreviousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    checkoutScrollYRef.current = window.scrollY
     root.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${checkoutScrollYRef.current}px`
+    document.body.style.width = '100%'
     document.body.style.overscrollBehavior = 'none'
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setCartOpen(false)
+      if (event.key === 'Escape') {
+        requestCloseCheckoutRef.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(checkoutSheetRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      ) || [])
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', closeOnEscape)
+    window.requestAnimationFrame(() => {
+      checkoutSheetRef.current?.querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      )?.focus()
+    })
     return () => {
       root.style.overflow = previousRootOverflow
       document.body.style.overflow = previousOverflow
+      document.body.style.position = previousPosition
+      document.body.style.top = previousTop
+      document.body.style.width = previousWidth
       document.body.style.overscrollBehavior = previousOverscroll
       window.removeEventListener('keydown', closeOnEscape)
+      window.scrollTo(0, checkoutScrollYRef.current)
+      checkoutPreviousFocusRef.current?.focus()
+      checkoutPreviousFocusRef.current = null
     }
   }, [cartOpen])
 
@@ -1392,11 +1485,11 @@ const waitingData: PaymentWaitingData = {
         />
       )}
 
-      {cartOpen && (
+      {cartOpen && typeof document !== 'undefined' && createPortal(
         <div
           className="booking-sheet-backdrop fixed inset-0 z-[70] flex items-end justify-center bg-emerald-950/55 backdrop-blur-sm sm:items-center sm:p-5"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setCartOpen(false)
+            if (event.target === event.currentTarget) requestCloseCheckoutRef.current()
           }}
         >
           <div
@@ -1420,7 +1513,7 @@ const waitingData: PaymentWaitingData = {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCartOpen(false)}
+                  onClick={() => requestCloseCheckoutRef.current()}
                   aria-label="Tutup checkout"
                   title="Tutup formulir booking"
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200"
@@ -1639,9 +1732,9 @@ const waitingData: PaymentWaitingData = {
                           </div>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-3">
-                          <label className="rounded-xl border border-gray-200 bg-white p-3 text-sm font-semibold text-gray-800">Kursi <span className="block text-xs font-normal text-gray-500">{settingPriceLabel(rentalChairPrice, '/kursi')}</span><input type="number" min={0} disabled={rentalChairPrice == null} className="form-input mt-2" value={rentalChairQuantity} onChange={(event) => setRentalChairQuantity(Math.max(0, Number(event.target.value) || 0))} /></label>
+                          <label className="rounded-xl border border-gray-200 bg-white p-3 text-sm font-semibold text-gray-800">Kursi <span className="block text-xs font-normal text-gray-500">{settingPriceLabel(rentalChairPrice, '/kursi')}</span><QuantityControl label="kursi" value={rentalChairQuantity} disabled={rentalChairPrice == null} onChange={setRentalChairQuantity} /></label>
                           <label className="flex items-start gap-2 rounded-xl border border-gray-200 bg-white p-3 text-sm font-semibold text-gray-800"><input type="checkbox" disabled={rentalSoundPrice == null} checked={rentalSoundSystem} onChange={(event) => setRentalSoundSystem(event.target.checked)} className="mt-1" /><span>Sound system<span className="block text-xs font-normal text-gray-500">{settingPriceLabel(rentalSoundPrice, '/paket')}</span></span></label>
-                          <label className="rounded-xl border border-gray-200 bg-white p-3 text-sm font-semibold text-gray-800">Tikar <span className="block text-xs font-normal text-gray-500">{settingPriceLabel(rentalMatPrice, '/tikar')}</span><input type="number" min={0} disabled={rentalMatPrice == null} className="form-input mt-2" value={rentalMatQuantity} onChange={(event) => setRentalMatQuantity(Math.max(0, Number(event.target.value) || 0))} /></label>
+                          <label className="rounded-xl border border-gray-200 bg-white p-3 text-sm font-semibold text-gray-800">Tikar <span className="block text-xs font-normal text-gray-500">{settingPriceLabel(rentalMatPrice, '/tikar')}</span><QuantityControl label="tikar" value={rentalMatQuantity} disabled={rentalMatPrice == null} onChange={setRentalMatQuantity} /></label>
                         </div>
                       </div>
                     )}
@@ -1950,14 +2043,7 @@ const waitingData: PaymentWaitingData = {
                           <label className="rounded-xl border border-gray-200 bg-white p-3">
                             <span className="block text-sm font-semibold text-gray-900">Kursi</span>
                             <span className="mt-0.5 block text-xs text-gray-500">{settingPriceLabel(rentalChairPrice, '/kursi')}</span>
-                            <input
-                              type="number"
-                              min={0}
-                              disabled={rentalChairPrice == null}
-                              className="form-input mt-3 disabled:cursor-not-allowed disabled:bg-gray-100"
-                              value={rentalChairQuantity}
-                              onChange={(event) => setRentalChairQuantity(Math.max(0, Number(event.target.value) || 0))}
-                            />
+                            <QuantityControl label="kursi" value={rentalChairQuantity} disabled={rentalChairPrice == null} onChange={setRentalChairQuantity} />
                           </label>
 
                           <label className={`flex items-start gap-3 rounded-xl border bg-white p-3 transition ${rentalSoundPrice == null ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${rentalSoundSystem ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-200'}`}>
@@ -1977,14 +2063,7 @@ const waitingData: PaymentWaitingData = {
                           <label className="rounded-xl border border-gray-200 bg-white p-3">
                             <span className="block text-sm font-semibold text-gray-900">Tikar</span>
                             <span className="mt-0.5 block text-xs text-gray-500">{settingPriceLabel(rentalMatPrice, '/tikar')}</span>
-                            <input
-                              type="number"
-                              min={0}
-                              disabled={rentalMatPrice == null}
-                              className="form-input mt-3 disabled:cursor-not-allowed disabled:bg-gray-100"
-                              value={rentalMatQuantity}
-                              onChange={(event) => setRentalMatQuantity(Math.max(0, Number(event.target.value) || 0))}
-                            />
+                            <QuantityControl label="tikar" value={rentalMatQuantity} disabled={rentalMatPrice == null} onChange={setRentalMatQuantity} />
                           </label>
                         </div>
                       </div>
@@ -2153,7 +2232,7 @@ const waitingData: PaymentWaitingData = {
                   disabled={isSubmitting}
                   className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Memproses booking...' : 'Konfirmasi booking'}
+                  {isSubmitting ? 'Memproses pembayaran...' : `Lanjut ke Pembayaran • ${formatPrice(totalPrice)}`}
                 </button>
                 <p className="text-center text-xs leading-5 text-gray-500">
                   Tim Arenan Kalikesek akan menghubungi nomor WhatsApp Anda untuk konfirmasi akhir.
@@ -2162,7 +2241,7 @@ const waitingData: PaymentWaitingData = {
             )}
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   )
 }
