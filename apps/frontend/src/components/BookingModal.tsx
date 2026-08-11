@@ -15,6 +15,12 @@ export interface BookingPreset {
     category: string
     price?: number
   }
+  items?: Array<{
+    id: string
+    name: string
+    category: string
+    price?: number
+  }>
   bookingDate?: string
   timeStart?: string
   timeEnd?: string
@@ -110,6 +116,11 @@ function BookingForm({
   const isStay = preset.kind === 'stay'
   const isRentalVenue = preset.kind === 'rental'
   const isCamping = preset.itemId === 'camping-ground'
+  const selectedItems = preset.items?.length
+    ? preset.items
+    : preset.item
+      ? [preset.item]
+      : []
   const rentalPrice = Number(preset.item?.price || 0)
   const durationHours = preset.timeStart && preset.timeEnd
     ? Math.max(1, Number(preset.timeEnd.slice(0, 2)) - Number(preset.timeStart.slice(0, 2)))
@@ -123,17 +134,18 @@ function BookingForm({
     ? Number(preset.item?.price || 0)
     : isRentalVenue
       ? rentalPrice * durationHours + rentalSubtotal
-      : Number(preset.item?.price || 0) * (preset.kind === 'edutrip' ? participantCount : 1)
+      : selectedItems.reduce(
+          (sum, item) => sum + Number(item.price || 0) * (preset.kind === 'edutrip' ? participantCount : 1),
+          0,
+        )
 
-  const items = preset.item
-    ? [{
-        id: preset.item.id,
-        name: preset.item.name,
-        category: preset.item.category,
-        quantity: isRentalVenue ? durationHours : (preset.kind === 'edutrip' ? participantCount : 1),
-        price: preset.item.price || 0,
-      }]
-    : []
+  const items = selectedItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    quantity: isRentalVenue ? durationHours : (preset.kind === 'edutrip' ? participantCount : 1),
+    price: item.price || 0,
+  }))
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -275,7 +287,7 @@ function BookingForm({
       aria-modal="true"
       aria-labelledby="booking-modal-title"
     >
-      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.5rem] bg-white shadow-2xl sm:rounded-[1.5rem]">
+      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overscroll-contain overflow-hidden rounded-t-[1.5rem] bg-white shadow-2xl sm:rounded-[1.5rem]">
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">
@@ -493,13 +505,21 @@ function BookingForm({
 export default function BookingModal({ open, onClose, preset }: BookingModalProps) {
   useEffect(() => {
     if (!open) return
+    const root = document.documentElement
+    const previousRootOverflow = root.style.overflow
+    const previousBodyOverflow = document.body.style.overflow
+    const previousOverscroll = document.body.style.overscrollBehavior
+    root.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.body.style.overflow = ''
+      root.style.overflow = previousRootOverflow
+      document.body.style.overflow = previousBodyOverflow
+      document.body.style.overscrollBehavior = previousOverscroll
       window.removeEventListener('keydown', closeOnEscape)
     }
   }, [open, onClose])

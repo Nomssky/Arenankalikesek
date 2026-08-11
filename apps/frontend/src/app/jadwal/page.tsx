@@ -142,7 +142,7 @@ export default function JadwalPage() {
   const [selectedEduTripDate, setSelectedEduTripDate] = useState('')
   const [selectedEduTripPackage, setSelectedEduTripPackage] = useState('')
   const [wahanaItems, setWahanaItems] = useState<WahanaItem[]>([])
-  const [selectedWahanaId, setSelectedWahanaId] = useState('')
+  const [selectedWahanaIds, setSelectedWahanaIds] = useState<string[]>([])
   const [selectedWahanaDate, setSelectedWahanaDate] = useState(today)
   const [bookingModalPreset, setBookingModalPreset] = useState<BookingPreset | null>(null)
   const [loading, setLoading] = useState(true)
@@ -627,17 +627,17 @@ export default function JadwalPage() {
                   value={selectedWahanaDate}
                   onChange={(event) => {
                     setSelectedWahanaDate(event.target.value)
-                    setSelectedWahanaId('')
+                    setSelectedWahanaIds([])
                   }}
                 />
-                <p className="mt-2 text-xs leading-5 text-gray-500">Pilih wahana atau aktivitas, lalu tentukan jumlah peserta saat booking.</p>
+                <p className="mt-2 text-xs leading-5 text-gray-500">Pilih satu atau beberapa wahana/aktivitas, lalu tentukan jumlah peserta saat booking.</p>
               </div>
               {wahanaItems.length === 0 ? (
                 <p className="rounded-2xl bg-gray-50 p-8 text-center text-gray-500">Belum ada wahana & aktivitas.</p>
               ) : (
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {wahanaItems.map((item) => {
-                    const isSelected = selectedWahanaId === item.id
+                    const isSelected = selectedWahanaIds.includes(item.id)
                     return (
                       <article key={item.id} className={`flex h-full flex-col rounded-2xl border bg-white p-5 shadow-sm transition ${isSelected ? 'border-orange-300 ring-2 ring-orange-100' : 'border-emerald-950/5'}`}>
                         <div className="flex items-start justify-between gap-3">
@@ -656,12 +656,14 @@ export default function JadwalPage() {
 
 <button
                           type="button"
-                          role="radio"
+                          role="checkbox"
                           aria-checked={isSelected}
                           aria-disabled={!item.bookable}
                           onClick={() => {
                             if (!item.bookable) return
-                            setSelectedWahanaId(isSelected ? '' : item.id)
+                            setSelectedWahanaIds((current) => isSelected
+                              ? current.filter((id) => id !== item.id)
+                              : [...current, item.id])
                           }}
                           className={`mt-auto pt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${isSelected ? 'bg-orange-500 text-white hover:bg-orange-400' : item.bookable ? 'border border-emerald-200 bg-emerald-50/60 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
                         >
@@ -673,22 +675,22 @@ export default function JadwalPage() {
                 </div>
               )}
 
-              {selectedWahanaId && (
+              {selectedWahanaIds.length > 0 && (
                 <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-emerald-950 p-4 text-white sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs text-white/60">Pilihan kunjungan</p>
+                    <p className="text-xs text-white/60">{selectedWahanaIds.length} wahana dipilih</p>
                     <p className="font-semibold">{selectedWahanaDate ? shortDateLabel(selectedWahanaDate) : 'Tanggal belum dipilih'}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      const item = wahanaItems.find((entry) => entry.id === selectedWahanaId)
-                      if (!item || !selectedWahanaDate) return
+                      const selectedItems = wahanaItems.filter((entry) => selectedWahanaIds.includes(entry.id))
+                      if (selectedItems.length === 0 || !selectedWahanaDate) return
                       setBookingModalPreset({
                         kind: 'edutrip',
-                        itemId: item.id,
-                        itemName: item.name,
-                        item: { id: item.id, name: item.name, category: item.category, price: item.price || 0 },
+                        itemId: selectedItems[0].id,
+                        itemName: selectedItems.length === 1 ? selectedItems[0].name : `${selectedItems.length} wahana terpilih`,
+                        items: selectedItems.map((item) => ({ id: item.id, name: item.name, category: item.category, price: item.price || 0 })),
                         bookingDate: selectedWahanaDate,
                       })
                     }}

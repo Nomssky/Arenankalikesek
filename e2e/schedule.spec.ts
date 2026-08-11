@@ -52,6 +52,26 @@ test.describe('Schedule Page', () => {
     await expect(page.locator('button').filter({ hasText: /Pilih tanggal dahulu|Lanjut booking/ })).toBeVisible()
   })
 
+  test('wahana dapat dipilih lebih dari satu sebelum lanjut booking', async ({ page }) => {
+    await page.route('**/api/inventory-rentals', (route) => route.fulfill({ json: [] }))
+    await page.route('**/api/schedule?**', (route) => route.fulfill({ json: [] }))
+    await page.route('**/api/tour-packages?**', (route) => route.fulfill({ json: [
+      { id: 'wahana-a', name: 'Wahana A', category: 'aktivitas', price: 10000, price_label: 'Rp10.000', bookable: true, available: true, note: null },
+      { id: 'wahana-b', name: 'Wahana B', category: 'gratis', price: 0, price_label: 'Gratis', bookable: true, available: true, note: null },
+    ] }))
+    await page.route('**/api/booking-config', (route) => route.fulfill({ json: { settings: {} } }))
+    await openSchedule(page)
+
+    await page.getByRole('button', { name: 'Wahana & Aktivitas', exact: true }).click()
+    const chooseButtons = page.getByRole('button', { name: 'Pilih wahana', exact: true })
+    await expect(chooseButtons).toHaveCount(2)
+    await chooseButtons.nth(0).click()
+    await chooseButtons.nth(1).click()
+    await expect(page.getByText('2 wahana dipilih')).toBeVisible()
+    await page.getByRole('button', { name: 'Lanjut Booking' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+  })
+
   test('slot lampau tidak dapat dipilih dan memiliki label status', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-08-04T03:30:00.000Z'))
     await mockRentalSchedule(page)
