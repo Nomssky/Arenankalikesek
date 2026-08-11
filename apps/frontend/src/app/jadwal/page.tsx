@@ -167,6 +167,7 @@ export default function JadwalPage() {
   )
   const scheduleCartCount = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
   const [cartNotice, setCartNotice] = useState<{ count: number; itemNames: string[] } | null>(null)
+  const [cartNoticeVisible, setCartNoticeVisible] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
@@ -275,6 +276,7 @@ export default function JadwalPage() {
       window.dispatchEvent(new Event('cart-updated'))
       setCart(next)
       setCartNotice({ count: entries.length, itemNames: entries.map((entry) => entry.name) })
+      setCartNoticeVisible(true)
     } catch {
       setError('Keranjang booking belum dapat disimpan. Silakan coba lagi.')
     }
@@ -284,6 +286,15 @@ export default function JadwalPage() {
     setCheckoutStep(step)
     setCartOpen(true)
   }
+
+  useEffect(() => {
+    if (!cartNoticeVisible) return
+    const timer = window.setTimeout(() => {
+      setCartNoticeVisible(false)
+      window.setTimeout(() => setCartNotice(null), 300)
+    }, 4000)
+    return () => window.clearTimeout(timer)
+  }, [cartNoticeVisible])
 
   const buildCheckoutItem = (partial: Partial<CheckoutItem> & { id: string }, extras: Partial<CheckoutItem> = {}): CheckoutItem => {
     const catalog = tourPackages.find((pkg) => pkg.id === partial.id)
@@ -891,14 +902,30 @@ export default function JadwalPage() {
         </div>
       </Section>
 
-      {cartNotice && (
-        <div className="fixed inset-x-3 bottom-4 z-[80] mx-auto max-w-xl rounded-2xl border border-emerald-100 bg-white p-4 shadow-2xl sm:inset-x-auto sm:right-5 sm:w-[min(28rem,calc(100%-2rem))]" role="status" aria-live="polite">
-          <p className="font-semibold text-emerald-950">Berhasil ditambahkan ke Keranjang Booking.</p>
-          <p className="mt-1 text-xs text-gray-600">{cartNotice.count} layanan tersimpan. Anda dapat memilih layanan lain atau melanjutkan checkout.</p>
+      {cartNotice && cartNoticeVisible && (
+        <div
+          className="fixed bottom-4 right-4 z-[80] max-w-xl rounded-2xl border border-emerald-100 bg-white p-4 shadow-2xl animate-[toast-slide-in_300ms_cubic-bezier(0.16,1,0.3,1)_both] sm:w-[min(28rem,calc(100%-2rem))]"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-semibold text-emerald-950">Berhasil ditambahkan ke Keranjang Booking.</p>
+              <p className="mt-1 text-xs text-gray-600">{cartNotice.count} layanan tersimpan. Anda dapat memilih layanan lain atau melanjutkan checkout.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCartNoticeVisible(false)}
+              className="shrink-0 rounded-full p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              aria-label="Tutup notifikasi"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <button type="button" onClick={() => setCartNotice(null)} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lanjut Pilih Layanan</button>
-            <button type="button" onClick={() => openCheckoutDrawer('cart')} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lihat Keranjang</button>
-            <button type="button" onClick={() => openCheckoutDrawer('details')} className="min-h-11 rounded-full bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">Lanjut ke Checkout</button>
+            <button type="button" onClick={() => setCartNoticeVisible(false)} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lanjut Pilih Layanan</button>
+            <button type="button" onClick={() => { openCheckoutDrawer('cart'); setCartNoticeVisible(false); }} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lihat Keranjang</button>
+            <button type="button" onClick={() => { openCheckoutDrawer('details'); setCartNoticeVisible(false); }} className="min-h-11 rounded-full bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">Lanjut ke Checkout</button>
           </div>
         </div>
       )}

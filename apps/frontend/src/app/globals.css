@@ -1074,6 +1074,28 @@ html[data-route-transition="active"] body {
   }
 }
 
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translate3d(1.5rem, -0.5rem, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(1.5rem, -0.5rem, 0) scale(0.96);
+  }
+}
+
 @keyframes booking-backdrop-in {
   from {
     opacity: 0;
