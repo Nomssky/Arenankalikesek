@@ -28,6 +28,26 @@ test.describe('Alur booking UI tanpa membuat transaksi', () => {
     await expect(page.getByText('Layanan tidak ditemukan')).toBeVisible()
   })
 
+  test('beberapa wahana dapat dipilih dan dikalikan dalam satu keranjang', async ({ page }) => {
+    await page.goto('/booking/wisata', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
+
+    const cards = page.locator('article.motion-card').filter({ has: page.getByRole('button', { name: 'Tambah' }) })
+    await expect(cards.first()).toBeVisible({ timeout: 20_000 })
+    await expect(cards.nth(1)).toBeVisible({ timeout: 20_000 })
+    const firstName = (await cards.nth(0).locator('h3').innerText()).trim()
+    const secondName = (await cards.nth(1).locator('h3').innerText()).trim()
+    await cards.nth(0).getByRole('button', { name: 'Tambah' }).click()
+    await cards.nth(1).getByRole('button', { name: 'Tambah' }).click()
+    await cards.nth(0).getByRole('button', { name: 'Tambah' }).click()
+
+    await page.getByRole('button', { name: 'Lanjutkan booking' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText(firstName)
+    await expect(dialog).toContainText(secondName)
+    await expect(dialog).toContainText('3 pilihan dari 2 layanan')
+  })
+
   test('tamu tambahan Aren 1 hanya dikenakan sekali per booking', async ({ page }) => {
     await openDirectBooking(page, 'item=aren-1&checkIn=2026-08-10&checkOut=2026-08-12&directBooking=1')
     await page.getByLabel('Jumlah tamu utama').fill('5')

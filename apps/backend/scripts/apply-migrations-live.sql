@@ -931,3 +931,8 @@ WHERE name = 'Pupuk Kompos';
 INSERT INTO public.products (name, price, category, image, description, unit, available, sort_order, slug, price_type, store_visible)
 SELECT 'Media Tanam Sibisa', 25000, 'pupuk', '/images/media-tanam-sibisa.png', 'Media tanam organik', 'karung', true, 0, 'media-tanam-sibisa', 'fixed', true
 WHERE NOT EXISTS (SELECT 1 FROM public.products WHERE slug = 'media-tanam-sibisa');
+
+-- 030: satu booking dapat memuat beberapa tipe akomodasi.
+ALTER TABLE public.bookings DROP CONSTRAINT IF EXISTS bookings_accommodation_type_check;
+ALTER TABLE public.bookings ADD CONSTRAINT bookings_accommodation_type_check
+  CHECK (accommodation_type IS NULL OR accommodation_type IN ('homestay', 'camping', 'glamping', 'mixed'));

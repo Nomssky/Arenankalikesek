@@ -27,6 +27,18 @@ interface ClientBookingItem {
   price: number
 }
 
+interface AccommodationSelection {
+  itemId: string
+  guestCount: number
+  extraBedQuantity: number
+  tentSize?: 'small' | 'large'
+  tentCount?: number
+  tentOption?: 'own' | 'rent'
+  firewoodPackages?: number
+  nestingQuantity?: number
+  chairQuantity?: number
+}
+
 interface BookingPayload {
   type?: string
   customerName?: string
@@ -40,6 +52,7 @@ interface BookingPayload {
   participantCount?: number | string
   notes?: string
   items?: ClientBookingItem[]
+  accommodations?: AccommodationSelection[]
   totalAmount?: number | string
   checkInDate?: string
   checkOutDate?: string
@@ -109,6 +122,32 @@ function safeClientItems(value: unknown): ClientBookingItem[] | null {
   return result
 }
 
+function safeAccommodationSelections(value: unknown): AccommodationSelection[] | null {
+  if (value === undefined || value === null || value === '') return []
+  if (!Array.isArray(value)) return null
+  const result: AccommodationSelection[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') return null
+    const candidate = entry as Record<string, unknown>
+    const itemId = String(candidate.itemId || '').trim()
+    if (!itemId) return null
+    const tentSize = candidate.tentSize === 'large' ? 'large' : candidate.tentSize === 'small' ? 'small' : undefined
+    const tentOption = candidate.tentOption === 'rent' ? 'rent' : candidate.tentOption === 'own' ? 'own' : undefined
+    result.push({
+      itemId,
+      guestCount: positiveInteger(candidate.guestCount, 1),
+      extraBedQuantity: optionalQuantity(candidate.extraBedQuantity),
+      tentSize,
+      tentCount: candidate.tentCount === undefined ? undefined : positiveInteger(candidate.tentCount, 1),
+      tentOption,
+      firewoodPackages: optionalQuantity(candidate.firewoodPackages),
+      nestingQuantity: optionalQuantity(candidate.nestingQuantity),
+      chairQuantity: optionalQuantity(candidate.chairQuantity),
+    })
+  }
+  return result
+}
+
 type TourCatalogItem = Awaited<ReturnType<typeof loadResolvedTourCatalog>>['data'][number]
 type ProductCatalogItem = Awaited<ReturnType<typeof loadProductCatalog>>['data'][number]
 
@@ -144,11 +183,14 @@ async function parseBookingRequest(request: NextRequest): Promise<{
 
   const form = await request.formData()
   const rawItems = String(form.get('items') || '[]')
+  const rawAccommodations = String(form.get('accommodations') || '[]')
   let items: unknown
+  let accommodations: unknown
   try {
     items = JSON.parse(rawItems)
+    accommodations = JSON.parse(rawAccommodations)
   } catch {
-    throw new Error('Data item booking tidak valid')
+    throw new Error('Data booking tidak valid')
   }
   const payload: BookingPayload = {
     type: String(form.get('type') || ''),
@@ -159,6 +201,11 @@ async function parseBookingRequest(request: NextRequest): Promise<{
     eventName: String(form.get('eventName') || ''),
     notes: String(form.get('notes') || ''),
     items: items as ClientBookingItem[],
+    accommodations: accommodations as AccommodationSelection[],
+    bookingDate: String(form.get('bookingDate') || ''),
+    timeStart: String(form.get('timeStart') || ''),
+    timeEnd: String(form.get('timeEnd') || ''),
+    participantCount: String(form.get('participantCount') || '1'),
     checkInDate: String(form.get('checkInDate') || ''),
     checkOutDate: String(form.get('checkOutDate') || ''),
     guestCount: String(form.get('guestCount') || '1'),
@@ -170,6 +217,9 @@ async function parseBookingRequest(request: NextRequest): Promise<{
     nestingQuantity: String(form.get('nestingQuantity') || '0'),
     chairQuantity: String(form.get('chairQuantity') || '0'),
     extraBedQuantity: String(form.get('extraBedQuantity') || '0'),
+    rentalChairQuantity: String(form.get('rentalChairQuantity') || '0'),
+    rentalSoundSystem: String(form.get('rentalSoundSystem') || 'false'),
+    rentalMatQuantity: String(form.get('rentalMatQuantity') || '0'),
   }
   const fileValue = form.get('identityDocument')
   return { payload, identityDocument: fileValue instanceof File ? fileValue : null }
@@ -292,16 +342,22 @@ export async function POST(request: NextRequest) {
     const bookingId = generateId()
     const bookingCode = generateBookingCode()
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
-    const accommodationItem = items.find((item) => item.id && isAccommodationItem(item.id))
-    const isStay = Boolean(accommodationItem)
+    const accommodationItems = items.filter((item) => item.id && isAccommodationItem(item.id))
+    const accommodationItem = accommodationItems[0]
+    const isStay = accommodationItems.length > 0
     const isRentalVenue = items.some(isRentalVenueItem)
+    const accommodationSelections = safeAccommodationSelections(payload.accommodations)
+    if (!accommodationSelections) {
+      return NextResponse.json({ error: 'Detail akomodasi tidak valid' }, { status: 400 })
+    }
     const participantCount = positiveInteger(payload.participantCount || payload.guestCount, 1)
     let rentalDurationHours = 1
+    const effectiveBookingDate = payload.bookingDate || payload.checkInDate || null
 
     if (isRentalVenue) {
       const startMinutes = payload.timeStart ? timeToMinutes(payload.timeStart) : null
       const endMinutes = payload.timeEnd ? timeToMinutes(payload.timeEnd) : null
-      if (!payload.bookingDate || startMinutes === null || endMinutes === null) {
+      if (!effectiveBookingDate || startMinutes === null || endMinutes === null) {
         return NextResponse.json({ error: 'Tanggal, jam mulai, dan jam selesai sewa wajib diisi' }, { status: 400 })
       }
       if (startMinutes < 7 * 60 || endMinutes > 17 * 60 || endMinutes <= startMinutes) {
@@ -317,11 +373,11 @@ export async function POST(request: NextRequest) {
     let parsedTotal = Math.max(0, Number(payload.totalAmount) || 0)
     let finalItems = items
     let bookingMode: 'standard' | 'stay' | 'edu_trip' = items.some(isEduTripItem) ? 'edu_trip' : 'standard'
-    let bookingDate = payload.bookingDate || null
+    let bookingDate = effectiveBookingDate
     let checkInDate: string | null = null
     let checkOutDate: string | null = null
     let nights: number | null = null
-    let accommodationType: 'homestay' | 'camping' | 'glamping' | null = null
+    let accommodationType: 'homestay' | 'camping' | 'glamping' | 'mixed' | null = null
     let documentType: string | null = null
     let pricingDetails: Record<string, unknown> = {}
     let accommodations: Record<string, unknown>[] = []
@@ -337,7 +393,152 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (isStay && accommodationItem?.id) {
+    if (isStay) {
+      if (!customerAddress) return NextResponse.json({ error: 'Alamat wajib diisi untuk booking penginapan' }, { status: 400 })
+      checkInDate = payload.checkInDate || ''
+      checkOutDate = payload.checkOutDate || ''
+      if (!checkInDate || checkInDate < currentArenaTime.date) {
+        return NextResponse.json({ error: 'Tanggal check-in tidak boleh berada di masa lalu' }, { status: 400 })
+      }
+      try {
+        nights = differenceInNights(checkInDate, checkOutDate)
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Rentang tanggal tidak valid' }, { status: 400 })
+      }
+      documentType = payload.documentType || ''
+      if (!['ktp', 'kk', 'buku_nikah'].includes(documentType)) {
+        return NextResponse.json({ error: 'Pilih tepat satu jenis dokumen: KTP, KK, atau Buku Nikah' }, { status: 400 })
+      }
+      if (!identityDocument || identityDocument.size === 0) {
+        return NextResponse.json({ error: 'Dokumen identitas JPEG wajib diunggah' }, { status: 400 })
+      }
+      if (identityDocument.type !== 'image/jpeg') {
+        return NextResponse.json({ error: 'Dokumen identitas harus berupa JPEG' }, { status: 400 })
+      }
+      if (identityDocument.size > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: 'Ukuran dokumen identitas maksimal 5 MB' }, { status: 400 })
+      }
+      if (!isSupabaseConfigured()) {
+        return NextResponse.json(
+          { error: 'Supabase harus dikonfigurasi agar dokumen identitas tersimpan secara privat' },
+          { status: 503 },
+        )
+      }
+
+      const selectionIds = new Set(accommodationSelections.map((selection) => selection.itemId))
+      const itemIds = new Set(accommodationItems.map((item) => item.id as string))
+      if (
+        accommodationItems.length !== itemIds.size
+        ||
+        selectionIds.size !== accommodationSelections.length
+        || selectionIds.size !== itemIds.size
+        || [...selectionIds].some((id) => !itemIds.has(id))
+      ) {
+        return NextResponse.json({ error: 'Setiap akomodasi harus memiliki satu detail pilihan' }, { status: 400 })
+      }
+
+      const settings = await loadBookingSettings()
+      const { data: holidayRows, error: holidayError } = await getSupabaseAdmin()
+        .from('booking_holiday_dates')
+        .select('holiday_date')
+        .eq('active', true)
+        .gte('holiday_date', checkInDate)
+        .lt('holiday_date', checkOutDate)
+      if (holidayError) return NextResponse.json({ error: 'Gagal memuat kalender tarif hari libur' }, { status: 500 })
+
+      const holidayDates = (holidayRows || []).map((row) => row.holiday_date)
+      const extraBedPrice = tourCatalog.find((item) => item.id === 'extra-bed')?.price
+      const accommodationTypes = new Set<'homestay' | 'camping' | 'glamping'>()
+      const breakdowns: Record<string, unknown>[] = []
+      let accommodationTotal = 0
+
+      for (const item of accommodationItems) {
+        const itemId = item.id as string
+        const selection = accommodationSelections.find((entry) => entry.itemId === itemId)
+        const service = tourCatalog.find((entry) => entry.id === itemId)
+        const type = accommodationTypeForItem(itemId)
+        if (!selection || !service || !type) return NextResponse.json({ error: 'Data penginapan tidak valid' }, { status: 400 })
+        if (!service.available) return NextResponse.json({ error: 'Penginapan sedang ditutup sementara' }, { status: 409 })
+
+        accommodationTypes.add(type)
+        let nightlyPrice = service.price || 0
+        let extraGuestFee = 0
+        let addOns: { id: string; name: string; quantity: number; price: number | null }[] = []
+        let subtotal = 0
+        let details: Record<string, unknown> = {}
+
+        if (type === 'homestay') {
+          const base = calculateHomestayBase(checkInDate, checkOutDate, service.price, service.rate_options, holidayDates)
+          extraGuestFee = calculateExtraGuestTotal(service.id, selection.guestCount, nights, settings)
+          if (selection.extraBedQuantity > 0 && (extraBedPrice === undefined || extraBedPrice <= 0)) {
+            return NextResponse.json({ error: 'Harga extra bed belum tersedia' }, { status: 409 })
+          }
+          const extraBedTotal = selection.extraBedQuantity * (extraBedPrice ?? 0)
+          if (selection.extraBedQuantity) addOns = [{ id: 'extra-bed', name: 'Extra Bed 100 x 220 cm', quantity: selection.extraBedQuantity, price: extraBedPrice ?? 0 }]
+          subtotal = base.baseTotal + extraGuestFee + extraBedTotal
+          details = { kind: type, baseTotal: base.baseTotal, extraGuestTotal: extraGuestFee, nightlyPrices: base.nightlyPrices, holidayDates, extraBedTotal, addOns }
+        } else if (type === 'camping') {
+          const tentSize = selection.tentSize === 'large' ? 'large' : 'small'
+          const tentCount = positiveInteger(selection.tentCount, 1)
+          const tentOption = selection.tentOption === 'rent' ? 'rent' : 'own'
+          const camping = calculateCampingTotal({
+            tentSize, tentCount, tentOption, nights,
+            firewoodPackages: selection.firewoodPackages,
+            nestingQuantity: selection.nestingQuantity,
+            chairQuantity: selection.chairQuantity,
+          }, settings)
+          if (camping.unavailablePrices.length) {
+            return NextResponse.json({ error: `Harga ${camping.unavailablePrices.join(', ')} belum ditetapkan. Hubungi pengelola atau pilih opsi lain.` }, { status: 409 })
+          }
+          nightlyPrice = settings[tentSize === 'small' ? 'camping.small_tent_price' : 'camping.large_tent_price'] || 0
+          if (selection.firewoodPackages) addOns.push({ id: 'firewood', name: 'Kayu bakar', quantity: selection.firewoodPackages, price: settings['addon.firewood_price'] })
+          if (selection.nestingQuantity) addOns.push({ id: 'nesting', name: 'Sewa nesting', quantity: selection.nestingQuantity, price: settings['addon.nesting_price'] })
+          if (selection.chairQuantity) addOns.push({ id: 'camping-chair', name: 'Kursi camping', quantity: selection.chairQuantity, price: settings['addon.camping_chair_price'] })
+          subtotal = camping.total
+          details = { kind: type, tentSize, tentCount, tentOption, ...camping, addOns }
+        } else {
+          const glampingPrice = settings['camping.glamping_base_price']
+          if (glampingPrice === null || glampingPrice === undefined) return NextResponse.json({ error: 'Harga Glamping belum ditetapkan. Hubungi pengelola.' }, { status: 409 })
+          nightlyPrice = glampingPrice
+          subtotal = glampingPrice * nights
+          details = { kind: type, nightlyPrice: glampingPrice, baseTotal: subtotal }
+        }
+
+        accommodationTotal += subtotal
+        breakdowns.push({ itemId, itemName: service.name, guestCount: selection.guestCount, subtotal, ...details })
+        accommodations.push({
+          id: generateId(), item_id: service.id, item_name: service.name, accommodation_type: type,
+          check_in_date: checkInDate, check_out_date: checkOutDate, nights,
+          guest_count: selection.guestCount,
+          tent_size: type === 'camping' ? (details.tentSize as string) : null,
+          tent_count: type === 'camping' ? (details.tentCount as number) : null,
+          tent_option: type === 'camping' ? (details.tentOption as string) : null,
+          nightly_price: nightlyPrice, extra_guest_fee: extraGuestFee, addons: addOns, total_price: subtotal,
+        })
+      }
+
+      bookingMode = items.some(isEduTripItem) ? 'edu_trip' : 'stay'
+      bookingDate = checkInDate
+      accommodationType = accommodationTypes.size > 1 ? 'mixed' : [...accommodationTypes][0]
+      pricingDetails = {
+        kind: accommodationTypes.size > 1 ? 'mixed' : [...accommodationTypes][0],
+        accommodations: breakdowns,
+        accommodationTotal,
+      }
+
+      uploadedDocumentPath = `${bookingId}/${crypto.randomUUID()}.jpg`
+      const bytes = new Uint8Array(await identityDocument.arrayBuffer())
+      const { error: uploadError } = await getSupabaseAdmin().storage
+        .from('booking-documents')
+        .upload(uploadedDocumentPath, bytes, { contentType: 'image/jpeg', upsert: false })
+      if (uploadError) {
+        console.error('Identity upload error:', uploadError)
+        return NextResponse.json({ error: 'Gagal menyimpan dokumen identitas secara privat' }, { status: 500 })
+      }
+    }
+
+    // Legacy branch remains below for reference but is bypassed by the multi-item flow above.
+    if (!isStay && accommodationItem?.id) {
       if (items.filter((item) => item.id && isAccommodationItem(item.id)).length !== 1) {
         return NextResponse.json({ error: 'Satu transaksi hanya dapat memuat satu unit penginapan' }, { status: 400 })
       }
@@ -493,10 +694,18 @@ export async function POST(request: NextRequest) {
 
     if (!Number.isFinite(parsedTotal)) return NextResponse.json({ error: 'Total booking tidak valid' }, { status: 400 })
 
-    if (!isStay) {
+    {
       let computedTotal = 0
       const validated: ClientBookingItem[] = []
       for (const item of items) {
+        if (item.id && isAccommodationItem(item.id)) {
+          const accommodation = accommodations.find((entry) => entry.item_id === item.id)
+          if (!accommodation) return NextResponse.json({ error: `Detail akomodasi untuk "${item.name}" tidak valid` }, { status: 400 })
+          const price = Number(accommodation.total_price) || 0
+          validated.push({ ...item, quantity: 1, price })
+          computedTotal += price
+          continue
+        }
         const price = authoritativeItemPrice(item, tourCatalog, productCatalog)
         if (price === null) {
           return NextResponse.json({ error: `Harga untuk "${item.name}" tidak valid` }, { status: 400 })
@@ -568,6 +777,7 @@ export async function POST(request: NextRequest) {
         computedTotal += rentalAddOnTotal
         validated.push(...rentalAddOns)
         pricingDetails = {
+          ...pricingDetails,
           kind: 'rental',
           durationHours: rentalDurationHours,
           addOnTotal: rentalAddOnTotal,
@@ -578,8 +788,8 @@ export async function POST(request: NextRequest) {
       parsedTotal = computedTotal
     }
 
-    const reservableItems = finalItems.filter((item) => item.category !== 'rental-addon')
-    const conflictError = isStay ? null : await checkRentalAvailability(reservableItems, bookingDate || undefined, payload.timeStart, payload.timeEnd)
+    const reservableItems = finalItems.filter((item) => item.category !== 'rental-addon' && !(item.id && isAccommodationItem(item.id)))
+    const conflictError = await checkRentalAvailability(reservableItems, bookingDate || undefined, payload.timeStart, payload.timeEnd)
     if (conflictError) return NextResponse.json({ error: conflictError }, { status: 409 })
 
     const bookingNotes = [
@@ -596,8 +806,8 @@ export async function POST(request: NextRequest) {
       customer_address: customerAddress || null,
       event_name: eventName || null,
       booking_date: bookingDate,
-      time_start: isStay ? null : payload.timeStart || null,
-      time_end: isStay ? null : payload.timeEnd || null,
+      time_start: payload.timeStart || null,
+      time_end: payload.timeEnd || null,
       items: finalItems,
       total_amount: parsedTotal,
       status: 'pending',
@@ -608,7 +818,9 @@ export async function POST(request: NextRequest) {
       check_in_date: checkInDate,
       check_out_date: checkOutDate,
       nights,
-      guest_count: isStay ? positiveInteger(payload.guestCount, 1) : participantCount,
+      guest_count: isStay
+        ? accommodations.reduce((sum, accommodation) => sum + positiveInteger(accommodation.guest_count, 1), 0)
+        : participantCount,
       accommodation_type: accommodationType,
       document_type: documentType,
       document_storage_path: uploadedDocumentPath,
@@ -660,9 +872,7 @@ export async function POST(request: NextRequest) {
         { status: 429 },
       )
     }
-    const rentals = isStay
-      ? []
-      : rentalEntries(reservableItems, bookingId, bookingDate || undefined, payload.timeStart, payload.timeEnd)
+    const rentals = rentalEntries(reservableItems, bookingId, bookingDate || undefined, payload.timeStart, payload.timeEnd)
     const { error: reservationError } = await supabase.rpc('reserve_booking', {
       p_booking: bookingData,
       p_rentals: rentals,

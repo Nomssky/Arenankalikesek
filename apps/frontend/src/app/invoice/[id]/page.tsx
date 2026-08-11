@@ -34,6 +34,17 @@ interface InvoiceData {
     tentOption?: string
     extraGuestTotal?: number
     addOns?: { id: string; name: string; quantity: number; price: number | null }[]
+    accommodations?: {
+      itemId: string
+      itemName: string
+      guestCount: number
+      subtotal: number
+      kind?: string
+      tentSize?: string
+      tentCount?: number
+      tentOption?: string
+      addOns?: { id: string; name: string; quantity: number; price: number | null }[]
+    }[]
   }
   created_at: string
   notes?: string
@@ -299,7 +310,7 @@ export default function InvoicePage() {
               </div>
             </div>
 
-            {data.booking_mode === 'stay' && data.check_in_date && data.check_out_date && (
+            {['stay', 'edu_trip'].includes(data.booking_mode || '') && data.check_in_date && data.check_out_date && (
               <div className="invoice-keep mb-6 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 print:mb-4">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Detail Penginapan & Camping</h3>
                 <dl className="mt-3 grid gap-3 text-sm min-[420px]:grid-cols-2">
@@ -311,6 +322,19 @@ export default function InvoicePage() {
                   {data.pricing_details?.tentOption && <div><dt className="text-gray-500">Opsi tenda</dt><dd className="font-semibold text-gray-900">{data.pricing_details.tentOption === 'own' ? 'Bawa sendiri' : 'Sewa tenda'}</dd></div>}
                   {Boolean(data.pricing_details?.extraGuestTotal) && <div><dt className="text-gray-500">Tamu tambahan</dt><dd className="font-semibold text-gray-900">{formatPrice(data.pricing_details?.extraGuestTotal || 0)}</dd></div>}
                 </dl>
+                {Array.isArray(data.pricing_details?.accommodations) && data.pricing_details.accommodations.length > 0 && (
+                  <div className="mt-4 border-t border-emerald-100 pt-3 text-sm">
+                    <p className="text-gray-500">Unit dalam booking</p>
+                    <div className="mt-2 space-y-2">
+                      {data.pricing_details.accommodations.map((accommodation) => (
+                        <div key={accommodation.itemId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
+                          <span className="font-semibold text-gray-900">{accommodation.itemName} · {accommodation.guestCount} tamu</span>
+                          <span className="font-semibold text-emerald-700">{formatPrice(accommodation.subtotal)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {invoiceAddOns.length > 0 && (
                   <div className="mt-3 border-t border-emerald-100 pt-3 text-sm">
                     <p className="text-gray-500">Add-on</p>

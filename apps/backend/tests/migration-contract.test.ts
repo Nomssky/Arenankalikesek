@@ -38,6 +38,10 @@ const bookingsRoute = readFileSync(
   new URL('../src/app/api/bookings/route.ts', import.meta.url),
   'utf8',
 )
+const mixedAccommodationMigration = readFileSync(
+  new URL('../supabase/migrations/030_mixed_accommodation_bookings.sql', import.meta.url),
+  'utf8',
+)
 
 test('migrasi memiliki proteksi overlap penginapan di database', () => {
   assert.match(migration, /EXCLUDE USING gist/)
@@ -106,6 +110,16 @@ test('route bookings memanggil RPC rate-limit per-IP sebelum reserve_booking', (
   assert.match(bookingsRoute, /record_booking_create_attempt/)
   assert.match(bookingsRoute, /clientIp\(request\)/)
   assert.match(bookingsRoute, /creationCount > MAX_CREATE_PER_IP/)
+})
+
+test('booking campuran menerima detail akomodasi per unit', () => {
+  assert.match(bookingsRoute, /safeAccommodationSelections/)
+  assert.match(bookingsRoute, /accommodations\.push\(/)
+  assert.match(bookingsRoute, /guest_count: selection\.guestCount/)
+  assert.match(bookingsRoute, /total_price: subtotal/)
+  assert.match(bookingsRoute, /p_accommodations: accommodations/)
+  assert.match(bookingsRoute, /accommodationTypes\.size > 1 \? 'mixed'/)
+  assert.match(mixedAccommodationMigration, /'mixed'/)
 })
 
 test('catalog DB otoritatif: item fallback tidak disuntikkan saat Supabase aktif (migrasi 027)', () => {
