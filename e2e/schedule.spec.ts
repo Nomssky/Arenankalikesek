@@ -49,7 +49,7 @@ test.describe('Schedule Page', () => {
 
     await expect(page.locator('select')).toBeVisible()
     await expect(page.locator('button[aria-label="Bulan berikutnya"]')).toBeVisible()
-    await expect(page.locator('button').filter({ hasText: /Pilih tanggal dahulu|Lanjut booking/ })).toBeVisible()
+    await expect(page.locator('button').filter({ hasText: /Pilih tanggal dahulu|Tambahkan ke Keranjang Booking/ })).toBeVisible()
   })
 
   test('wahana dapat dipilih lebih dari satu sebelum lanjut booking', async ({ page }) => {
@@ -68,8 +68,8 @@ test.describe('Schedule Page', () => {
     await chooseButtons.nth(0).click()
     await chooseButtons.nth(1).click()
     await expect(page.getByText('2 wahana dipilih')).toBeVisible()
-    await page.getByRole('button', { name: 'Lanjut Booking' }).click()
-    await expect(page.getByRole('dialog')).toBeVisible()
+    await page.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' }).click()
+    await expect(page.getByText('Berhasil ditambahkan ke Keranjang Booking.')).toBeVisible()
   })
 
   test('slot lampau tidak dapat dipilih dan memiliki label status', async ({ page }) => {
@@ -107,11 +107,9 @@ test.describe('Schedule Page', () => {
     await expect(ten).toHaveAttribute('aria-pressed', 'false')
 
     await seven.click()
-    const continueButton = page.getByRole('button', { name: 'Lanjut isi data booking' })
+    const continueButton = page.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' })
     await expect(continueButton).toBeEnabled()
     await continueButton.click()
-    const dialog = page.getByRole('dialog')
-    await expect(dialog).toBeVisible()
-    await expect(dialog.getByText('07:00–09:00')).toBeVisible()
+    await expect(page.getByText('Berhasil ditambahkan ke Keranjang Booking.')).toBeVisible()
   })
 })

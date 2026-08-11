@@ -54,6 +54,11 @@ interface BookingItem {
   facilities: string[]
   rate_options: { label: string; price: number }[]
   bookable: boolean
+  bookingDate?: string
+  timeStart?: string
+  timeEnd?: string
+  checkInDate?: string
+  checkOutDate?: string
 }
 
 interface TourPackage {
@@ -70,12 +75,19 @@ interface TourPackage {
   facilities: string[]
   rate_options: { label: string; price: number }[]
   bookable: boolean
+  bookingDate?: string
+  timeStart?: string
+  timeEnd?: string
+  checkInDate?: string
+  checkOutDate?: string
 }
 
 interface AccommodationSelection {
   itemId: string
   guestCount: number
   extraBedQuantity: number
+  checkInDate?: string
+  checkOutDate?: string
   tentSize?: 'small' | 'large'
   tentCount?: number
   tentOption?: 'own' | 'rent'
@@ -132,6 +144,10 @@ function defaultAccommodationSelection(itemId: string): AccommodationSelection {
     nestingQuantity: 0,
     chairQuantity: 0,
   }
+}
+
+function bookingCartKey(item: Pick<BookingItem, 'id' | 'bookingDate' | 'timeStart' | 'timeEnd' | 'checkInDate' | 'checkOutDate'>) {
+  return [item.id, item.bookingDate || '', item.timeStart || '', item.timeEnd || '', item.checkInDate || '', item.checkOutDate || ''].join('|')
 }
 
 interface BookingCategoryGroup {
@@ -585,6 +601,36 @@ export default function BookingWisataPage() {
   }, [cart, accommodationSelections, cartReady])
 
   useEffect(() => {
+    if (!cartReady || cart.length === 0) return
+    const syncTimer = window.setTimeout(() => {
+      const firstAccommodation = cart.find((item) => isAccommodationItem(item.id))
+      const firstScheduled = cart.find((item) => item.bookingDate || item.checkInDate)
+      if (firstAccommodation?.checkInDate && !checkInDate) {
+        setCheckInDate(firstAccommodation.checkInDate)
+        setCalendarMonth(firstAccommodation.checkInDate.slice(0, 7))
+      } else if (firstScheduled?.bookingDate && !bookingDate) {
+        setBookingDate(firstScheduled.bookingDate)
+      }
+      if (firstAccommodation?.checkOutDate && !checkOutDate) setCheckOutDate(firstAccommodation.checkOutDate)
+      if (firstScheduled?.timeStart && !timeStart) setTimeStart(firstScheduled.timeStart)
+      if (firstScheduled?.timeEnd && !timeEnd) setTimeEnd(firstScheduled.timeEnd)
+      setAccommodationSelections((current) => {
+        const next = { ...current }
+        cart.filter((item) => isAccommodationItem(item.id)).forEach((item) => {
+          next[item.id] = {
+            ...defaultAccommodationSelection(item.id),
+            ...(next[item.id] || {}),
+            checkInDate: item.checkInDate || next[item.id]?.checkInDate,
+            checkOutDate: item.checkOutDate || next[item.id]?.checkOutDate,
+          }
+        })
+        return next
+      })
+    }, 0)
+    return () => window.clearTimeout(syncTimer)
+  }, [cart, cartReady, bookingDate, checkInDate, checkOutDate, timeEnd, timeStart])
+
+  useEffect(() => {
     const handleOpenModal = () => setCartOpen(true)
     window.addEventListener('open-cart-modal', handleOpenModal)
     return () => window.removeEventListener('open-cart-modal', handleOpenModal)
@@ -683,7 +729,7 @@ export default function BookingWisataPage() {
               }] : currentCart.flatMap((cartItem) => {
               const currentPackage = data.find((item) => item.id === cartItem.id)
               return currentPackage
-                ? [{ ...currentPackage, quantity: cartItem.quantity }]
+                ? [{ ...cartItem, ...currentPackage, quantity: cartItem.quantity }]
                 : []
             })
           )
@@ -694,6 +740,10 @@ export default function BookingWisataPage() {
             }))
           }
           if (requestedItem && searchParams.get('directBooking') === '1') {
+            setCheckoutStep('details')
+            setCartOpen(true)
+          }
+          if (searchParams.get('checkout') === '1') {
             setCheckoutStep('details')
             setCartOpen(true)
           }
@@ -759,18 +809,27 @@ export default function BookingWisataPage() {
         const beforeTotal = accommodationTotal
         const stored = accommodationSelections[accommodation.id] || defaultAccommodationSelection(accommodation.id)
         const selection = stored
+        const itemCheckInDate = accommodation.checkInDate || selection.checkInDate || checkInDate
+        const itemCheckOutDate = accommodation.checkOutDate || selection.checkOutDate || checkOutDate
+        let itemNights = 0
+        try {
+          if (itemCheckInDate && itemCheckOutDate) itemNights = differenceInNights(itemCheckInDate, itemCheckOutDate)
+        } catch {
+          itemNights = 0
+        }
+        if (accommodation.id === selectedAccommodation?.id) stayNights = itemNights
         accommodationGuestTotal += selection.guestCount
         if (accommodation.category === 'homestay') {
-          const base = calculateHomestayBase(checkInDate, checkOutDate, accommodation.price, accommodation.rate_options, holidayDates)
+          const base = calculateHomestayBase(itemCheckInDate, itemCheckOutDate, accommodation.price, accommodation.rate_options, holidayDates)
           accommodationTotal += base.baseTotal
-            + calculateExtraGuestTotal(accommodation.id, selection.guestCount, stayNights, bookingSettings)
+            + calculateExtraGuestTotal(accommodation.id, selection.guestCount, itemNights, bookingSettings)
             + selection.extraBedQuantity * (extraBedPrice ?? 0)
         } else if (accommodation.id === 'camping-ground') {
           const camping = calculateCampingTotal({
             tentSize: selection.tentSize === 'large' ? 'large' : 'small',
             tentCount: selection.tentCount || 1,
             tentOption: selection.tentOption === 'rent' ? 'rent' : 'own',
-            nights: stayNights,
+            nights: itemNights,
             firewoodPackages: selection.firewoodPackages,
             nestingQuantity: selection.nestingQuantity,
             chairQuantity: selection.chairQuantity,
@@ -780,7 +839,7 @@ export default function BookingWisataPage() {
         } else if (accommodation.id === 'glamping') {
           const price = bookingSettings['camping.glamping_base_price']
           if (price === null || price === undefined) stayUnavailablePrices.push('Glamping')
-          else accommodationTotal += price * stayNights
+          else accommodationTotal += price * itemNights
         }
         accommodationEstimatedTotals[accommodation.id] = accommodationTotal - beforeTotal
       })
@@ -806,6 +865,8 @@ export default function BookingWisataPage() {
   const accommodationPayload: AccommodationSelection[] = selectedAccommodations.map((accommodation) => ({
     ...defaultAccommodationSelection(accommodation.id),
     ...(accommodationSelections[accommodation.id] || {}),
+    checkInDate: accommodation.checkInDate || accommodationSelections[accommodation.id]?.checkInDate || checkInDate || undefined,
+    checkOutDate: accommodation.checkOutDate || accommodationSelections[accommodation.id]?.checkOutDate || checkOutDate || undefined,
   }))
 
   const syncRentalDuration = (nextStart: string, nextEnd: string) => {
@@ -839,10 +900,10 @@ export default function BookingWisataPage() {
       }))
     }
     setCart((currentCart) => {
-      const existing = currentCart.find((cartItem) => cartItem.id === item.id)
+      const existing = currentCart.find((cartItem) => bookingCartKey(cartItem) === bookingCartKey(item))
       if (existing) {
         return currentCart.map((cartItem) =>
-          cartItem.id === item.id
+          bookingCartKey(cartItem) === bookingCartKey(item)
             ? { ...cartItem, quantity: cartItem.quantity + 1 }
             : cartItem
         )
@@ -852,21 +913,23 @@ export default function BookingWisataPage() {
     showAddedToast(item)
   }
 
-  const updateCartItem = (id: string, quantity: number) => {
+  const updateCartItem = (key: string, quantity: number) => {
+    const target = cart.find((item) => bookingCartKey(item) === key)
+    if (!target) return
     if (quantity <= 0) {
-      setCart((currentCart) => currentCart.filter((item) => item.id !== id))
-      if (isAccommodationItem(id)) {
+      setCart((currentCart) => currentCart.filter((item) => bookingCartKey(item) !== key))
+      if (isAccommodationItem(target.id) && !cart.some((item) => item.id === target.id && bookingCartKey(item) !== key)) {
         setAccommodationSelections((current) => {
           const next = { ...current }
-          delete next[id]
+          delete next[target.id]
           return next
         })
       }
       return
     }
-    if (isAccommodationItem(id)) return
+    if (isAccommodationItem(target.id)) return
     setCart((currentCart) =>
-      currentCart.map((item) => (item.id === id ? { ...item, quantity } : item))
+      currentCart.map((item) => (bookingCartKey(item) === key ? { ...item, quantity } : item))
     )
   }
 
@@ -957,7 +1020,8 @@ export default function BookingWisataPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setSubmitError('')
-    const serviceDate = isAccommodationBooking ? checkInDate : bookingDate
+    const firstScheduledItem = cart.find((item) => item.bookingDate || item.checkInDate)
+    const serviceDate = isAccommodationBooking ? (checkInDate || firstScheduledItem?.checkInDate || '') : (bookingDate || firstScheduledItem?.bookingDate || '')
 
     if (cart.length === 0) {
       setSubmitError('Pilih minimal satu paket wisata.')
@@ -979,6 +1043,25 @@ export default function BookingWisataPage() {
       }
       if (dateRangeContainsBlockedDate(checkInDate, checkOutDate, blockedDates)) {
         setSubmitError('Rentang tanggal melewati tanggal yang sudah terisi.')
+        return
+      }
+      const missingAccommodationDates = selectedAccommodations.find((accommodation) => {
+        const selection = accommodationSelections[accommodation.id] || defaultAccommodationSelection(accommodation.id)
+        return !(accommodation.checkInDate || selection.checkInDate || checkInDate)
+          || !(accommodation.checkOutDate || selection.checkOutDate || checkOutDate)
+      })
+      if (missingAccommodationDates) {
+        setSubmitError(`Lengkapi tanggal menginap untuk "${missingAccommodationDates.name}".`)
+        return
+      }
+      const blockedAccommodation = selectedAccommodations.find((accommodation) => {
+        const selection = accommodationSelections[accommodation.id] || defaultAccommodationSelection(accommodation.id)
+        const itemCheckInDate = accommodation.checkInDate || selection.checkInDate || checkInDate
+        const itemCheckOutDate = accommodation.checkOutDate || selection.checkOutDate || checkOutDate
+        return dateRangeContainsBlockedDate(itemCheckInDate, itemCheckOutDate, blockedDates)
+      })
+      if (blockedAccommodation) {
+        setSubmitError(`Rentang tanggal ${blockedAccommodation.name} melewati tanggal yang sudah terisi.`)
         return
       }
       if (stayUnavailablePrices.length > 0) {
@@ -1011,6 +1094,17 @@ export default function BookingWisataPage() {
       setSubmitError('Lengkapi tanggal check-in dan jam sewa tempat.')
       return
     }
+    const missingItemSchedule = cart.find((item) => {
+      const itemDate = item.bookingDate || item.checkInDate || serviceDate
+      const isRentalItem = ['area-kegiatan', 'tempat-pertemuan'].includes(item.category)
+      const itemStart = item.timeStart || timeStart
+      const itemEnd = item.timeEnd || timeEnd
+      return !itemDate || (isRentalItem && (!itemStart || !itemEnd))
+    })
+    if (missingItemSchedule) {
+      setSubmitError(`Lengkapi jadwal untuk layanan "${missingItemSchedule.name}".`)
+      return
+    }
     if (isAccommodationBooking && isRentalVenueBooking && (timeStart < '07:00' || timeStart >= '17:00' || timeEnd > '17:00' || timeEnd <= timeStart)) {
       setSubmitError('Pilih jam sewa dalam jam operasional 07.00–17.00 WIB.')
       return
@@ -1030,6 +1124,11 @@ export default function BookingWisataPage() {
         category: item.category,
         quantity: item.quantity,
         price: item.price,
+        bookingDate: item.bookingDate,
+        timeStart: item.timeStart,
+        timeEnd: item.timeEnd,
+        checkInDate: item.checkInDate,
+        checkOutDate: item.checkOutDate,
       }))
       if (isAccommodationBooking && identityDocument) {
         const form = new FormData()
@@ -1326,7 +1425,7 @@ const waitingData: PaymentWaitingData = {
                           key={item.id}
                           item={item}
                           selectedQuantity={
-                            cart.find((cartItem) => cartItem.id === item.id)?.quantity || 0
+                            cart.filter((cartItem) => cartItem.id === item.id).reduce((sum, cartItem) => sum + cartItem.quantity, 0)
                           }
                           onAdd={addItem}
                         />
@@ -1342,7 +1441,7 @@ const waitingData: PaymentWaitingData = {
                     key={item.id}
                     item={item}
                     selectedQuantity={
-                      cart.find((cartItem) => cartItem.id === item.id)?.quantity || 0
+                      cart.filter((cartItem) => cartItem.id === item.id).reduce((sum, cartItem) => sum + cartItem.quantity, 0)
                     }
                     onAdd={addItem}
                   />
@@ -1417,8 +1516,8 @@ const waitingData: PaymentWaitingData = {
               >
                 <div className="overflow-hidden">
                   <ul className="space-y-2 pb-2 pt-1 text-xs text-gray-600">
-                    {cart.map((item) => (
-                      <li key={item.id} className="flex justify-between gap-3">
+                     {cart.map((item) => (
+                       <li key={bookingCartKey(item)} className="flex justify-between gap-3">
                         <span className="min-w-0 truncate">
                           {item.quantity} × {item.name}
                         </span>
@@ -1591,7 +1690,7 @@ const waitingData: PaymentWaitingData = {
                  <div className="space-y-3">
                   {cart.map((item) => (
                     <div
-                      key={item.id}
+                       key={bookingCartKey(item)}
                       className="flex flex-col gap-3 rounded-2xl border border-emerald-950/5 bg-white p-4 sm:flex-row sm:items-center"
                     >
                       <div className="min-w-0 flex-1">
@@ -1600,6 +1699,13 @@ const waitingData: PaymentWaitingData = {
                           {item.price_label}
                           {item.unit ? ` per ${item.unit}` : ''}
                         </p>
+                        {(item.checkInDate || item.bookingDate) && (
+                          <p className="mt-2 text-xs font-semibold text-emerald-700">
+                            {item.checkInDate
+                              ? `Menginap ${item.checkInDate}${item.checkOutDate ? ` â†’ ${item.checkOutDate}` : ''}`
+                              : `Tanggal ${item.bookingDate}${item.timeStart ? ` Â· ${item.timeStart}${item.timeEnd ? `â€“${item.timeEnd}` : ''}` : ''}`}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center justify-between gap-4 sm:justify-end">
                         {isAccommodationItem(item.id) ? (
@@ -1608,7 +1714,7 @@ const waitingData: PaymentWaitingData = {
                         <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1">
                           <button
                             type="button"
-                            onClick={() => updateCartItem(item.id, item.quantity - 1)}
+                             onClick={() => updateCartItem(bookingCartKey(item), item.quantity - 1)}
                             aria-label={`Kurangi ${item.name}`}
                             className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition hover:bg-white"
                           >
@@ -1617,7 +1723,7 @@ const waitingData: PaymentWaitingData = {
                           <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
                           <button
                             type="button"
-                            onClick={() => updateCartItem(item.id, item.quantity + 1)}
+                             onClick={() => updateCartItem(bookingCartKey(item), item.quantity + 1)}
                             aria-label={`Tambah ${item.name}`}
                             className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition hover:bg-white"
                           >
@@ -1630,7 +1736,7 @@ const waitingData: PaymentWaitingData = {
                         </p>
                         <button
                           type="button"
-                          onClick={() => updateCartItem(item.id, 0)}
+                          onClick={() => updateCartItem(bookingCartKey(item), 0)}
                           aria-label={`Hapus ${item.name}`}
                           className="flex h-11 w-11 items-center justify-center rounded-full text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                         >
@@ -1915,6 +2021,30 @@ const waitingData: PaymentWaitingData = {
                           <div className="flex items-center justify-between gap-3">
                             <h3 className="font-semibold text-emerald-950">Detail {accommodation.name}</h3>
                             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-orange-700">Unit tambahan</span>
+                          </div>
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                              <label className="form-label">Check-in *</label>
+                              <input
+                                type="date"
+                                min={minimumDate}
+                                className="form-input"
+                                value={accommodation.checkInDate || selection.checkInDate || checkInDate}
+                                onChange={(event) => updateAccommodationSelection(accommodation.id, { checkInDate: event.target.value })}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="form-label">Check-out *</label>
+                              <input
+                                type="date"
+                                min={minimumDate}
+                                className="form-input"
+                                value={accommodation.checkOutDate || selection.checkOutDate || checkOutDate}
+                                onChange={(event) => updateAccommodationSelection(accommodation.id, { checkOutDate: event.target.value })}
+                                required
+                              />
+                            </div>
                           </div>
                           {!isCamping ? (
                             <div className="grid gap-4 sm:grid-cols-2">

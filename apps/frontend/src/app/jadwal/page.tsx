@@ -6,8 +6,6 @@ import { useSearchParams } from 'next/navigation'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
-import BookingModal from '@/components/BookingModal'
-import type { BookingPreset } from '@/components/BookingModal'
 import { isAccommodationItem } from '@repo/shared-utils'
 
 interface InventoryItem {
@@ -63,6 +61,28 @@ function scheduleTypeFromCategory(category: string | null): ScheduleType | null 
   if (['paket-edukasi', 'paket-kegiatan'].includes(category)) return 'edutrip'
   if (['aktivitas', 'gratis', 'fishing'].includes(category)) return 'wahana'
   return null
+}
+
+interface ScheduleCartItem {
+  id: string
+  name: string
+  category: string
+  price: number
+  max_price: number | null
+  price_label: string
+  pricing_type: string
+  unit: string | null
+  capacity: string | null
+  quantity: number
+  note: string | null
+  facilities: string[]
+  rate_options: { label: string; price: number }[]
+  bookable: boolean
+  bookingDate?: string
+  timeStart?: string
+  timeEnd?: string
+  checkInDate?: string
+  checkOutDate?: string
 }
 
 const rentalHourlySlots = Array.from({ length: 10 }, (_, index) => {
@@ -129,6 +149,10 @@ function shortDateLabel(date: string) {
   })
 }
 
+function scheduleCartKey(item: Pick<ScheduleCartItem, 'id' | 'bookingDate' | 'timeStart' | 'timeEnd' | 'checkInDate' | 'checkOutDate'>) {
+  return [item.id, item.bookingDate || '', item.timeStart || '', item.timeEnd || '', item.checkInDate || '', item.checkOutDate || ''].join('|')
+}
+
 export default function JadwalPage() {
   const searchParams = useSearchParams()
   const currentArenaTime = useMemo(() => arenaNow(), [])
@@ -158,7 +182,16 @@ export default function JadwalPage() {
   const [wahanaItems, setWahanaItems] = useState<WahanaItem[]>([])
   const [selectedWahanaIds, setSelectedWahanaIds] = useState<string[]>([])
   const [selectedWahanaDate, setSelectedWahanaDate] = useState(today)
-  const [bookingModalPreset, setBookingModalPreset] = useState<BookingPreset | null>(null)
+  const [scheduleCartCount, setScheduleCartCount] = useState(() => {
+    if (typeof window === 'undefined') return 0
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('wisata-cart') || '[]')
+      return Array.isArray(stored) ? stored.reduce((sum, item) => sum + Number(item?.quantity || 0), 0) : 0
+    } catch {
+      return 0
+    }
+  })
+  const [cartNotice, setCartNotice] = useState<{ count: number; itemNames: string[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
@@ -225,58 +258,118 @@ export default function JadwalPage() {
   const selectedRentalSlots = [...selectedRentalSlotIndexes].sort((first, second) => first - second)
   const selectedEduTripItem = edutripPackages.find((item) => item.id === selectedEduTripPackage)
   const selectedWahanaItems = wahanaItems.filter((item) => selectedWahanaIds.includes(item.id))
-  const scheduleSummary = scheduleType === 'rental' && selectedRentalItem && selectedRentalSlots.length > 0
-    ? `${selectedRentalItem.name} · ${rentalHourlySlots[selectedRentalSlots[0]].start}–${rentalHourlySlots[selectedRentalSlots[selectedRentalSlots.length - 1]].end} · ${selectedRentalSlots.length} jam`
-    : scheduleType === 'accommodation' && selectedAccommodation && checkIn && checkOut
-      ? `${selectedAccommodation.name} · ${checkIn} → ${checkOut}`
-      : scheduleType === 'edutrip' && selectedEduTripItem && selectedEduTripDate
-        ? `${selectedEduTripItem.name} · ${shortDateLabel(selectedEduTripDate)}`
-        : scheduleType === 'wahana' && selectedWahanaItems.length > 0
-          ? `${selectedWahanaItems.length} wahana · ${shortDateLabel(selectedWahanaDate)}`
-          : ''
+  const addToBookingCart = (entries: ScheduleCartItem[]) => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('wisata-cart') || '[]')
+      const current: ScheduleCartItem[] = Array.isArray(stored) ? stored : []
+      const next = [...current]
+      entries.forEach((entry) => {
+        if (isAccommodationItem(entry.id)) {
+          if (!next.some((item) => item.id === entry.id)) next.push(entry)
+          return
+        }
+        const existingIndex = next.findIndex((item) => scheduleCartKey(item) === scheduleCartKey(entry))
+        if (existingIndex >= 0) {
+          next[existingIndex] = { ...next[existingIndex], quantity: next[existingIndex].quantity + entry.quantity }
+        } else if (existingIndex < 0) {
+          next.push(entry)
+        }
+      })
+      sessionStorage.setItem('wisata-cart', JSON.stringify(next))
+      window.dispatchEvent(new Event('cart-updated'))
+      setScheduleCartCount(next.reduce((sum, item) => sum + Number(item.quantity || 0), 0))
+      setCartNotice({ count: entries.length, itemNames: entries.map((entry) => entry.name) })
+    } catch {
+      setError('Keranjang booking belum dapat disimpan. Silakan coba lagi.')
+    }
+  }
 
-  const openSelectedBooking = () => {
+  const openBookingCart = (checkout = false) => {
+    window.location.assign(`/booking/wisata${checkout ? '?checkout=1' : ''}`)
+  }
+
+  const addCurrentSelection = () => {
     if (scheduleType === 'rental' && selectedRentalItem && selectedRentalSlots.length > 0) {
-      setBookingModalPreset({
-        kind: 'rental',
-        itemId: selectedRentalItem.id,
-        itemName: selectedRentalItem.name,
-        item: { id: selectedRentalItem.id, name: selectedRentalItem.name, category: selectedRentalItem.category, price: selectedRentalItem.price_per_unit || 0 },
+      addToBookingCart([{
+        id: selectedRentalItem.id,
+        name: selectedRentalItem.name,
+        category: selectedRentalItem.category,
+        price: selectedRentalItem.price_per_unit || 0,
+        max_price: null,
+        price_label: `Mulai Rp${(selectedRentalItem.price_per_unit || 0).toLocaleString('id-ID')}`,
+        pricing_type: 'fixed',
+        unit: 'jam',
+        capacity: null,
+        quantity: selectedRentalSlots.length,
+        note: null,
+        facilities: [],
+        rate_options: [],
+        bookable: true,
         bookingDate: selectedDate,
         timeStart: rentalHourlySlots[selectedRentalSlots[0]].start,
         timeEnd: rentalHourlySlots[selectedRentalSlots[selectedRentalSlots.length - 1]].end,
-      })
+      }])
       return
     }
     if (scheduleType === 'accommodation' && canContinueAccommodationBooking && selectedAccommodation) {
-      setBookingModalPreset({
-        kind: 'stay',
-        itemId: selectedAccommodation.id,
-        itemName: selectedAccommodation.name,
-        item: { id: selectedAccommodation.id, name: selectedAccommodation.name, category: selectedAccommodation.category },
-        checkIn,
-        checkOut,
-      })
+      addToBookingCart([{
+        id: selectedAccommodation.id,
+        name: selectedAccommodation.name,
+        category: selectedAccommodation.category,
+        price: 0,
+        max_price: null,
+        price_label: selectedAccommodation.price_label,
+        pricing_type: 'fixed',
+        unit: 'malam',
+        capacity: null,
+        quantity: 1,
+        note: null,
+        facilities: [],
+        rate_options: [],
+        bookable: selectedAccommodation.bookable,
+        checkInDate: checkIn,
+        checkOutDate: checkOut,
+      }])
       return
     }
     if (scheduleType === 'edutrip' && selectedEduTripItem && selectedEduTripDate) {
-      setBookingModalPreset({
-        kind: 'edutrip',
-        itemId: selectedEduTripItem.id,
-        itemName: selectedEduTripItem.name,
-        item: { id: selectedEduTripItem.id, name: selectedEduTripItem.name, category: selectedEduTripItem.category, price: selectedEduTripItem.price || 0 },
+      addToBookingCart([{
+        id: selectedEduTripItem.id,
+        name: selectedEduTripItem.name,
+        category: selectedEduTripItem.category,
+        price: selectedEduTripItem.price || 0,
+        max_price: null,
+        price_label: selectedEduTripItem.price_label,
+        pricing_type: 'fixed',
+        unit: 'orang',
+        capacity: null,
+        quantity: 1,
+        note: null,
+        facilities: [],
+        rate_options: [],
+        bookable: selectedEduTripItem.bookable,
         bookingDate: selectedEduTripDate,
-      })
+      }])
       return
     }
     if (scheduleType === 'wahana' && selectedWahanaItems.length > 0) {
-      setBookingModalPreset({
-        kind: 'wahana',
-        itemId: selectedWahanaItems[0].id,
-        itemName: selectedWahanaItems.length === 1 ? selectedWahanaItems[0].name : `${selectedWahanaItems.length} wahana terpilih`,
-        items: selectedWahanaItems.map((item) => ({ id: item.id, name: item.name, category: item.category, price: item.price || 0 })),
+      addToBookingCart(selectedWahanaItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price || 0,
+        max_price: null,
+        price_label: item.price_label,
+        pricing_type: 'fixed',
+        unit: 'orang',
+        capacity: null,
+        quantity: 1,
+        note: item.note,
+        facilities: [],
+        rate_options: [],
+        bookable: item.bookable,
         bookingDate: selectedWahanaDate,
-      })
+      })))
     }
   }
 
@@ -353,7 +446,8 @@ export default function JadwalPage() {
 
       <Section>
         <div className="mx-auto max-w-6xl">
-          <div className="mb-7 grid grid-cols-2 rounded-2xl bg-emerald-950 p-1.5 text-sm font-semibold text-white shadow-lg sm:grid-cols-4 sm:max-w-3xl">
+          <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="grid flex-1 grid-cols-2 rounded-2xl bg-emerald-950 p-1.5 text-sm font-semibold text-white shadow-lg sm:grid-cols-4">
             <button type="button" aria-pressed={scheduleType === 'rental'} onClick={() => setSelectedScheduleType('rental')} className={`rounded-xl px-3 py-3 transition ${scheduleType === 'rental' ? 'bg-orange-500 shadow-sm' : 'text-white/70 hover:text-white'}`}>
               Sewa Tempat
             </button>
@@ -365,6 +459,11 @@ export default function JadwalPage() {
             </button>
             <button type="button" aria-pressed={scheduleType === 'wahana'} onClick={() => setSelectedScheduleType('wahana')} className={`rounded-xl px-3 py-3 transition ${scheduleType === 'wahana' ? 'bg-orange-500 shadow-sm' : 'text-white/70 hover:text-white'}`}>
               Wahana & Aktivitas
+            </button>
+            </div>
+            <button type="button" onClick={() => openBookingCart(false)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-white px-5 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-50">
+              Lihat Keranjang Booking
+              {scheduleCartCount > 0 && <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-orange-500 px-1.5 text-xs font-bold text-white">{scheduleCartCount}</span>}
             </button>
           </div>
           <div className="mb-7 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-600" aria-label="Legenda status jadwal">
@@ -500,19 +599,11 @@ export default function JadwalPage() {
                           aria-disabled={!itemIsSelected}
                           onClick={() => {
                             if (!itemIsSelected) return
-                            setBookingModalPreset({
-                              kind: 'rental',
-                              itemId: item.id,
-                              itemName: item.name,
-                              item: { id: item.id, name: item.name, category: item.category, price: item.price_per_unit || 0 },
-                              bookingDate: selectedDate,
-                              timeStart: selectedStart,
-                              timeEnd: selectedEnd,
-                            })
+                            addCurrentSelection()
                           }}
                           className={`mt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${itemIsSelected ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
                         >
-                          {itemIsSelected ? 'Lanjut isi data booking' : 'Pilih jam terlebih dahulu'}
+                          {itemIsSelected ? 'Tambahkan ke Keranjang Booking' : 'Pilih jam terlebih dahulu'}
                         </button>
                       </article>
                     )
@@ -569,18 +660,11 @@ export default function JadwalPage() {
                     aria-disabled={!canContinueAccommodationBooking}
                     onClick={() => {
                       if (!canContinueAccommodationBooking || !selectedAccommodation) return
-                      setBookingModalPreset({
-                        kind: 'stay',
-                        itemId: selectedAccommodation.id,
-                        itemName: selectedAccommodation.name,
-                        item: { id: selectedAccommodation.id, name: selectedAccommodation.name, category: 'homestay' },
-                        checkIn,
-                        checkOut,
-                      })
+                      addCurrentSelection()
                     }}
                     className={`inline-block w-full rounded-full px-5 py-3 text-center text-sm font-bold ${canContinueAccommodationBooking ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-white/10 text-white/40'}`}
                   >
-                    {checkIn && checkOut ? 'Lanjut booking' : 'Pilih tanggal dahulu'}
+                    {checkIn && checkOut ? 'Tambahkan ke Keranjang Booking' : 'Pilih tanggal dahulu'}
                   </button>
                 </div>
               </div>
@@ -716,17 +800,11 @@ export default function JadwalPage() {
                       aria-disabled={!isActive}
                       onClick={() => {
                         if (!isActive) return
-                        setBookingModalPreset({
-                          kind: 'edutrip',
-                          itemId: item.id,
-                          itemName: item.name,
-                          item: { id: item.id, name: item.name, category: item.category, price: item.price || 0 },
-                          bookingDate: selectedEduTripDate,
-                        })
+                        addCurrentSelection()
                       }}
                       className={`mt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${isActive ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
                     >
-                      {isActive ? `Lanjut Booking • ${shortDateLabel(selectedEduTripDate)}` : 'Pilih tanggal terlebih dahulu'}
+                      {isActive ? 'Tambahkan ke Keranjang Booking' : 'Pilih tanggal terlebih dahulu'}
                     </button>
                   </article>
                 )
@@ -801,19 +879,11 @@ export default function JadwalPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      const selectedItems = wahanaItems.filter((entry) => selectedWahanaIds.includes(entry.id))
-                      if (selectedItems.length === 0 || !selectedWahanaDate) return
-                      setBookingModalPreset({
-                        kind: 'wahana',
-                        itemId: selectedItems[0].id,
-                        itemName: selectedItems.length === 1 ? selectedItems[0].name : `${selectedItems.length} wahana terpilih`,
-                        items: selectedItems.map((item) => ({ id: item.id, name: item.name, category: item.category, price: item.price || 0 })),
-                        bookingDate: selectedWahanaDate,
-                      })
+                      addCurrentSelection()
                     }}
                     className="rounded-full bg-orange-500 px-5 py-3 text-center text-sm font-bold text-white hover:bg-orange-400"
                   >
-                    Lanjut Booking
+                    Tambahkan ke Keranjang Booking
                   </button>
                 </div>
               )}
@@ -822,29 +892,17 @@ export default function JadwalPage() {
         </div>
       </Section>
 
-      {scheduleSummary && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
-          <div className="pointer-events-auto mx-auto flex w-full max-w-4xl flex-col gap-3 rounded-2xl bg-emerald-950 p-4 text-white shadow-[0_20px_60px_-24px_rgba(6,78,59,0.9)] sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-white/60">Pilihan jadwal</p>
-              <p className="truncate text-sm font-semibold sm:text-base">{scheduleSummary}</p>
-            </div>
-            <button
-              type="button"
-              onClick={openSelectedBooking}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-orange-400"
-            >
-              Lanjut ke formulir
-            </button>
+      {cartNotice && (
+        <div className="fixed inset-x-3 bottom-4 z-[80] mx-auto max-w-xl rounded-2xl border border-emerald-100 bg-white p-4 shadow-2xl sm:inset-x-auto sm:right-5 sm:w-[min(28rem,calc(100%-2rem))]" role="status" aria-live="polite">
+          <p className="font-semibold text-emerald-950">Berhasil ditambahkan ke Keranjang Booking.</p>
+          <p className="mt-1 text-xs text-gray-600">{cartNotice.count} layanan tersimpan. Anda dapat memilih layanan lain atau melanjutkan checkout.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <button type="button" onClick={() => setCartNotice(null)} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lanjut Pilih Layanan</button>
+            <button type="button" onClick={() => openBookingCart(false)} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lihat Keranjang</button>
+            <button type="button" onClick={() => openBookingCart(true)} className="min-h-11 rounded-full bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">Lanjut ke Checkout</button>
           </div>
         </div>
       )}
-
-      <BookingModal
-        open={Boolean(bookingModalPreset)}
-        onClose={() => setBookingModalPreset(null)}
-        preset={bookingModalPreset}
-      />
     </>
   )
 }

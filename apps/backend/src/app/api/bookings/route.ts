@@ -25,12 +25,21 @@ interface ClientBookingItem {
   category?: string
   quantity?: number
   price: number
+  bookingDate?: string
+  timeStart?: string
+  timeEnd?: string
+  checkInDate?: string
+  checkOutDate?: string
+  participantCount?: number
+  metadata?: Record<string, unknown>
 }
 
 interface AccommodationSelection {
   itemId: string
   guestCount: number
   extraBedQuantity: number
+  checkInDate?: string
+  checkOutDate?: string
   tentSize?: 'small' | 'large'
   tentCount?: number
   tentOption?: 'own' | 'rent'
@@ -117,6 +126,13 @@ function safeClientItems(value: unknown): ClientBookingItem[] | null {
       category: candidate.category ? String(candidate.category) : undefined,
       quantity: positiveInteger(candidate.quantity, 1),
       price,
+      bookingDate: candidate.bookingDate ? String(candidate.bookingDate) : undefined,
+      timeStart: candidate.timeStart ? String(candidate.timeStart) : undefined,
+      timeEnd: candidate.timeEnd ? String(candidate.timeEnd) : undefined,
+      checkInDate: candidate.checkInDate ? String(candidate.checkInDate) : undefined,
+      checkOutDate: candidate.checkOutDate ? String(candidate.checkOutDate) : undefined,
+      participantCount: candidate.participantCount === undefined ? undefined : positiveInteger(candidate.participantCount, 1),
+      metadata: candidate.metadata && typeof candidate.metadata === 'object' ? candidate.metadata as Record<string, unknown> : undefined,
     })
   }
   return result
@@ -137,6 +153,8 @@ function safeAccommodationSelections(value: unknown): AccommodationSelection[] |
       itemId,
       guestCount: positiveInteger(candidate.guestCount, 1),
       extraBedQuantity: optionalQuantity(candidate.extraBedQuantity),
+      checkInDate: candidate.checkInDate ? String(candidate.checkInDate) : undefined,
+      checkOutDate: candidate.checkOutDate ? String(candidate.checkOutDate) : undefined,
       tentSize,
       tentCount: candidate.tentCount === undefined ? undefined : positiveInteger(candidate.tentCount, 1),
       tentOption,
@@ -255,15 +273,19 @@ async function checkRentalAvailability(
   await supabase.rpc('expire_stale_booking_holds').then(() => undefined, () => undefined)
   for (const item of items) {
     if (!item.id) continue
+    const itemDate = item.bookingDate || bookingDate
+    const itemStart = item.timeStart || timeStart
+    const itemEnd = item.timeEnd || timeEnd
+    if (!itemDate) return `Tanggal layanan "${item.name}" belum ditentukan.`
     const { data: conflicts, error } = await supabase
       .from('rental_bookings')
       .select('time_start, time_end')
       .eq('item_id', item.id)
-      .eq('booking_date', bookingDate)
+      .eq('booking_date', itemDate)
       .in('status', ['hold', 'active'])
     if (error) return 'Ketersediaan jadwal gagal diperiksa. Silakan muat ulang dan pilih jadwal kembali.'
     if (!conflicts?.length) continue
-    if (!timeStart || conflicts.some((row) => !row.time_start || timeOverlaps(timeStart, timeEnd, row.time_start, row.time_end))) {
+    if (!itemStart || conflicts.some((row) => !row.time_start || timeOverlaps(itemStart, itemEnd, row.time_start, row.time_end))) {
       return `Ketersediaan jadwal berubah. “${item.name}” sudah dibooking pada rentang tersebut. Silakan pilih jadwal lain.`
     }
   }
@@ -277,22 +299,27 @@ function rentalEntries(
   timeStart?: string,
   timeEnd?: string,
 ) {
-  if (!bookingDate) return []
-  const startAt = timeStart ? `${bookingDate}T${timeStart}:00+07:00` : `${bookingDate}T00:00:00+07:00`
-  const endAt = timeEnd ? `${bookingDate}T${timeEnd}:00+07:00` : `${bookingDate}T23:59:00+07:00`
-  return items.map((item) => ({
+  return items.flatMap((item) => {
+    const itemDate = item.bookingDate || bookingDate
+    if (!itemDate) return []
+    const itemStart = item.timeStart || timeStart
+    const itemEnd = item.timeEnd || timeEnd
+    const startAt = itemStart ? `${itemDate}T${itemStart}:00+07:00` : `${itemDate}T00:00:00+07:00`
+    const endAt = itemEnd ? `${itemDate}T${itemEnd}:00+07:00` : `${itemDate}T23:59:00+07:00`
+    return [{
     id: generateId(),
     booking_id: bookingId,
     item_id: item.id || `item-${crypto.randomUUID()}`,
     item_name: item.name,
     quantity: item.quantity || 1,
-    booking_date: bookingDate,
-    time_start: timeStart || null,
-    time_end: timeEnd || null,
+    booking_date: itemDate,
+    time_start: itemStart || null,
+    time_end: itemEnd || null,
     start_at: startAt,
     end_at: endAt,
     total_price: item.price * (item.quantity || 1),
-  }))
+    }]
+  })
 }
 
 function rpcErrorMessage(message?: string) {
@@ -355,9 +382,10 @@ export async function POST(request: NextRequest) {
     const effectiveBookingDate = payload.bookingDate || payload.checkInDate || null
 
     if (isRentalVenue) {
-      const startMinutes = payload.timeStart ? timeToMinutes(payload.timeStart) : null
-      const endMinutes = payload.timeEnd ? timeToMinutes(payload.timeEnd) : null
-      if (!effectiveBookingDate || startMinutes === null || endMinutes === null) {
+      const firstRental = items.find(isRentalVenueItem)
+      const startMinutes = (payload.timeStart || firstRental?.timeStart) ? timeToMinutes(payload.timeStart || firstRental?.timeStart || '') : null
+      const endMinutes = (payload.timeEnd || firstRental?.timeEnd) ? timeToMinutes(payload.timeEnd || firstRental?.timeEnd || '') : null
+      if ((!effectiveBookingDate && !firstRental?.bookingDate) || startMinutes === null || endMinutes === null) {
         return NextResponse.json({ error: 'Tanggal, jam mulai, dan jam selesai sewa wajib diisi' }, { status: 400 })
       }
       if (startMinutes < 7 * 60 || endMinutes > 17 * 60 || endMinutes <= startMinutes) {
@@ -368,6 +396,19 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Durasi sewa harus dipilih per satu jam' }, { status: 400 })
       }
       rentalDurationHours = durationInMinutes / 60
+      for (const item of items.filter(isRentalVenueItem)) {
+        const itemStart = item.timeStart || payload.timeStart
+        const itemEnd = item.timeEnd || payload.timeEnd
+        const itemDate = item.bookingDate || effectiveBookingDate
+        const itemStartMinutes = itemStart ? timeToMinutes(itemStart) : null
+        const itemEndMinutes = itemEnd ? timeToMinutes(itemEnd) : null
+        if (!itemDate || itemStartMinutes === null || itemEndMinutes === null || itemEndMinutes <= itemStartMinutes) {
+          return NextResponse.json({ error: `Tanggal dan jam sewa untuk "${item.name}" wajib diisi` }, { status: 400 })
+        }
+        if (itemStartMinutes < 7 * 60 || itemEndMinutes > 17 * 60 || (itemEndMinutes - itemStartMinutes) % 60 !== 0) {
+          return NextResponse.json({ error: 'Jam sewa harus berada dalam jam operasional 07.00â€“17.00 WIB dan dipilih per satu jam' }, { status: 400 })
+        }
+      }
     }
 
     let parsedTotal = Math.max(0, Number(payload.totalAmount) || 0)
@@ -393,10 +434,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    for (const item of items.filter((entry) => !entry.id || !isAccommodationItem(entry.id))) {
+      const itemDate = item.bookingDate || bookingDate
+      if (!itemDate || !/^\d{4}-\d{2}-\d{2}$/.test(itemDate) || itemDate < currentArenaTime.date) {
+        return NextResponse.json({ error: `Tanggal booking untuk "${item.name}" tidak valid` }, { status: 400 })
+      }
+      const itemStart = item.timeStart || payload.timeStart
+      const itemStartMinutes = itemStart ? timeToMinutes(itemStart) : null
+      if (itemDate === currentArenaTime.date && itemStartMinutes !== null && itemStartMinutes <= currentArenaTime.minutes) {
+        return NextResponse.json({ error: `Jam booking untuk "${item.name}" sudah lewat` }, { status: 400 })
+      }
+    }
+
     if (isStay) {
       if (!customerAddress) return NextResponse.json({ error: 'Alamat wajib diisi untuk booking penginapan' }, { status: 400 })
-      checkInDate = payload.checkInDate || ''
-      checkOutDate = payload.checkOutDate || ''
+      const firstAccommodation = accommodationItems[0]
+      const firstAccommodationSelection = accommodationSelections.find((entry) => entry.itemId === firstAccommodation?.id)
+      checkInDate = firstAccommodationSelection?.checkInDate || firstAccommodation?.checkInDate || payload.checkInDate || ''
+      checkOutDate = firstAccommodationSelection?.checkOutDate || firstAccommodation?.checkOutDate || payload.checkOutDate || ''
       if (!checkInDate || checkInDate < currentArenaTime.date) {
         return NextResponse.json({ error: 'Tanggal check-in tidak boleh berada di masa lalu' }, { status: 400 })
       }
@@ -438,15 +493,6 @@ export async function POST(request: NextRequest) {
       }
 
       const settings = await loadBookingSettings()
-      const { data: holidayRows, error: holidayError } = await getSupabaseAdmin()
-        .from('booking_holiday_dates')
-        .select('holiday_date')
-        .eq('active', true)
-        .gte('holiday_date', checkInDate)
-        .lt('holiday_date', checkOutDate)
-      if (holidayError) return NextResponse.json({ error: 'Gagal memuat kalender tarif hari libur' }, { status: 500 })
-
-      const holidayDates = (holidayRows || []).map((row) => row.holiday_date)
       const extraBedPrice = tourCatalog.find((item) => item.id === 'extra-bed')?.price
       const accommodationTypes = new Set<'homestay' | 'camping' | 'glamping'>()
       const breakdowns: Record<string, unknown>[] = []
@@ -459,6 +505,25 @@ export async function POST(request: NextRequest) {
         const type = accommodationTypeForItem(itemId)
         if (!selection || !service || !type) return NextResponse.json({ error: 'Data penginapan tidak valid' }, { status: 400 })
         if (!service.available) return NextResponse.json({ error: 'Penginapan sedang ditutup sementara' }, { status: 409 })
+        const itemCheckInDate = selection.checkInDate || item.checkInDate || checkInDate
+        const itemCheckOutDate = selection.checkOutDate || item.checkOutDate || checkOutDate
+        if (!itemCheckInDate || !itemCheckOutDate || itemCheckInDate < currentArenaTime.date) {
+          return NextResponse.json({ error: `Rentang tanggal untuk "${service.name}" tidak valid` }, { status: 400 })
+        }
+        let itemNights: number
+        try {
+          itemNights = differenceInNights(itemCheckInDate, itemCheckOutDate)
+        } catch (error) {
+          return NextResponse.json({ error: error instanceof Error ? error.message : `Rentang tanggal untuk "${service.name}" tidak valid` }, { status: 400 })
+        }
+        const { data: itemHolidayRows, error: itemHolidayError } = await getSupabaseAdmin()
+          .from('booking_holiday_dates')
+          .select('holiday_date')
+          .eq('active', true)
+          .gte('holiday_date', itemCheckInDate)
+          .lt('holiday_date', itemCheckOutDate)
+        if (itemHolidayError) return NextResponse.json({ error: 'Gagal memuat kalender tarif hari libur' }, { status: 500 })
+        const itemHolidayDates = (itemHolidayRows || []).map((row) => row.holiday_date)
 
         accommodationTypes.add(type)
         let nightlyPrice = service.price || 0
@@ -468,21 +533,21 @@ export async function POST(request: NextRequest) {
         let details: Record<string, unknown> = {}
 
         if (type === 'homestay') {
-          const base = calculateHomestayBase(checkInDate, checkOutDate, service.price, service.rate_options, holidayDates)
-          extraGuestFee = calculateExtraGuestTotal(service.id, selection.guestCount, nights, settings)
+          const base = calculateHomestayBase(itemCheckInDate, itemCheckOutDate, service.price, service.rate_options, itemHolidayDates)
+          extraGuestFee = calculateExtraGuestTotal(service.id, selection.guestCount, itemNights, settings)
           if (selection.extraBedQuantity > 0 && (extraBedPrice === undefined || extraBedPrice <= 0)) {
             return NextResponse.json({ error: 'Harga extra bed belum tersedia' }, { status: 409 })
           }
           const extraBedTotal = selection.extraBedQuantity * (extraBedPrice ?? 0)
           if (selection.extraBedQuantity) addOns = [{ id: 'extra-bed', name: 'Extra Bed 100 x 220 cm', quantity: selection.extraBedQuantity, price: extraBedPrice ?? 0 }]
           subtotal = base.baseTotal + extraGuestFee + extraBedTotal
-          details = { kind: type, baseTotal: base.baseTotal, extraGuestTotal: extraGuestFee, nightlyPrices: base.nightlyPrices, holidayDates, extraBedTotal, addOns }
+          details = { kind: type, baseTotal: base.baseTotal, extraGuestTotal: extraGuestFee, nightlyPrices: base.nightlyPrices, holidayDates: itemHolidayDates, extraBedTotal, addOns }
         } else if (type === 'camping') {
           const tentSize = selection.tentSize === 'large' ? 'large' : 'small'
           const tentCount = positiveInteger(selection.tentCount, 1)
           const tentOption = selection.tentOption === 'rent' ? 'rent' : 'own'
           const camping = calculateCampingTotal({
-            tentSize, tentCount, tentOption, nights,
+            tentSize, tentCount, tentOption, nights: itemNights,
             firewoodPackages: selection.firewoodPackages,
             nestingQuantity: selection.nestingQuantity,
             chairQuantity: selection.chairQuantity,
@@ -500,15 +565,15 @@ export async function POST(request: NextRequest) {
           const glampingPrice = settings['camping.glamping_base_price']
           if (glampingPrice === null || glampingPrice === undefined) return NextResponse.json({ error: 'Harga Glamping belum ditetapkan. Hubungi pengelola.' }, { status: 409 })
           nightlyPrice = glampingPrice
-          subtotal = glampingPrice * nights
+          subtotal = glampingPrice * itemNights
           details = { kind: type, nightlyPrice: glampingPrice, baseTotal: subtotal }
         }
 
         accommodationTotal += subtotal
-        breakdowns.push({ itemId, itemName: service.name, guestCount: selection.guestCount, subtotal, ...details })
+        breakdowns.push({ itemId, itemName: service.name, guestCount: selection.guestCount, checkInDate: itemCheckInDate, checkOutDate: itemCheckOutDate, nights: itemNights, subtotal, ...details })
         accommodations.push({
           id: generateId(), item_id: service.id, item_name: service.name, accommodation_type: type,
-          check_in_date: checkInDate, check_out_date: checkOutDate, nights,
+          check_in_date: itemCheckInDate, check_out_date: itemCheckOutDate, nights: itemNights,
           guest_count: selection.guestCount,
           tent_size: type === 'camping' ? (details.tentSize as string) : null,
           tent_count: type === 'camping' ? (details.tentCount as number) : null,
@@ -711,13 +776,20 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: `Harga untuk "${item.name}" tidak valid` }, { status: 400 })
         }
         const service = tourCatalog.find((entry) => entry.id === item.id)
+        const itemStart = item.timeStart || payload.timeStart
+        const itemEnd = item.timeEnd || payload.timeEnd
+        const itemStartMinutes = itemStart ? timeToMinutes(itemStart) : null
+        const itemEndMinutes = itemEnd ? timeToMinutes(itemEnd) : null
+        const itemDurationHours = itemStartMinutes !== null && itemEndMinutes !== null
+          ? Math.max(1, (itemEndMinutes - itemStartMinutes) / 60)
+          : rentalDurationHours
         const quantity = resolveBookingQuantity({
           isEdu: isEduTripItem(item),
           isRentalVenue: isRentalVenueItem(item),
           venueUnit: service?.unit ?? null,
           clientQuantity: item.quantity,
-          participantCount,
-          rentalDurationHours,
+          participantCount: item.participantCount || participantCount,
+          rentalDurationHours: itemDurationHours,
         })
         validated.push({ ...item, quantity, price })
         computedTotal += price * quantity
@@ -825,6 +897,10 @@ export async function POST(request: NextRequest) {
       document_type: documentType,
       document_storage_path: uploadedDocumentPath,
       pricing_details: pricingDetails,
+      edu_trip_dates: [...new Set(items
+        .filter(isEduTripItem)
+        .map((item) => item.bookingDate || bookingDate)
+        .filter((date): date is string => Boolean(date)))],
     }
 
     if (!isSupabaseConfigured()) {

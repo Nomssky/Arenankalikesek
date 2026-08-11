@@ -42,6 +42,10 @@ const mixedAccommodationMigration = readFileSync(
   new URL('../supabase/migrations/030_mixed_accommodation_bookings.sql', import.meta.url),
   'utf8',
 )
+const multiEduTripMigration = readFileSync(
+  new URL('../supabase/migrations/031_multi_edu_trip_dates.sql', import.meta.url),
+  'utf8',
+)
 
 test('migrasi memiliki proteksi overlap penginapan di database', () => {
   assert.match(migration, /EXCLUDE USING gist/)
@@ -120,6 +124,13 @@ test('booking campuran menerima detail akomodasi per unit', () => {
   assert.match(bookingsRoute, /p_accommodations: accommodations/)
   assert.match(bookingsRoute, /accommodationTypes\.size > 1 \? 'mixed'/)
   assert.match(mixedAccommodationMigration, /'mixed'/)
+})
+
+test('satu checkout Edu Trip dapat mengunci beberapa tanggal secara atomik', () => {
+  assert.match(multiEduTripMigration, /DROP CONSTRAINT IF EXISTS edu_trip_reservations_booking_id_key/)
+  assert.match(multiEduTripMigration, /jsonb_array_elements_text\(v_edu_dates\)/)
+  assert.match(multiEduTripMigration, /pg_advisory_xact_lock\(hashtext\('edu-trip:'/)
+  assert.match(bookingsRoute, /edu_trip_dates:/)
 })
 
 test('catalog DB otoritatif: item fallback tidak disuntikkan saat Supabase aktif (migrasi 027)', () => {
