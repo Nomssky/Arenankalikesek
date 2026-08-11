@@ -1236,7 +1236,7 @@ export default function BookingWisataPage() {
       try {
         sessionStorage.setItem(`invoice_phone_${data.bookingId}`, customerPhone.trim())
       } catch {}
-const waitingData: PaymentWaitingData = {
+      const waitingData: PaymentWaitingData = {
         bookingId: data.bookingId,
         bookingCode: data.bookingCode || null,
         totalAmount: Number(data.totalAmount ?? totalPrice),

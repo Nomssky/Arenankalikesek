@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 async function openDirectBooking(page: Page, query: string) {
   await page.goto(`/booking/wisata?${query}`, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
-  await expect(page.getByRole('button', { name: 'Konfirmasi booking' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Lanjutkan booking' })).toBeVisible()
 }
 
 function bookingTotal(page: Page) {
@@ -43,6 +43,8 @@ test.describe('Alur booking UI tanpa membuat transaksi', () => {
 
     await page.getByRole('button', { name: 'Lanjutkan booking' }).click()
     const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Kembali ke pilihan' }).click()
     await expect(dialog).toContainText(firstName)
     await expect(dialog).toContainText(secondName)
     await expect(dialog).toContainText('3 pilihan dari 2 layanan')
@@ -77,9 +79,12 @@ test.describe('Alur booking UI tanpa membuat transaksi', () => {
     await openDirectBooking(page, 'item=gazebo-atas&bookingDate=2026-08-10&timeStart=07%3A00&timeEnd=09%3A00&directBooking=1')
     await expect(bookingTotal(page)).toContainText('Rp60.000')
 
-    await page.getByLabel('Kursi').fill('2')
+    await page.getByRole('button', { name: 'Tambah kursi' }).click()
+    await page.getByRole('button', { name: 'Tambah kursi' }).click()
     await page.getByRole('checkbox', { name: /Sound system/ }).check()
-    await page.getByLabel('Tikar').fill('3')
+    await page.getByRole('button', { name: 'Tambah tikar' }).click()
+    await page.getByRole('button', { name: 'Tambah tikar' }).click()
+    await page.getByRole('button', { name: 'Tambah tikar' }).click()
     await expect(bookingTotal(page)).toContainText('Rp396.000')
     await page.getByRole('checkbox', { name: /Sound system/ }).uncheck()
     await expect(bookingTotal(page)).toContainText('Rp96.000')

@@ -52,6 +52,51 @@ test.describe('Schedule Page', () => {
     await expect(page.locator('button').filter({ hasText: /Pilih tanggal dahulu|Tambahkan ke Keranjang Booking/ })).toBeVisible()
   })
 
+  test('booking penginapan dari jadwal mengirim detail akomodasi per unit', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-08-04T03:30:00.000Z'))
+    await page.route('**/api/inventory-rentals', (route) => route.fulfill({ json: [] }))
+    await page.route('**/api/schedule?**', (route) => route.fulfill({ json: [] }))
+    await page.route('**/api/tour-packages?**', (route) => route.fulfill({ json: [
+      { id: 'aren-1', name: 'Aren 1', category: 'homestay', price: 200000, price_label: 'Rp200.000/malam', bookable: true, available: true, note: null, rate_options: [], facilities: [], unit: 'malam', pricing_type: 'fixed', capacity: null },
+    ] }))
+    await page.route('**/api/accommodation-availability?**', (route) => route.fulfill({ json: { blockedDates: [] } }))
+    await page.route('**/api/edu-trip-availability?**', (route) => route.fulfill({ json: { quota: 2, byDate: {} } }))
+
+    let capturedBody = ''
+    await page.route('**/api/bookings', async (route) => {
+      capturedBody = route.request().postData() || ''
+      await route.fulfill({
+        json: {
+          bookingId: 'e2e-stay-1', bookingCode: 'BKK-E2E-STAY1', expiresAt: '2026-08-04T04:00:00.000Z',
+          totalAmount: 400000, status: 'pending', paymentStatus: 'unpaid', snapToken: null, paymentUrl: null,
+        },
+      })
+    })
+
+    await openSchedule(page)
+    await page.getByRole('button', { name: 'Penginapan & Camping', exact: true }).click()
+    await page.getByRole('button', { name: '2026-08-10, tersedia' }).click()
+    await page.getByRole('button', { name: '2026-08-12, tersedia' }).click()
+    await page.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' }).click()
+    await expect(page.getByText('Berhasil ditambahkan ke Keranjang Booking.')).toBeVisible()
+    await page.getByRole('button', { name: 'Lanjut ke Checkout' }).click()
+    await expect(page).toHaveURL(/\/booking\/wisata/)
+
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await dialog.getByLabel('Atas nama', { exact: true }).fill('Uji E2E')
+    await dialog.getByLabel('Nomor WhatsApp').fill('081234567890')
+    await dialog.getByLabel('Alamat').fill('Jl. Pengujian No. 1')
+    await dialog.getByLabel('Jumlah tamu utama', { exact: true }).fill('2')
+    await dialog.getByLabel('Jenis dokumen identitas').selectOption('ktp')
+    await dialog.getByLabel('Berkas dokumen identitas JPEG').setInputFiles({ name: 'ktp.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]) })
+    await dialog.getByRole('button', { name: /Lanjut ke Pembayaran/ }).click()
+
+    await expect.poll(() => capturedBody).toContain('name="accommodations"')
+    await expect.poll(() => capturedBody).toContain('"itemId":"aren-1"')
+    await expect.poll(() => capturedBody).toContain('"guestCount":2')
+  })
+
   test('wahana dapat dipilih lebih dari satu sebelum lanjut booking', async ({ page }) => {
     await page.route('**/api/inventory-rentals', (route) => route.fulfill({ json: [] }))
     await page.route('**/api/schedule?**', (route) => route.fulfill({ json: [] }))
@@ -65,8 +110,8 @@ test.describe('Schedule Page', () => {
     await page.getByRole('button', { name: 'Wahana & Aktivitas', exact: true }).click()
     const chooseButtons = page.getByRole('button', { name: 'Pilih wahana', exact: true })
     await expect(chooseButtons).toHaveCount(2)
-    await chooseButtons.nth(0).click()
-    await chooseButtons.nth(1).click()
+    await chooseButtons.first().click()
+    await page.getByRole('button', { name: 'Pilih wahana', exact: true }).last().click()
     await expect(page.getByText('2 wahana dipilih')).toBeVisible()
     await page.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' }).click()
     await expect(page.getByText('Berhasil ditambahkan ke Keranjang Booking.')).toBeVisible()

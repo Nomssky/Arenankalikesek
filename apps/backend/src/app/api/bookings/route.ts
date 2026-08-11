@@ -370,7 +370,6 @@ export async function POST(request: NextRequest) {
     const bookingCode = generateBookingCode()
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
     const accommodationItems = items.filter((item) => item.id && isAccommodationItem(item.id))
-    const accommodationItem = accommodationItems[0]
     const isStay = accommodationItems.length > 0
     const isRentalVenue = items.some(isRentalVenueItem)
     const accommodationSelections = safeAccommodationSelections(payload.accommodations)
@@ -421,7 +420,7 @@ export async function POST(request: NextRequest) {
     let accommodationType: 'homestay' | 'camping' | 'glamping' | 'mixed' | null = null
     let documentType: string | null = null
     let pricingDetails: Record<string, unknown> = {}
-    let accommodations: Record<string, unknown>[] = []
+    const accommodations: Record<string, unknown>[] = []
     const currentArenaTime = arenaNow()
 
     if (!isStay && bookingDate) {
@@ -610,161 +609,6 @@ export async function POST(request: NextRequest) {
         console.error('Identity upload error:', uploadError)
         return NextResponse.json({ error: 'Gagal menyimpan dokumen identitas secara privat' }, { status: 500 })
       }
-    }
-
-    // Legacy branch remains below for reference but is bypassed by the multi-item flow above.
-    if (!isStay && accommodationItem?.id) {
-      if (items.filter((item) => item.id && isAccommodationItem(item.id)).length !== 1) {
-        return NextResponse.json({ error: 'Satu transaksi hanya dapat memuat satu unit penginapan' }, { status: 400 })
-      }
-      if (!customerAddress) return NextResponse.json({ error: 'Alamat wajib diisi untuk booking penginapan' }, { status: 400 })
-      checkInDate = payload.checkInDate || ''
-      checkOutDate = payload.checkOutDate || ''
-      if (checkInDate < currentArenaTime.date) {
-        return NextResponse.json({ error: 'Tanggal check-in tidak boleh berada di masa lalu' }, { status: 400 })
-      }
-      try {
-        nights = differenceInNights(checkInDate, checkOutDate)
-      } catch (error) {
-        return NextResponse.json({ error: error instanceof Error ? error.message : 'Rentang tanggal tidak valid' }, { status: 400 })
-      }
-      documentType = payload.documentType || ''
-      if (!['ktp', 'kk', 'buku_nikah'].includes(documentType)) {
-        return NextResponse.json({ error: 'Pilih tepat satu jenis dokumen: KTP, KK, atau Buku Nikah' }, { status: 400 })
-      }
-      if (!identityDocument || identityDocument.size === 0) {
-        return NextResponse.json({ error: 'Dokumen identitas JPEG wajib diunggah' }, { status: 400 })
-      }
-      if (identityDocument.type !== 'image/jpeg') {
-        return NextResponse.json({ error: 'Dokumen identitas harus berupa JPEG' }, { status: 400 })
-      }
-      if (identityDocument.size > 5 * 1024 * 1024) {
-        return NextResponse.json({ error: 'Ukuran dokumen identitas maksimal 5 MB' }, { status: 400 })
-      }
-      if (!isSupabaseConfigured()) {
-        return NextResponse.json(
-          { error: 'Supabase harus dikonfigurasi agar dokumen identitas tersimpan secara privat' },
-          { status: 503 },
-        )
-      }
-
-      const service = tourCatalog.find((item) => item.id === accommodationItem.id)
-      accommodationType = accommodationTypeForItem(accommodationItem.id)
-      if (!service || !accommodationType) {
-        return NextResponse.json({ error: 'Data penginapan tidak valid' }, { status: 400 })
-      }
-      if (!service.available) {
-        return NextResponse.json({ error: 'Penginapan sedang ditutup sementara' }, { status: 409 })
-      }
-      const settings = await loadBookingSettings()
-      const guestCount = positiveInteger(payload.guestCount, 1)
-      const addOns: { id: string; name: string; quantity: number; price: number | null }[] = []
-      let nightlyPrice = service.price || 0
-      let extraGuestFee = 0
-
-      if (accommodationType === 'homestay') {
-        const { data: holidayRows, error: holidayError } = await getSupabaseAdmin()
-          .from('booking_holiday_dates')
-          .select('holiday_date')
-          .eq('active', true)
-          .gte('holiday_date', checkInDate)
-          .lt('holiday_date', checkOutDate)
-        if (holidayError) {
-          return NextResponse.json({ error: 'Gagal memuat kalender tarif hari libur' }, { status: 500 })
-        }
-        const holidayDates = (holidayRows || []).map((row) => row.holiday_date)
-        const base = calculateHomestayBase(checkInDate, checkOutDate, service.price, service.rate_options, holidayDates)
-        extraGuestFee = calculateExtraGuestTotal(service.id, guestCount, nights, settings)
-        const extraBedQuantity = optionalQuantity(payload.extraBedQuantity)
-        const extraBedPrice = tourCatalog.find((item) => item.id === 'extra-bed')?.price
-        if (extraBedQuantity > 0 && (extraBedPrice === undefined || extraBedPrice <= 0)) {
-          return NextResponse.json({ error: 'Harga extra bed belum tersedia' }, { status: 409 })
-        }
-        const extraBedTotal = extraBedQuantity * (extraBedPrice ?? 0)
-        if (extraBedQuantity) addOns.push({ id: 'extra-bed', name: 'Extra Bed 100 × 220 cm', quantity: extraBedQuantity, price: extraBedPrice ?? 0 })
-        parsedTotal = base.baseTotal + extraGuestFee + extraBedTotal
-        pricingDetails = {
-          kind: 'homestay',
-          baseTotal: base.baseTotal,
-          extraGuestTotal: extraGuestFee,
-          nightlyPrices: base.nightlyPrices,
-          holidayDates,
-          extraBedTotal,
-          addOns,
-          holidayNotice: 'Tarif Holiday mengikuti tanggal yang ditetapkan admin.',
-        }
-      } else if (accommodationType === 'camping') {
-        const tentSize = payload.tentSize === 'large' ? 'large' : 'small'
-        const tentCount = positiveInteger(payload.tentCount, 1)
-        const tentOption = payload.tentOption === 'rent' ? 'rent' : 'own'
-        const firewoodPackages = optionalQuantity(payload.firewoodPackages)
-        const nestingQuantity = optionalQuantity(payload.nestingQuantity)
-        const chairQuantity = optionalQuantity(payload.chairQuantity)
-        const camping = calculateCampingTotal(
-          { tentSize, tentCount, tentOption, nights, firewoodPackages, nestingQuantity, chairQuantity },
-          settings,
-        )
-        if (camping.unavailablePrices.length) {
-          return NextResponse.json(
-            { error: `Harga ${camping.unavailablePrices.join(', ')} belum ditetapkan. Hubungi pengelola atau pilih opsi lain.` },
-            { status: 409 },
-          )
-        }
-        nightlyPrice = settings[tentSize === 'small' ? 'camping.small_tent_price' : 'camping.large_tent_price'] || 0
-        if (firewoodPackages) addOns.push({ id: 'firewood', name: 'Kayu bakar', quantity: firewoodPackages, price: settings['addon.firewood_price'] })
-        if (nestingQuantity) addOns.push({ id: 'nesting', name: 'Sewa nesting', quantity: nestingQuantity, price: settings['addon.nesting_price'] })
-        if (chairQuantity) addOns.push({ id: 'camping-chair', name: 'Kursi camping', quantity: chairQuantity, price: settings['addon.camping_chair_price'] })
-        parsedTotal = camping.total
-        pricingDetails = {
-          kind: 'camping', tentSize, tentCount, tentOption, ...camping, addOns,
-        }
-      } else {
-        const glampingPrice = settings['camping.glamping_base_price']
-        if (glampingPrice === null || glampingPrice === undefined) {
-          return NextResponse.json({ error: 'Harga Glamping belum ditetapkan. Hubungi pengelola.' }, { status: 409 })
-        }
-        nightlyPrice = glampingPrice
-        parsedTotal = glampingPrice * nights
-        pricingDetails = { kind: 'glamping', nightlyPrice: glampingPrice, baseTotal: parsedTotal }
-      }
-
-      bookingMode = 'stay'
-      bookingDate = checkInDate
-      finalItems = [{
-        id: service.id,
-        name: service.name,
-        category: service.category,
-        quantity: 1,
-        price: parsedTotal,
-      }]
-
-      uploadedDocumentPath = `${bookingId}/${crypto.randomUUID()}.jpg`
-      const bytes = new Uint8Array(await identityDocument.arrayBuffer())
-      const { error: uploadError } = await getSupabaseAdmin().storage
-        .from('booking-documents')
-        .upload(uploadedDocumentPath, bytes, { contentType: 'image/jpeg', upsert: false })
-      if (uploadError) {
-        console.error('Identity upload error:', uploadError)
-        return NextResponse.json({ error: 'Gagal menyimpan dokumen identitas secara privat' }, { status: 500 })
-      }
-
-      accommodations = [{
-        id: generateId(),
-        item_id: service.id,
-        item_name: service.name,
-        accommodation_type: accommodationType,
-        check_in_date: checkInDate,
-        check_out_date: checkOutDate,
-        nights,
-        guest_count: guestCount,
-        tent_size: accommodationType === 'camping' ? (pricingDetails.tentSize as string) : null,
-        tent_count: accommodationType === 'camping' ? (pricingDetails.tentCount as number) : null,
-        tent_option: accommodationType === 'camping' ? (pricingDetails.tentOption as string) : null,
-        nightly_price: nightlyPrice,
-        extra_guest_fee: extraGuestFee,
-        addons: addOns,
-        total_price: parsedTotal,
-      }]
     }
 
     if (isStay) {
