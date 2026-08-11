@@ -282,13 +282,13 @@ function BookingForm({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-end justify-center bg-emerald-950/60 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[110] flex items-end justify-center bg-emerald-950/60 p-3 backdrop-blur-sm sm:items-center sm:p-5"
       role="dialog"
       aria-modal="true"
       aria-labelledby="booking-modal-title"
     >
-      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overscroll-contain overflow-hidden rounded-t-[1.5rem] bg-white shadow-2xl sm:rounded-[1.5rem]">
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+      <div className="flex max-h-[96dvh] w-full max-w-3xl flex-col overscroll-contain overflow-hidden rounded-t-[1.75rem] bg-[#fbfaf5] shadow-2xl sm:rounded-[1.75rem]">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-gray-100 bg-white/95 px-5 py-4 backdrop-blur-xl sm:px-7">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">
               {isStay ? 'Booking Penginapan & Camping' : 'Booking Sekarang'}
@@ -308,8 +308,8 @@ function BookingForm({
           </button>
         </div>
 
-        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="flex-1 space-y-4 px-5 py-5">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col overscroll-contain overflow-y-auto">
+          <div className="flex-1 space-y-4 px-5 py-5 sm:px-7 sm:py-7">
             <div className="grid grid-cols-2 gap-3 rounded-2xl bg-emerald-50/60 p-3 text-xs">
               {preset.bookingDate && (
                 <div>
@@ -492,7 +492,7 @@ function BookingForm({
             )}
           </div>
 
-          <div className="border-t border-gray-100 px-5 py-4">
+          <div className="sticky bottom-0 z-10 border-t border-gray-100 bg-white/95 px-5 py-4 backdrop-blur-xl sm:px-7">
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full disabled:opacity-60">
               {isSubmitting ? 'Memproses...' : `Booking Sekarang • ${formatRupiah(estimatedTotal)}`}
             </button>
