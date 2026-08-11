@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDaysIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon, CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, ShoppingCartIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { useSearchParams } from 'next/navigation'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
 import { isAccommodationItem } from '@repo/shared-utils'
+import { formatPrice } from '@/lib/utils'
+import CheckoutDrawer, { bookingCartKey, type AccommodationSelection, type CheckoutItem, type CheckoutStep } from '@/components/CheckoutDrawer'
 
 interface InventoryItem {
   id: string
@@ -61,28 +63,6 @@ function scheduleTypeFromCategory(category: string | null): ScheduleType | null 
   if (['paket-edukasi', 'paket-kegiatan'].includes(category)) return 'edutrip'
   if (['aktivitas', 'gratis', 'fishing'].includes(category)) return 'wahana'
   return null
-}
-
-interface ScheduleCartItem {
-  id: string
-  name: string
-  category: string
-  price: number
-  max_price: number | null
-  price_label: string
-  pricing_type: string
-  unit: string | null
-  capacity: string | null
-  quantity: number
-  note: string | null
-  facilities: string[]
-  rate_options: { label: string; price: number }[]
-  bookable: boolean
-  bookingDate?: string
-  timeStart?: string
-  timeEnd?: string
-  checkInDate?: string
-  checkOutDate?: string
 }
 
 const rentalHourlySlots = Array.from({ length: 10 }, (_, index) => {
@@ -149,10 +129,6 @@ function shortDateLabel(date: string) {
   })
 }
 
-function scheduleCartKey(item: Pick<ScheduleCartItem, 'id' | 'bookingDate' | 'timeStart' | 'timeEnd' | 'checkInDate' | 'checkOutDate'>) {
-  return [item.id, item.bookingDate || '', item.timeStart || '', item.timeEnd || '', item.checkInDate || '', item.checkOutDate || ''].join('|')
-}
-
 export default function JadwalPage() {
   const searchParams = useSearchParams()
   const currentArenaTime = useMemo(() => arenaNow(), [])
@@ -182,19 +158,27 @@ export default function JadwalPage() {
   const [wahanaItems, setWahanaItems] = useState<WahanaItem[]>([])
   const [selectedWahanaIds, setSelectedWahanaIds] = useState<string[]>([])
   const [selectedWahanaDate, setSelectedWahanaDate] = useState(today)
-  const [scheduleCartCount, setScheduleCartCount] = useState(() => {
-    if (typeof window === 'undefined') return 0
-    try {
-      const stored = JSON.parse(sessionStorage.getItem('wisata-cart') || '[]')
-      return Array.isArray(stored) ? stored.reduce((sum, item) => sum + Number(item?.quantity || 0), 0) : 0
-    } catch {
-      return 0
-    }
-  })
+  const [tourPackages, setTourPackages] = useState<CheckoutItem[]>([])
+  const [cart, setCart] = useState<CheckoutItem[]>([])
+  const [accommodationSelections, setAccommodationSelections] = useState<Record<string, AccommodationSelection>>({})
+  const [cartOpen, setCartOpen] = useState(false)
+  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>(
+    searchParams.get('checkout') === '1' ? 'details' : 'cart',
+  )
+  const scheduleCartCount = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
   const [cartNotice, setCartNotice] = useState<{ count: number; itemNames: string[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
+
+  const readCart = (): CheckoutItem[] => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('wisata-cart') || '[]')
+      return Array.isArray(stored) ? stored : []
+    } catch {
+      return []
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -206,6 +190,7 @@ export default function JadwalPage() {
       .then(([inventory, bookings, packages]) => {
         setRentalItems(inventory.filter((item: InventoryItem) => ['area-kegiatan', 'tempat-pertemuan'].includes(item.category)))
         setRentalBookings(bookings)
+        setTourPackages(packages as CheckoutItem[])
         const stays = packages.filter((item: AccommodationItem) => isAccommodationItem(item.id))
         setAccommodationItems(stays)
         setSelectedAccommodationId((current) => current || stays[0]?.id || '')
@@ -215,6 +200,18 @@ export default function JadwalPage() {
         setWahanaItems(packages.filter(
           (item: WahanaItem) => ['aktivitas', 'gratis', 'fishing'].includes(item.category),
         ))
+        // Lengkapi item keranjang lama dari katalog (harga/rate_options/fasilitas)
+        // lalu muat pilihan akomodasi tersimpan untuk dibawa ke checkout drawer.
+        const catalog = packages as CheckoutItem[]
+        const enriched = readCart().map((item: CheckoutItem): CheckoutItem => {
+          const catalogItem = catalog.find((pkg) => pkg.id === item.id)
+          return catalogItem ? { ...catalogItem, ...item } : item
+        })
+        setCart(enriched)
+        try {
+          const storedSelections = JSON.parse(sessionStorage.getItem('wisata-accommodation-selections') || '{}')
+          if (storedSelections && typeof storedSelections === 'object') setAccommodationSelections(storedSelections)
+        } catch {}
       })
       .catch((fetchError) => {
         if (fetchError?.name !== 'AbortError') setError('Jadwal belum berhasil dimuat. Silakan coba kembali.')
@@ -258,118 +255,119 @@ export default function JadwalPage() {
   const selectedRentalSlots = [...selectedRentalSlotIndexes].sort((first, second) => first - second)
   const selectedEduTripItem = edutripPackages.find((item) => item.id === selectedEduTripPackage)
   const selectedWahanaItems = wahanaItems.filter((item) => selectedWahanaIds.includes(item.id))
-  const addToBookingCart = (entries: ScheduleCartItem[]) => {
+  const addToBookingCart = (entries: CheckoutItem[]) => {
     try {
-      const stored = JSON.parse(sessionStorage.getItem('wisata-cart') || '[]')
-      const current: ScheduleCartItem[] = Array.isArray(stored) ? stored : []
+      const current = readCart()
       const next = [...current]
       entries.forEach((entry) => {
         if (isAccommodationItem(entry.id)) {
           if (!next.some((item) => item.id === entry.id)) next.push(entry)
           return
         }
-        const existingIndex = next.findIndex((item) => scheduleCartKey(item) === scheduleCartKey(entry))
+        const existingIndex = next.findIndex((item) => bookingCartKey(item) === bookingCartKey(entry))
         if (existingIndex >= 0) {
           next[existingIndex] = { ...next[existingIndex], quantity: next[existingIndex].quantity + entry.quantity }
-        } else if (existingIndex < 0) {
+        } else {
           next.push(entry)
         }
       })
       sessionStorage.setItem('wisata-cart', JSON.stringify(next))
       window.dispatchEvent(new Event('cart-updated'))
-      setScheduleCartCount(next.reduce((sum, item) => sum + Number(item.quantity || 0), 0))
+      setCart(next)
       setCartNotice({ count: entries.length, itemNames: entries.map((entry) => entry.name) })
     } catch {
       setError('Keranjang booking belum dapat disimpan. Silakan coba lagi.')
     }
   }
 
-  const openBookingCart = (checkout = false) => {
-    window.location.assign(`/booking/wisata${checkout ? '?checkout=1' : ''}`)
+  const openCheckoutDrawer = (step: CheckoutStep) => {
+    setCheckoutStep(step)
+    setCartOpen(true)
+  }
+
+  const buildCheckoutItem = (partial: Partial<CheckoutItem> & { id: string }, extras: Partial<CheckoutItem> = {}): CheckoutItem => {
+    const catalog = tourPackages.find((pkg) => pkg.id === partial.id)
+    const price = partial.price ?? catalog?.price ?? 0
+    return {
+      id: partial.id,
+      name: catalog?.name || partial.name || partial.id,
+      category: catalog?.category || partial.category || '',
+      price,
+      max_price: catalog?.max_price ?? partial.max_price ?? null,
+      price_label: catalog?.price_label || partial.price_label || formatPrice(price),
+      pricing_type: catalog?.pricing_type || partial.pricing_type || 'fixed',
+      unit: catalog?.unit ?? partial.unit ?? null,
+      capacity: catalog?.capacity ?? null,
+      quantity: partial.quantity ?? 1,
+      note: catalog?.note ?? partial.note ?? null,
+      facilities: catalog?.facilities ?? [],
+      rate_options: catalog?.rate_options ?? [],
+      bookable: catalog?.bookable ?? partial.bookable ?? true,
+      ...extras,
+    }
   }
 
   const addCurrentSelection = () => {
     if (scheduleType === 'rental' && selectedRentalItem && selectedRentalSlots.length > 0) {
-      addToBookingCart([{
-        id: selectedRentalItem.id,
-        name: selectedRentalItem.name,
-        category: selectedRentalItem.category,
-        price: selectedRentalItem.price_per_unit || 0,
-        max_price: null,
-        price_label: `Mulai Rp${(selectedRentalItem.price_per_unit || 0).toLocaleString('id-ID')}`,
-        pricing_type: 'fixed',
-        unit: 'jam',
-        capacity: null,
-        quantity: selectedRentalSlots.length,
-        note: null,
-        facilities: [],
-        rate_options: [],
-        bookable: true,
-        bookingDate: selectedDate,
-        timeStart: rentalHourlySlots[selectedRentalSlots[0]].start,
-        timeEnd: rentalHourlySlots[selectedRentalSlots[selectedRentalSlots.length - 1]].end,
-      }])
+      addToBookingCart([buildCheckoutItem(
+        {
+          id: selectedRentalItem.id,
+          name: selectedRentalItem.name,
+          category: selectedRentalItem.category,
+          price: selectedRentalItem.price_per_unit || 0,
+          pricing_type: 'fixed',
+          unit: 'jam',
+          price_label: `Mulai Rp${(selectedRentalItem.price_per_unit || 0).toLocaleString('id-ID')}`,
+        },
+        {
+          quantity: selectedRentalSlots.length,
+          bookingDate: selectedDate,
+          timeStart: rentalHourlySlots[selectedRentalSlots[0]].start,
+          timeEnd: rentalHourlySlots[selectedRentalSlots[selectedRentalSlots.length - 1]].end,
+        },
+      )])
       return
     }
     if (scheduleType === 'accommodation' && canContinueAccommodationBooking && selectedAccommodation) {
-      addToBookingCart([{
-        id: selectedAccommodation.id,
-        name: selectedAccommodation.name,
-        category: selectedAccommodation.category,
-        price: 0,
-        max_price: null,
-        price_label: selectedAccommodation.price_label,
-        pricing_type: 'fixed',
-        unit: 'malam',
-        capacity: null,
-        quantity: 1,
-        note: null,
-        facilities: [],
-        rate_options: [],
-        bookable: selectedAccommodation.bookable,
-        checkInDate: checkIn,
-        checkOutDate: checkOut,
-      }])
+      addToBookingCart([buildCheckoutItem(
+        {
+          id: selectedAccommodation.id,
+          name: selectedAccommodation.name,
+          category: selectedAccommodation.category,
+          price_label: selectedAccommodation.price_label,
+          bookable: selectedAccommodation.bookable,
+        },
+        { quantity: 1, checkInDate: checkIn, checkOutDate: checkOut },
+      )])
       return
     }
     if (scheduleType === 'edutrip' && selectedEduTripItem && selectedEduTripDate) {
-      addToBookingCart([{
-        id: selectedEduTripItem.id,
-        name: selectedEduTripItem.name,
-        category: selectedEduTripItem.category,
-        price: selectedEduTripItem.price || 0,
-        max_price: null,
-        price_label: selectedEduTripItem.price_label,
-        pricing_type: 'fixed',
-        unit: 'orang',
-        capacity: null,
-        quantity: 1,
-        note: null,
-        facilities: [],
-        rate_options: [],
-        bookable: selectedEduTripItem.bookable,
-        bookingDate: selectedEduTripDate,
-      }])
+      addToBookingCart([buildCheckoutItem(
+        {
+          id: selectedEduTripItem.id,
+          name: selectedEduTripItem.name,
+          category: selectedEduTripItem.category,
+          price: selectedEduTripItem.price || 0,
+          price_label: selectedEduTripItem.price_label,
+          bookable: selectedEduTripItem.bookable,
+        },
+        { quantity: 1, bookingDate: selectedEduTripDate },
+      )])
       return
     }
     if (scheduleType === 'wahana' && selectedWahanaItems.length > 0) {
-      addToBookingCart(selectedWahanaItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        price: item.price || 0,
-        max_price: null,
-        price_label: item.price_label,
-        pricing_type: 'fixed',
-        unit: 'orang',
-        capacity: null,
-        quantity: 1,
-        note: item.note,
-        facilities: [],
-        rate_options: [],
-        bookable: item.bookable,
-        bookingDate: selectedWahanaDate,
-      })))
+      addToBookingCart(selectedWahanaItems.map((item) => buildCheckoutItem(
+        {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: item.price || undefined,
+          price_label: item.price_label,
+          note: item.note,
+          bookable: item.bookable,
+        },
+        { quantity: 1, bookingDate: selectedWahanaDate },
+      )))
     }
   }
 
@@ -438,8 +436,8 @@ export default function JadwalPage() {
   return (
     <>
       <Hero
-        title="Jadwal & Ketersediaan"
-        subtitle="Periksa slot sewa tempat dan tanggal menginap tanpa mencampur kedua jenis jadwal"
+        title="Jadwal & Booking"
+        subtitle="Periksa slot sewa tempat, tanggal menginap, dan kuota kegiatan, lalu booking dalam satu keranjang"
         image="/images/village-landscape.jpg"
         height="sm"
       />
@@ -461,8 +459,9 @@ export default function JadwalPage() {
               Wahana & Aktivitas
             </button>
             </div>
-            <button type="button" onClick={() => openBookingCart(false)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-white px-5 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-50">
-              Lihat Keranjang Booking
+            <button type="button" onClick={() => openCheckoutDrawer('cart')} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-white px-5 text-sm font-bold text-emerald-800 shadow-sm hover:bg-emerald-50">
+              <ShoppingCartIcon className="h-5 w-5" />
+              <span>Lihat Keranjang Booking</span>
               {scheduleCartCount > 0 && <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-orange-500 px-1.5 text-xs font-bold text-white">{scheduleCartCount}</span>}
             </button>
           </div>
@@ -898,11 +897,22 @@ export default function JadwalPage() {
           <p className="mt-1 text-xs text-gray-600">{cartNotice.count} layanan tersimpan. Anda dapat memilih layanan lain atau melanjutkan checkout.</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <button type="button" onClick={() => setCartNotice(null)} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lanjut Pilih Layanan</button>
-            <button type="button" onClick={() => openBookingCart(false)} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lihat Keranjang</button>
-            <button type="button" onClick={() => openBookingCart(true)} className="min-h-11 rounded-full bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">Lanjut ke Checkout</button>
+            <button type="button" onClick={() => openCheckoutDrawer('cart')} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lihat Keranjang</button>
+            <button type="button" onClick={() => openCheckoutDrawer('details')} className="min-h-11 rounded-full bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">Lanjut ke Checkout</button>
           </div>
         </div>
       )}
+
+      <CheckoutDrawer
+        open={cartOpen}
+        initialStep={checkoutStep}
+        cart={cart}
+        setCart={setCart}
+        accommodationSelections={accommodationSelections}
+        setAccommodationSelections={setAccommodationSelections}
+        extraBedPrice={tourPackages.find((pkg) => pkg.id === 'extra-bed')?.price ?? null}
+        onRequestClose={() => setCartOpen(false)}
+      />
     </>
   )
 }

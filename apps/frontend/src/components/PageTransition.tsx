@@ -8,7 +8,6 @@ type TransitionPhase = 'idle' | 'covering' | 'revealing'
 const routeLabels: Record<string, string> = {
   '/': 'Beranda',
   '/wisata': 'Wisata',
-  '/booking/wisata': 'Booking',
   '/jadwal': 'Jadwal',
   '/toko': 'Toko',
   '/blog': 'Blog',

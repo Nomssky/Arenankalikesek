@@ -80,7 +80,7 @@ test.describe('Schedule Page', () => {
     await page.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' }).click()
     await expect(page.getByText('Berhasil ditambahkan ke Keranjang Booking.')).toBeVisible()
     await page.getByRole('button', { name: 'Lanjut ke Checkout' }).click()
-    await expect(page).toHaveURL(/\/booking\/wisata/)
+    await expect(page).toHaveURL(/\/jadwal/)
 
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()

@@ -23,11 +23,10 @@ test.describe('Jadwal Eduwisata & Kegiatan', () => {
     if (await nextDay.count()) {
       await nextDay.click()
       await expect(page.getByText(/Dipilih \d+ \w+ \d{4}/).first()).toBeVisible()
-      const continueButton = page.getByRole('button', { name: /Lanjut Booking/ }).first()
+      const continueButton = page.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' }).first()
       await expect(continueButton).toHaveAttribute('aria-disabled', 'false')
       await continueButton.click()
-      await expect(page.getByRole('dialog')).toBeVisible()
-      await expect(page.getByText('Booking Sekarang').first()).toBeVisible()
+      await expect(page.getByText('Berhasil ditambahkan ke Keranjang Booking.')).toBeVisible()
     }
   })
 
