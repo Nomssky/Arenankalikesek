@@ -254,11 +254,11 @@ function BookingServiceCard({
             </span>
           )}
         </p>
-        {item.pricing_type !== 'free' && (
-          item.bookable ? (
+        {item.bookable ? (
             <button
               type="button"
               onClick={() => onAdd(item)}
+              aria-label={`Tambah ${item.name}`}
               className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-orange-500 active:scale-95"
             >
               <PlusIcon className="h-4 w-4" />
@@ -273,8 +273,7 @@ function BookingServiceCard({
             >
               Hubungi Pengelola
             </a>
-          )
-        )}
+          )}
       </div>
     </article>
   )
@@ -358,6 +357,7 @@ export default function BookingWisataPage() {
   const [submitError, setSubmitError] = useState('')
   const [pendingBooking, setPendingBooking] = useState<PaymentWaitingData | null>(null)
   const [isCheckingPending, setIsCheckingPending] = useState(false)
+  const checkoutSheetRef = useRef<HTMLDivElement>(null)
   const selectedAccommodations = useMemo(() => cart.filter((item) => isAccommodationItem(item.id)), [cart])
   const selectedAccommodationIds = useMemo(() => selectedAccommodations.map((item) => item.id).join(','), [selectedAccommodations])
   const selectedAccommodation = selectedAccommodations[0]
@@ -535,17 +535,32 @@ export default function BookingWisataPage() {
 
   useEffect(() => {
     if (!cartOpen) return
+    const root = document.documentElement
     const previousOverflow = document.body.style.overflow
+    const previousRootOverflow = root.style.overflow
+    const previousOverscroll = document.body.style.overscrollBehavior
+    root.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setCartOpen(false)
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => {
+      root.style.overflow = previousRootOverflow
       document.body.style.overflow = previousOverflow
+      document.body.style.overscrollBehavior = previousOverscroll
       window.removeEventListener('keydown', closeOnEscape)
     }
   }, [cartOpen])
+
+  useEffect(() => {
+    if (!cartOpen) return
+    const frame = window.requestAnimationFrame(() => {
+      checkoutSheetRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [cartOpen, checkoutStep])
 
   useEffect(() => {
     async function fetchPackages() {
@@ -765,6 +780,13 @@ export default function BookingWisataPage() {
   const openCart = () => {
     setToastItem(null)
     setCheckoutStep('cart')
+    setCartOpen(true)
+    checkPendingBooking()
+  }
+
+  const openBookingDetails = () => {
+    setToastItem(null)
+    setCheckoutStep('details')
     setCartOpen(true)
     checkPendingBooking()
   }
@@ -1324,7 +1346,11 @@ const waitingData: PaymentWaitingData = {
                   </p>
                 </div>
               </div>
-              <button type="button" onClick={openCart} className="btn-primary mt-5 w-full">
+              <button
+                type="button"
+                onClick={openBookingDetails}
+                className="btn-primary mt-5 w-full"
+              >
                 Lanjutkan booking
               </button>
             </aside>
@@ -1337,7 +1363,7 @@ const waitingData: PaymentWaitingData = {
       {cart.length > 0 && (
         <button
           type="button"
-          onClick={openCart}
+          onClick={openBookingDetails}
           className="booking-mobile-summary fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center justify-between gap-4 rounded-2xl bg-emerald-900 px-4 py-3.5 text-left text-white shadow-[0_18px_55px_-18px_rgba(6,78,59,0.8)] transition hover:bg-emerald-800 lg:hidden"
         >
           <span className="flex min-w-0 items-center gap-3">
@@ -1377,9 +1403,10 @@ const waitingData: PaymentWaitingData = {
             role="dialog"
             aria-modal="true"
             aria-label="Checkout booking wisata"
+            ref={checkoutSheetRef}
             data-lenis-prevent
             data-scroll-container
-            className="booking-sheet max-h-[96dvh] w-full overflow-y-auto rounded-t-[1.75rem] bg-[#fbfaf5] shadow-2xl sm:max-w-3xl sm:rounded-[1.75rem]"
+            className="booking-sheet max-h-[96dvh] w-full overscroll-contain overflow-y-auto rounded-t-[1.75rem] bg-[#fbfaf5] shadow-2xl sm:max-w-3xl sm:rounded-[1.75rem]"
           >
             <div className="sticky top-0 z-10 border-b border-gray-100 bg-white/95 px-5 py-4 backdrop-blur-xl sm:px-7">
               <div className="flex items-center justify-between gap-4">
