@@ -1422,6 +1422,7 @@ const waitingData: PaymentWaitingData = {
                   type="button"
                   onClick={() => setCartOpen(false)}
                   aria-label="Tutup checkout"
+                  title="Tutup formulir booking"
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200"
                 >
                   <XMarkIcon className="h-5 w-5" />

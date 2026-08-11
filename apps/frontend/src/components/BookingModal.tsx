@@ -301,7 +301,8 @@ function BookingForm({
             type="button"
             onClick={onClose}
             aria-label="Tutup form booking"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+            title="Tutup formulir booking"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-orange-100 hover:text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>

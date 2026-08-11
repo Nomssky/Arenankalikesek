@@ -60,7 +60,7 @@ export default function PaymentWaitingModal({ data, onClose, onContinuePayment, 
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="payment-waiting-title">
       <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overscroll-contain overflow-y-auto rounded-[1.5rem] bg-white shadow-2xl">
         <div className="h-1.5 bg-orange-500" />
-        <button type="button" onClick={onClose} aria-label="Tutup pemberitahuan" className="absolute right-4 top-5 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700">
+        <button type="button" onClick={onClose} aria-label="Tutup pemberitahuan" title="Tutup" className="absolute right-4 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-orange-100 hover:text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2">
           <XMarkIcon className="h-5 w-5" />
         </button>
 
