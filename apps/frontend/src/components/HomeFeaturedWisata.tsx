@@ -14,7 +14,6 @@ interface TourPackage {
 const featuredServiceIds = [
   'berkuda',
   'keceh-kali',
-  'terapi-ikan',
   'kolam-renang',
   'kereta-sawah',
   'rainbow-slide',

@@ -70,7 +70,7 @@ export const fallbackTourPackages: FallbackTourPackage[] = tourServices.map(
     facilities: service.facilities || [],
     rate_options: service.rates || [],
     image: service.image,
-    available: true,
+    available: service.available ?? true,
     bookable: service.bookable,
     sort_order: index + 1,
   })

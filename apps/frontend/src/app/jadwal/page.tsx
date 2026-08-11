@@ -53,11 +53,6 @@ interface WahanaItem {
   bookable: boolean
 }
 
-// ponytail: tab Wahana & Aktivitas di /jadwal menampilkan kategori yang sama
-// dengan section di /wisata (aktivitas/gratis/fishing); item yang disembunyikan
-// di /wisata juga tidak ditampilkan di sini (daftar tetap dari backend).
-const HIDDEN_WAHANA_IDS = new Set(['terapi-ikan', 'kolam-pancing', 'sewa-alat-pancing', 'pelet-umpan'])
-
 type ScheduleType = 'rental' | 'accommodation' | 'edutrip' | 'wahana'
 
 const rentalHourlySlots = Array.from({ length: 10 }, (_, index) => {
@@ -170,9 +165,7 @@ export default function JadwalPage() {
           (item: EduTripPackage) => ['paket-edukasi', 'paket-kegiatan'].includes(item.category),
         ))
         setWahanaItems(packages.filter(
-          (item: WahanaItem) =>
-            ['aktivitas', 'gratis', 'fishing'].includes(item.category) &&
-            !HIDDEN_WAHANA_IDS.has(item.id),
+          (item: WahanaItem) => ['aktivitas', 'gratis', 'fishing'].includes(item.category),
         ))
       })
       .catch((fetchError) => {

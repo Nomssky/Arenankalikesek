@@ -29,7 +29,8 @@ const publicRoutes = [
   '/blog/edukasi-pemanfaatan-maggot-desa-sriwulan',
   '/blog/fgd-peternak-domba-desa-sriwulan',
   '/blog/membuat-paving-block-dari-sampah-plastik-bisa-menjadi-solusi-ramah-lingkungan',
-  '/blog/optimalisasi-incinerator-desa-sriwulan',
+  '/blog/REPORTASE_GLAMPING_KALIKESEK_REVISI',
+  '/blog/REPORTASE_INCINERATOR_KELOMPOK_1_REVISI',
   '/blog/terapi-ikan-kalikesek',
   '/admin/login',
 ]
