@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect } from 'react'
 import { CreditCardIcon, DocumentTextIcon, ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { formatPrice } from '@/lib/utils'
 
@@ -26,6 +27,27 @@ interface PaymentWaitingModalProps {
 }
 
 export default function PaymentWaitingModal({ data, onClose, onContinuePayment, onLater }: PaymentWaitingModalProps) {
+  useEffect(() => {
+    if (!data) return
+    const root = document.documentElement
+    const previousRootOverflow = root.style.overflow
+    const previousBodyOverflow = document.body.style.overflow
+    const previousOverscroll = document.body.style.overscrollBehavior
+    root.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      root.style.overflow = previousRootOverflow
+      document.body.style.overflow = previousBodyOverflow
+      document.body.style.overscrollBehavior = previousOverscroll
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [data, onClose])
+
   if (!data) return null
 
   const isExpired = data.state === 'expired'
@@ -36,7 +58,7 @@ export default function PaymentWaitingModal({ data, onClose, onContinuePayment, 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-emerald-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="payment-waiting-title">
-      <div className="relative w-full max-w-md overflow-hidden rounded-[1.5rem] bg-white shadow-2xl">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overscroll-contain overflow-y-auto rounded-[1.5rem] bg-white shadow-2xl">
         <div className="h-1.5 bg-orange-500" />
         <button type="button" onClick={onClose} aria-label="Tutup pemberitahuan" className="absolute right-4 top-5 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700">
           <XMarkIcon className="h-5 w-5" />

@@ -85,14 +85,21 @@ export default function TokoPage() {
 
   useEffect(() => {
     if (!showCart) return
+    const root = document.documentElement
+    const previousRootOverflow = root.style.overflow
     const previousOverflow = document.body.style.overflow
+    const previousOverscroll = document.body.style.overscrollBehavior
+    root.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setShowCart(false)
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => {
+      root.style.overflow = previousRootOverflow
       document.body.style.overflow = previousOverflow
+      document.body.style.overscrollBehavior = previousOverscroll
       window.removeEventListener('keydown', closeOnEscape)
     }
   }, [showCart])
@@ -428,7 +435,7 @@ export default function TokoPage() {
               aria-label="Keranjang belanja"
               data-lenis-prevent
               data-scroll-container
-              className="max-h-[calc(100dvh-1rem)] w-full overflow-auto rounded-t-[1.75rem] bg-white p-5 sm:max-h-[82vh] sm:max-w-xl sm:rounded-[1.75rem] sm:p-7"
+              className="max-h-[calc(100dvh-1rem)] w-full overscroll-contain overflow-auto rounded-t-[1.75rem] bg-white p-5 sm:max-h-[82vh] sm:max-w-xl sm:rounded-[1.75rem] sm:p-7"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="flex items-center gap-2 text-xl font-bold text-gray-900">
