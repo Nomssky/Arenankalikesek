@@ -26,6 +26,7 @@ import CategoryVisualHeader from '@/components/CategoryVisualHeader'
 import CartToast from '@/components/CartToast'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
 import { formatPrice } from '@/lib/utils'
+import { addPendingBookingId, getPendingBookingIds, removePendingBookingId } from '@/lib/pending-bookings'
 import type { PaymentWaitingData } from '@/components/PaymentWaitingModal'
 import { getServiceCategory } from '@/lib/service-categories'
 import {
@@ -486,6 +487,38 @@ export default function BookingWisataPage() {
     if (selectedAccommodation) updateAccommodationSelection(selectedAccommodation.id, patch)
   }
 
+  // State form utama harus selalu mengikuti unit akomodasi pertama. Tanpa
+  // sinkronisasi ini, setelah unit pertama dihapus form dapat masih
+  // menampilkan jumlah tamu/add-on milik unit yang sudah tidak dipilih.
+  useEffect(() => {
+    if (!selectedAccommodation) return
+    const selection = {
+      ...defaultAccommodationSelection(selectedAccommodation.id),
+      ...(accommodationSelections[selectedAccommodation.id] || {}),
+    }
+    const capacityKey = `homestay.${selectedAccommodation.id.replace('-', '_')}.base_capacity`
+    const capacity = bookingSettings[capacityKey]
+    const totalGuests = Math.max(1, selection.guestCount)
+    const hasExtraGuests = selectedAccommodation.category === 'homestay'
+      && capacity !== null && capacity !== undefined
+      && totalGuests > capacity
+    const baseGuests = hasExtraGuests ? capacity as number : totalGuests
+
+    const frame = window.requestAnimationFrame(() => {
+      setParticipantCount(baseGuests)
+      setExtraBedQuantity(selection.extraBedQuantity)
+      setTentSize(selection.tentSize === 'large' ? 'large' : 'small')
+      setTentCount(Math.max(1, selection.tentCount || 1))
+      setTentOption(selection.tentOption === 'rent' ? 'rent' : 'own')
+      setFirewoodPackages(selection.firewoodPackages || 0)
+      setNestingQuantity(selection.nestingQuantity || 0)
+      setChairQuantity(selection.chairQuantity || 0)
+      setExtraGuestEnabled(hasExtraGuests)
+      setExtraGuestQuantity(hasExtraGuests ? Math.max(1, totalGuests - (capacity as number)) : 1)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [accommodationSelections, bookingSettings, selectedAccommodation])
+
   useEffect(() => {
     fetch('/api/booking-config')
       .then((response) => response.ok ? response.json() : null)
@@ -620,8 +653,8 @@ export default function BookingWisataPage() {
           next[item.id] = {
             ...defaultAccommodationSelection(item.id),
             ...(next[item.id] || {}),
-            checkInDate: item.checkInDate || next[item.id]?.checkInDate,
-            checkOutDate: item.checkOutDate || next[item.id]?.checkOutDate,
+            checkInDate: checkInDate || undefined,
+            checkOutDate: checkOutDate || undefined,
           }
         })
         return next
@@ -809,8 +842,8 @@ export default function BookingWisataPage() {
         const beforeTotal = accommodationTotal
         const stored = accommodationSelections[accommodation.id] || defaultAccommodationSelection(accommodation.id)
         const selection = stored
-        const itemCheckInDate = accommodation.checkInDate || selection.checkInDate || checkInDate
-        const itemCheckOutDate = accommodation.checkOutDate || selection.checkOutDate || checkOutDate
+        const itemCheckInDate = checkInDate
+        const itemCheckOutDate = checkOutDate
         let itemNights = 0
         try {
           if (itemCheckInDate && itemCheckOutDate) itemNights = differenceInNights(itemCheckInDate, itemCheckOutDate)
@@ -865,8 +898,8 @@ export default function BookingWisataPage() {
   const accommodationPayload: AccommodationSelection[] = selectedAccommodations.map((accommodation) => ({
     ...defaultAccommodationSelection(accommodation.id),
     ...(accommodationSelections[accommodation.id] || {}),
-    checkInDate: accommodation.checkInDate || accommodationSelections[accommodation.id]?.checkInDate || checkInDate || undefined,
-    checkOutDate: accommodation.checkOutDate || accommodationSelections[accommodation.id]?.checkOutDate || checkOutDate || undefined,
+    checkInDate: checkInDate || undefined,
+    checkOutDate: checkOutDate || undefined,
   }))
 
   const syncRentalDuration = (nextStart: string, nextEnd: string) => {
@@ -948,7 +981,8 @@ export default function BookingWisataPage() {
   }
 
   const checkPendingBooking = async () => {
-    const pendingBookingId = sessionStorage.getItem('pending-booking-id')
+    const pendingIds = getPendingBookingIds()
+    const pendingBookingId = pendingIds[pendingIds.length - 1]
     if (!pendingBookingId) {
       setPendingBooking(null)
       return
@@ -975,7 +1009,7 @@ export default function BookingWisataPage() {
         }
         setPendingBooking(pendingData)
       } else {
-        sessionStorage.removeItem('pending-booking-id')
+        removePendingBookingId(pendingBookingId)
         setPendingBooking(null)
       }
     } catch {
@@ -991,20 +1025,20 @@ export default function BookingWisataPage() {
       if (window.snap) {
         window.snap.pay(data.snapToken, {
           onSuccess: () => {
-            sessionStorage.removeItem('pending-booking-id')
+            removePendingBookingId(data.bookingId)
             setPendingBooking(null)
             router.push(`/booking/sukses?id=${data.bookingId}`)
           },
           onPending: () => {
-            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            addPendingBookingId(data.bookingId)
             setPendingBooking(data)
           },
           onError: () => {
-            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            addPendingBookingId(data.bookingId)
             setPendingBooking(data)
           },
           onClose: () => {
-            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            addPendingBookingId(data.bookingId)
             setPendingBooking(data)
           },
         })
@@ -1012,7 +1046,7 @@ export default function BookingWisataPage() {
       }
     }
     if (data.paymentUrl) {
-      sessionStorage.setItem('pending-booking-id', data.bookingId)
+      addPendingBookingId(data.bookingId)
       window.location.assign(data.paymentUrl)
     }
   }
@@ -1047,8 +1081,8 @@ export default function BookingWisataPage() {
       }
       const missingAccommodationDates = selectedAccommodations.find((accommodation) => {
         const selection = accommodationSelections[accommodation.id] || defaultAccommodationSelection(accommodation.id)
-        return !(accommodation.checkInDate || selection.checkInDate || checkInDate)
-          || !(accommodation.checkOutDate || selection.checkOutDate || checkOutDate)
+        return !(checkInDate || selection.checkInDate)
+          || !(checkOutDate || selection.checkOutDate)
       })
       if (missingAccommodationDates) {
         setSubmitError(`Lengkapi tanggal menginap untuk "${missingAccommodationDates.name}".`)
@@ -1056,8 +1090,9 @@ export default function BookingWisataPage() {
       }
       const blockedAccommodation = selectedAccommodations.find((accommodation) => {
         const selection = accommodationSelections[accommodation.id] || defaultAccommodationSelection(accommodation.id)
-        const itemCheckInDate = accommodation.checkInDate || selection.checkInDate || checkInDate
-        const itemCheckOutDate = accommodation.checkOutDate || selection.checkOutDate || checkOutDate
+        const itemCheckInDate = checkInDate || selection.checkInDate
+        const itemCheckOutDate = checkOutDate || selection.checkOutDate
+        if (!itemCheckInDate || !itemCheckOutDate) return false
         return dateRangeContainsBlockedDate(itemCheckInDate, itemCheckOutDate, blockedDates)
       })
       if (blockedAccommodation) {
@@ -1124,11 +1159,11 @@ export default function BookingWisataPage() {
         category: item.category,
         quantity: item.quantity,
         price: item.price,
-        bookingDate: item.bookingDate,
+        bookingDate: isAccommodationBooking ? serviceDate : item.bookingDate,
         timeStart: item.timeStart,
         timeEnd: item.timeEnd,
-        checkInDate: item.checkInDate,
-        checkOutDate: item.checkOutDate,
+        checkInDate: isAccommodationBooking && isAccommodationItem(item.id) ? checkInDate : item.checkInDate,
+        checkOutDate: isAccommodationBooking && isAccommodationItem(item.id) ? checkOutDate : item.checkOutDate,
       }))
       if (isAccommodationBooking && identityDocument) {
         const form = new FormData()
@@ -1221,38 +1256,38 @@ const waitingData: PaymentWaitingData = {
         await loadSnapJs()
         if (!window.snap) {
           setCartOpen(false)
-          sessionStorage.setItem('pending-booking-id', data.bookingId)
+          addPendingBookingId(data.bookingId)
           setPendingBooking(waitingData)
           return
         }
         window.snap?.pay(data.snapToken, {
            onSuccess: () => {
-             sessionStorage.removeItem('pending-booking-id')
+             removePendingBookingId(data.bookingId)
              setPendingBooking(null)
              router.push(`/booking/sukses?id=${data.bookingId}`)
            },
            onPending: () => {
-             sessionStorage.setItem('pending-booking-id', data.bookingId)
+             addPendingBookingId(data.bookingId)
              setCartOpen(false)
              setPendingBooking(waitingData)
            },
            onError: () => {
-             sessionStorage.setItem('pending-booking-id', data.bookingId)
+             addPendingBookingId(data.bookingId)
              setCartOpen(false)
              setPendingBooking(waitingData)
            },
            onClose: () => {
-             sessionStorage.setItem('pending-booking-id', data.bookingId)
+             addPendingBookingId(data.bookingId)
              setCartOpen(false)
              setPendingBooking(waitingData)
            },
          })
       } else if (data.paymentUrl) {
-        sessionStorage.setItem('pending-booking-id', data.bookingId)
+        addPendingBookingId(data.bookingId)
         window.location.assign(data.paymentUrl)
       } else if (data.status === 'pending') {
         setCartOpen(false)
-        sessionStorage.setItem('pending-booking-id', data.bookingId)
+        addPendingBookingId(data.bookingId)
         setPendingBooking(waitingData)
       } else {
         router.push(`/booking/sukses?id=${data.bookingId}`)
@@ -2023,25 +2058,27 @@ const waitingData: PaymentWaitingData = {
                             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-orange-700">Unit tambahan</span>
                           </div>
                           <div className="grid gap-4 sm:grid-cols-2">
-                            <div>
-                              <label className="form-label">Check-in *</label>
+                          <div>
+                              <label className="form-label">Check-in bersama *</label>
                               <input
                                 type="date"
                                 min={minimumDate}
-                                className="form-input"
-                                value={accommodation.checkInDate || selection.checkInDate || checkInDate}
-                                onChange={(event) => updateAccommodationSelection(accommodation.id, { checkInDate: event.target.value })}
+                                className="form-input cursor-not-allowed bg-gray-100"
+                                value={checkInDate}
+                                readOnly
+                                aria-readonly="true"
                                 required
                               />
                             </div>
                             <div>
-                              <label className="form-label">Check-out *</label>
+                              <label className="form-label">Check-out bersama *</label>
                               <input
                                 type="date"
                                 min={minimumDate}
-                                className="form-input"
-                                value={accommodation.checkOutDate || selection.checkOutDate || checkOutDate}
-                                onChange={(event) => updateAccommodationSelection(accommodation.id, { checkOutDate: event.target.value })}
+                                className="form-input cursor-not-allowed bg-gray-100"
+                                value={checkOutDate}
+                                readOnly
+                                aria-readonly="true"
                                 required
                               />
                             </div>

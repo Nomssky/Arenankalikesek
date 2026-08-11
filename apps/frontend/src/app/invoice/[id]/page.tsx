@@ -39,6 +39,9 @@ interface InvoiceData {
       itemName: string
       guestCount: number
       subtotal: number
+      checkInDate?: string
+      checkOutDate?: string
+      nights?: number
       kind?: string
       tentSize?: string
       tentCount?: number
@@ -234,6 +237,9 @@ export default function InvoicePage() {
   const invoiceAddOns = Array.isArray(data.pricing_details?.addOns)
     ? data.pricing_details.addOns
     : []
+  const accommodationBreakdowns = Array.isArray(data.pricing_details?.accommodations)
+    ? data.pricing_details.accommodations
+    : []
   return (
     <div className="invoice-page min-h-screen bg-gray-100 pb-8 pt-28 print:bg-white print:py-0">
       <div className="mx-auto max-w-3xl px-4 print:max-w-none print:px-0">
@@ -322,14 +328,34 @@ export default function InvoicePage() {
                   {data.pricing_details?.tentOption && <div><dt className="text-gray-500">Opsi tenda</dt><dd className="font-semibold text-gray-900">{data.pricing_details.tentOption === 'own' ? 'Bawa sendiri' : 'Sewa tenda'}</dd></div>}
                   {Boolean(data.pricing_details?.extraGuestTotal) && <div><dt className="text-gray-500">Tamu tambahan</dt><dd className="font-semibold text-gray-900">{formatPrice(data.pricing_details?.extraGuestTotal || 0)}</dd></div>}
                 </dl>
-                {Array.isArray(data.pricing_details?.accommodations) && data.pricing_details.accommodations.length > 0 && (
+                {accommodationBreakdowns.length > 0 && (
                   <div className="mt-4 border-t border-emerald-100 pt-3 text-sm">
                     <p className="text-gray-500">Unit dalam booking</p>
                     <div className="mt-2 space-y-2">
-                      {data.pricing_details.accommodations.map((accommodation) => (
-                        <div key={accommodation.itemId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2">
-                          <span className="font-semibold text-gray-900">{accommodation.itemName} · {accommodation.guestCount} tamu</span>
-                          <span className="font-semibold text-emerald-700">{formatPrice(accommodation.subtotal)}</span>
+                      {accommodationBreakdowns.map((accommodation) => (
+                        <div key={accommodation.itemId} className="rounded-lg bg-white px-3 py-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-semibold text-gray-900">{accommodation.itemName} · {accommodation.guestCount} tamu</span>
+                            <span className="font-semibold text-emerald-700">{formatPrice(accommodation.subtotal)}</span>
+                          </div>
+                          {(accommodation.checkInDate || accommodation.checkOutDate || accommodation.nights) && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              {accommodation.checkInDate && `Check-in ${formatDate(accommodation.checkInDate)}`}
+                              {accommodation.checkOutDate && ` · Check-out ${formatDate(accommodation.checkOutDate)}`}
+                              {accommodation.nights ? ` · ${accommodation.nights} malam` : ''}
+                            </p>
+                          )}
+                          {(accommodation.tentSize || accommodation.tentOption) && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              {accommodation.tentCount || 1} tenda {accommodation.tentSize === 'large' ? 'besar' : 'kecil'}
+                              {accommodation.tentOption ? ` · ${accommodation.tentOption === 'own' ? 'Bawa sendiri' : 'Sewa tenda'}` : ''}
+                            </p>
+                          )}
+                          {accommodation.addOns && accommodation.addOns.length > 0 && (
+                            <p className="mt-1 text-xs font-medium text-gray-600">
+                              Add-on: {accommodation.addOns.map((item) => `${item.name} × ${item.quantity}`).join(', ')}
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>

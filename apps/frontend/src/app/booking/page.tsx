@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { addPendingBookingId, getPendingBookingIds, removePendingBookingId } from '@/lib/pending-bookings'
 import {
   ArrowRightIcon,
   CheckCircleIcon,
@@ -112,13 +113,7 @@ function readStoredBookings(): BookingRecord[] {
 export default function BookingHistoryPage() {
   const [rows, setRows] = useState<HistoryRow[]>(() => {
     const stored = readStoredBookings()
-    const pendingId = (() => {
-      try {
-        return sessionStorage.getItem('pending-booking-id')
-      } catch {
-        return null
-      }
-    })()
+    const pendingIds = getPendingBookingIds()
     const merged = stored.map<HistoryRow>((record) => {
       let phone = ''
       try {
@@ -128,7 +123,8 @@ export default function BookingHistoryPage() {
       }
       return { record, phone, state: 'loading' as const }
     })
-    if (pendingId && !merged.some((row) => row.record.id === pendingId)) {
+    for (const pendingId of pendingIds.reverse()) {
+      if (merged.some((row) => row.record.id === pendingId)) continue
       merged.unshift({
         record: { id: pendingId },
         phone: (() => {
@@ -152,6 +148,7 @@ export default function BookingHistoryPage() {
       )
       if (!res.ok) return { ...row, state: 'error' }
       const live = (await res.json()) as PaymentState
+      if (live.state !== 'pending') removePendingBookingId(row.record.id)
       return { ...row, live, state: 'ok' }
     } catch {
       return { ...row, state: 'error' }
@@ -176,14 +173,10 @@ export default function BookingHistoryPage() {
     if (data.snapToken) {
       await loadSnapJs()
       if (window.snap) {
-        try {
-          sessionStorage.setItem('pending-booking-id', data.bookingId)
-        } catch {
-          // Penyimpanan dibatasi — Snap tetap berjalan.
-        }
+        addPendingBookingId(data.bookingId)
         window.snap.pay(data.snapToken, {
           onSuccess: () => {
-            sessionStorage.removeItem('pending-booking-id')
+            removePendingBookingId(data.bookingId)
             window.location.assign(`/booking/sukses?id=${data.bookingId}`)
           },
           onPending: () => {
@@ -200,11 +193,7 @@ export default function BookingHistoryPage() {
       }
     }
     if (data.paymentUrl) {
-      try {
-        sessionStorage.setItem('pending-booking-id', data.bookingId)
-      } catch {
-        // Penyimpanan dibatasi — redirect tetap berjalan.
-      }
+      addPendingBookingId(data.bookingId)
       window.location.assign(data.paymentUrl)
     }
   }

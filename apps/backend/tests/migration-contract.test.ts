@@ -126,6 +126,16 @@ test('booking campuran menerima detail akomodasi per unit', () => {
   assert.match(mixedAccommodationMigration, /'mixed'/)
 })
 
+test('checkout toko tidak dipaksa memiliki tanggal layanan', () => {
+  assert.match(bookingsRoute, /if \(bookingType !== 'toko'\)/)
+  assert.match(bookingsRoute, /Tanggal booking untuk/)
+})
+
+test('booking campuran memakai tanggal menginap bersama untuk semua layanan', () => {
+  assert.match(bookingsRoute, /Semua akomodasi dalam satu booking harus memakai tanggal check-in dan check-out yang sama/)
+  assert.match(bookingsRoute, /Tanggal layanan .* harus mengikuti tanggal check-in akomodasi/)
+})
+
 test('satu checkout Edu Trip dapat mengunci beberapa tanggal secara atomik', () => {
   assert.match(multiEduTripMigration, /DROP CONSTRAINT IF EXISTS edu_trip_reservations_booking_id_key/)
   assert.match(multiEduTripMigration, /jsonb_array_elements_text\(v_edu_dates\)/)

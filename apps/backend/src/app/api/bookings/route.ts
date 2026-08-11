@@ -434,15 +434,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    for (const item of items.filter((entry) => !entry.id || !isAccommodationItem(entry.id))) {
-      const itemDate = item.bookingDate || bookingDate
-      if (!itemDate || !/^\d{4}-\d{2}-\d{2}$/.test(itemDate) || itemDate < currentArenaTime.date) {
-        return NextResponse.json({ error: `Tanggal booking untuk "${item.name}" tidak valid` }, { status: 400 })
-      }
-      const itemStart = item.timeStart || payload.timeStart
-      const itemStartMinutes = itemStart ? timeToMinutes(itemStart) : null
-      if (itemDate === currentArenaTime.date && itemStartMinutes !== null && itemStartMinutes <= currentArenaTime.minutes) {
-        return NextResponse.json({ error: `Jam booking untuk "${item.name}" sudah lewat` }, { status: 400 })
+    // Pesanan toko tidak memiliki tanggal layanan. Produk tetap divalidasi
+    // terhadap katalog dan harganya di bawah, tetapi tidak boleh dipaksa
+    // mengikuti validasi jadwal wisata.
+    if (bookingType !== 'toko') {
+      for (const item of items.filter((entry) => !entry.id || !isAccommodationItem(entry.id))) {
+        const itemDate = item.bookingDate || bookingDate
+        if (!itemDate || !/^\d{4}-\d{2}-\d{2}$/.test(itemDate) || itemDate < currentArenaTime.date) {
+          return NextResponse.json({ error: `Tanggal booking untuk "${item.name}" tidak valid` }, { status: 400 })
+        }
+        const itemStart = item.timeStart || payload.timeStart
+        const itemStartMinutes = itemStart ? timeToMinutes(itemStart) : null
+        if (itemDate === currentArenaTime.date && itemStartMinutes !== null && itemStartMinutes <= currentArenaTime.minutes) {
+          return NextResponse.json({ error: `Jam booking untuk "${item.name}" sudah lewat` }, { status: 400 })
+        }
       }
     }
 
@@ -505,8 +510,13 @@ export async function POST(request: NextRequest) {
         const type = accommodationTypeForItem(itemId)
         if (!selection || !service || !type) return NextResponse.json({ error: 'Data penginapan tidak valid' }, { status: 400 })
         if (!service.available) return NextResponse.json({ error: 'Penginapan sedang ditutup sementara' }, { status: 409 })
-        const itemCheckInDate = selection.checkInDate || item.checkInDate || checkInDate
-        const itemCheckOutDate = selection.checkOutDate || item.checkOutDate || checkOutDate
+        const requestedCheckInDate: string | null = selection.checkInDate || item.checkInDate || checkInDate
+        const requestedCheckOutDate: string | null = selection.checkOutDate || item.checkOutDate || checkOutDate
+        if (requestedCheckInDate !== checkInDate || requestedCheckOutDate !== checkOutDate) {
+          return NextResponse.json({ error: 'Semua akomodasi dalam satu booking harus memakai tanggal check-in dan check-out yang sama' }, { status: 400 })
+        }
+        const itemCheckInDate = checkInDate
+        const itemCheckOutDate = checkOutDate
         if (!itemCheckInDate || !itemCheckOutDate || itemCheckInDate < currentArenaTime.date) {
           return NextResponse.json({ error: `Rentang tanggal untuk "${service.name}" tidak valid` }, { status: 400 })
         }
@@ -755,6 +765,19 @@ export async function POST(request: NextRequest) {
         addons: addOns,
         total_price: parsedTotal,
       }]
+    }
+
+    if (isStay) {
+      const mismatchedService = items.find((item) => {
+        if (item.id && isAccommodationItem(item.id)) return false
+        return Boolean(item.bookingDate && item.bookingDate !== checkInDate)
+      })
+      if (mismatchedService) {
+        return NextResponse.json(
+          { error: `Tanggal layanan "${mismatchedService.name}" harus mengikuti tanggal check-in akomodasi` },
+          { status: 400 },
+        )
+      }
     }
 
     if (!Number.isFinite(parsedTotal)) return NextResponse.json({ error: 'Total booking tidak valid' }, { status: 400 })

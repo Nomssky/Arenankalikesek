@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useState, Suspense, useEffect } from 'react'
 import { formatPrice } from '@/lib/utils'
+import { addPendingBookingId, removePendingBookingId } from '@/lib/pending-bookings'
 import PaymentWaitingModal, { type PaymentWaitingData } from '@/components/PaymentWaitingModal'
 
 function loadSnapJs(): Promise<void> {
@@ -208,27 +209,33 @@ const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 
       if (data.snapToken) {
         await loadSnapJs()
         if (!window.snap) {
+          addPendingBookingId(data.bookingId)
           setWaitingPayment(waitingData)
           return
         }
         window.snap.pay(data.snapToken, {
           onSuccess: () => {
+            removePendingBookingId(data.bookingId)
             router.push(`/booking/sukses?id=${data.bookingId}`)
           },
           onPending: () => {
+            addPendingBookingId(data.bookingId)
             setWaitingPayment(waitingData)
           },
           onError: () => {
+            addPendingBookingId(data.bookingId)
             setWaitingPayment(waitingData)
           },
           onClose: () => {
+            addPendingBookingId(data.bookingId)
             setWaitingPayment(waitingData)
           },
         })
       } else if (data.paymentUrl) {
-        sessionStorage.setItem('pending-booking-id', data.bookingId)
+        addPendingBookingId(data.bookingId)
         window.location.assign(data.paymentUrl)
       } else if (data.status === 'pending') {
+        addPendingBookingId(data.bookingId)
         setWaitingPayment(waitingData)
       } else {
         router.push(`/booking/sukses?id=${data.bookingId}`)

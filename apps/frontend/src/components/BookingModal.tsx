@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import type { BookingSettingMap } from '@repo/shared-utils'
+import { addPendingBookingId, removePendingBookingId } from '@/lib/pending-bookings'
 
 export interface BookingPreset {
   kind: 'rental' | 'edutrip' | 'wahana' | 'stay'
@@ -342,33 +343,38 @@ function BookingForm({
       if (data.snapToken) {
         await loadSnapJs()
         if (!window.snap) {
-          sessionStorage.setItem('pending-booking-id', data.bookingId)
+          addPendingBookingId(data.bookingId)
           onClose()
           return
         }
         window.snap.pay(data.snapToken, {
           onSuccess: () => {
-            sessionStorage.removeItem('pending-booking-id')
+            removePendingBookingId(data.bookingId)
             router.push(`/booking/sukses?id=${data.bookingId}`)
           },
           onPending: () => {
-            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            addPendingBookingId(data.bookingId)
             onClose()
           },
           onError: () => {
-            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            addPendingBookingId(data.bookingId)
             onClose()
           },
           onClose: () => {
-            sessionStorage.setItem('pending-booking-id', data.bookingId)
+            addPendingBookingId(data.bookingId)
             onClose()
           },
         })
         return
       }
       if (data.paymentUrl) {
-        sessionStorage.setItem('pending-booking-id', data.bookingId)
+        addPendingBookingId(data.bookingId)
         window.location.assign(data.paymentUrl)
+        return
+      }
+      if (data.status === 'pending') {
+        addPendingBookingId(data.bookingId)
+        onClose()
         return
       }
       onClose()
