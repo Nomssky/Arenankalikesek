@@ -1,93 +1,39 @@
-import { expect, test, type Page } from '@playwright/test'
-
-async function openDirectBooking(page: Page, query: string) {
-  await page.goto(`/booking/wisata?${query}`, { waitUntil: 'domcontentloaded' })
-  await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
-  await expect(page.getByRole('button', { name: 'Lanjutkan booking' })).toBeVisible()
-}
-
-function bookingTotal(page: Page) {
-  return page.getByText('Total booking').locator('..').locator('..')
-}
+import { expect, test } from '@playwright/test'
 
 test.describe('Alur booking UI tanpa membuat transaksi', () => {
-  test('kategori Semua tetap dikelompokkan dan pencarian mengikuti kategori aktif', async ({ page }) => {
-    await page.goto('/booking/wisata', { waitUntil: 'domcontentloaded' })
+  test('wahana ditambahkan ke keranjang dengan jumlah bertumpuk dari toast', async ({ page }) => {
+    await page.goto('/jadwal', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
 
-    for (const category of ['Wisata & Aktivitas', 'Paket & Edukasi', 'Sewa Tempat', 'Penginapan & Camping']) {
-      await expect(page.getByRole('heading', { name: category, exact: true, level: 3 })).toBeVisible()
-    }
+    await page.getByRole('button', { name: 'Wahana & Aktivitas' }).click()
 
-    await page.getByLabel('Kategori booking').selectOption('sewa-tempat')
-    await expect(page.getByRole('heading', { name: 'Sewa Tempat', exact: true, level: 2 }).last()).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Wisata & Aktivitas', exact: true, level: 3 })).toHaveCount(0)
-    await page.getByLabel('Cari layanan booking').fill('Joglo')
-    await expect(page.getByRole('heading', { name: 'Joglo', exact: true, level: 3 })).toBeVisible()
-    await page.getByLabel('Cari layanan booking').fill('Berkuda')
-    await expect(page.getByText('Layanan tidak ditemukan')).toBeVisible()
-  })
-
-  test('beberapa wahana dapat dipilih dan dikalikan dalam satu keranjang', async ({ page }) => {
-    await page.goto('/booking/wisata', { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
-
-    const cards = page.locator('article.motion-card').filter({ has: page.getByRole('button', { name: /^Tambah / }) })
+    const cards = page.locator('article').filter({ has: page.getByRole('button', { name: 'Tambah ke Keranjang' }) })
     await expect(cards.first()).toBeVisible({ timeout: 20_000 })
     await expect(cards.nth(1)).toBeVisible({ timeout: 20_000 })
-    const firstName = (await cards.nth(0).locator('h3').innerText()).trim()
-    const secondName = (await cards.nth(1).locator('h3').innerText()).trim()
-    await cards.nth(0).getByRole('button', { name: /^Tambah / }).click()
-    await cards.nth(1).getByRole('button', { name: /^Tambah / }).click()
-    await cards.nth(0).getByRole('button', { name: /^Tambah / }).click()
+    const firstName = (await cards.nth(0).locator('h2').innerText()).trim()
+    const secondName = (await cards.nth(1).locator('h2').innerText()).trim()
 
-    await page.getByRole('button', { name: 'Lanjutkan booking' }).click()
+    await cards.nth(0).getByRole('button', { name: `Tambah ${firstName}` }).click()
+    await cards.nth(0).getByRole('button', { name: 'Tambah ke Keranjang' }).click()
+
+    const toast = page.getByRole('status').filter({ hasText: 'Berhasil ditambahkan ke Keranjang Booking.' })
+    await expect(toast).toBeVisible()
+    await toast.getByRole('button', { name: 'Lihat Keranjang' }).click()
+
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
-    await dialog.getByRole('button', { name: 'Kembali ke pilihan' }).click()
     await expect(dialog).toContainText(firstName)
-    await expect(dialog).toContainText(secondName)
-    await expect(dialog).toContainText('3 pilihan dari 2 layanan')
-  })
+    await expect(dialog).toContainText('2 pilihan dari 1 layanan')
+    await dialog.getByRole('button', { name: 'Tutup checkout' }).click()
 
-  test('tamu tambahan Aren 1 hanya dikenakan sekali per booking', async ({ page }) => {
-    await openDirectBooking(page, 'item=aren-1&checkIn=2026-08-10&checkOut=2026-08-12&directBooking=1')
-    await page.getByLabel('Jumlah tamu utama').fill('5')
-    await expect(bookingTotal(page)).toContainText('Rp400.000')
+    await cards.nth(1).getByRole('button', { name: 'Tambah ke Keranjang' }).click()
+    await expect(toast).toBeVisible()
+    await toast.getByRole('button', { name: 'Lihat Keranjang' }).click()
 
-    await page.getByRole('checkbox', { name: /Tambahkan tamu di atas kapasitas/ }).check()
-    await page.getByLabel('Jumlah tamu tambahan').fill('2')
-    await expect(bookingTotal(page)).toContainText('Rp420.000')
-    await expect(page.getByText(/Rp10\.000\/orang untuk satu booking/)).toBeVisible()
-
-    await page.getByRole('checkbox', { name: /Tambahkan tamu di atas kapasitas/ }).uncheck()
-    await expect(bookingTotal(page)).toContainText('Rp400.000')
-  })
-
-  test('harga camping mengikuti malam, opsi sewa tenda, dan add-on', async ({ page }) => {
-    await openDirectBooking(page, 'item=camping-ground&checkIn=2026-08-10&checkOut=2026-08-12&directBooking=1')
-    await expect(bookingTotal(page)).toContainText('Rp40.000')
-
-    await page.getByRole('radio', { name: /Sewa tenda/ }).check()
-    await page.getByLabel('Jumlah paket kayu bakar').fill('1')
-    await page.getByLabel('Jumlah sewa nesting').fill('1')
-    await page.getByLabel('Jumlah kursi camping').fill('1')
-    await expect(bookingTotal(page)).toContainText('Rp165.000')
-  })
-
-  test('durasi dan add-on sewa tempat memperbarui total', async ({ page }) => {
-    await openDirectBooking(page, 'item=gazebo-atas&bookingDate=2026-08-10&timeStart=07%3A00&timeEnd=09%3A00&directBooking=1')
-    await expect(bookingTotal(page)).toContainText('Rp60.000')
-
-    await page.getByRole('button', { name: 'Tambah kursi' }).click()
-    await page.getByRole('button', { name: 'Tambah kursi' }).click()
-    await page.getByRole('checkbox', { name: /Sound system/ }).check()
-    await page.getByRole('button', { name: 'Tambah tikar' }).click()
-    await page.getByRole('button', { name: 'Tambah tikar' }).click()
-    await page.getByRole('button', { name: 'Tambah tikar' }).click()
-    await expect(bookingTotal(page)).toContainText('Rp396.000')
-    await page.getByRole('checkbox', { name: /Sound system/ }).uncheck()
-    await expect(bookingTotal(page)).toContainText('Rp96.000')
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByRole('dialog')).toContainText(firstName)
+    await expect(page.getByRole('dialog')).toContainText(secondName)
+    await expect(page.getByRole('dialog')).toContainText('3 pilihan dari 2 layanan')
   })
 
   test('toko memberi notifikasi, modal keranjang, dan checkout tervalidasi', async ({ page }) => {

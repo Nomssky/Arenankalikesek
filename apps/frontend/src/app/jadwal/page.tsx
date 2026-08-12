@@ -9,6 +9,7 @@ import AvailabilityCalendar from '@/components/AvailabilityCalendar'
 import { isAccommodationItem } from '@repo/shared-utils'
 import { formatPrice } from '@/lib/utils'
 import CheckoutDrawer, { bookingCartKey, type AccommodationSelection, type CheckoutItem, type CheckoutStep } from '@/components/CheckoutDrawer'
+import BookingCartToast from '@/components/BookingCartToast'
 
 interface InventoryItem {
   id: string
@@ -156,7 +157,7 @@ export default function JadwalPage() {
   const [selectedEduTripDate, setSelectedEduTripDate] = useState('')
   const [selectedEduTripPackage, setSelectedEduTripPackage] = useState('')
   const [wahanaItems, setWahanaItems] = useState<WahanaItem[]>([])
-  const [selectedWahanaIds, setSelectedWahanaIds] = useState<string[]>([])
+  const [wahanaQuantities, setWahanaQuantities] = useState<Record<string, number>>({})
   const [selectedWahanaDate, setSelectedWahanaDate] = useState(today)
   const [tourPackages, setTourPackages] = useState<CheckoutItem[]>([])
   const [cart, setCart] = useState<CheckoutItem[]>([])
@@ -167,7 +168,6 @@ export default function JadwalPage() {
   )
   const scheduleCartCount = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
   const [cartNotice, setCartNotice] = useState<{ count: number; itemNames: string[] } | null>(null)
-  const [cartNoticeVisible, setCartNoticeVisible] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
@@ -255,7 +255,6 @@ export default function JadwalPage() {
   const selectedRentalItem = rentalItems.find((item) => item.id === selectedRentalItemId)
   const selectedRentalSlots = [...selectedRentalSlotIndexes].sort((first, second) => first - second)
   const selectedEduTripItem = edutripPackages.find((item) => item.id === selectedEduTripPackage)
-  const selectedWahanaItems = wahanaItems.filter((item) => selectedWahanaIds.includes(item.id))
   const addToBookingCart = (entries: CheckoutItem[]) => {
     try {
       const current = readCart()
@@ -276,7 +275,6 @@ export default function JadwalPage() {
       window.dispatchEvent(new Event('cart-updated'))
       setCart(next)
       setCartNotice({ count: entries.length, itemNames: entries.map((entry) => entry.name) })
-      setCartNoticeVisible(true)
     } catch {
       setError('Keranjang booking belum dapat disimpan. Silakan coba lagi.')
     }
@@ -286,15 +284,6 @@ export default function JadwalPage() {
     setCheckoutStep(step)
     setCartOpen(true)
   }
-
-  useEffect(() => {
-    if (!cartNoticeVisible) return
-    const timer = window.setTimeout(() => {
-      setCartNoticeVisible(false)
-      window.setTimeout(() => setCartNotice(null), 300)
-    }, 4000)
-    return () => window.clearTimeout(timer)
-  }, [cartNoticeVisible])
 
   const buildCheckoutItem = (partial: Partial<CheckoutItem> & { id: string }, extras: Partial<CheckoutItem> = {}): CheckoutItem => {
     const catalog = tourPackages.find((pkg) => pkg.id === partial.id)
@@ -364,21 +353,6 @@ export default function JadwalPage() {
         },
         { quantity: 1, bookingDate: selectedEduTripDate },
       )])
-      return
-    }
-    if (scheduleType === 'wahana' && selectedWahanaItems.length > 0) {
-      addToBookingCart(selectedWahanaItems.map((item) => buildCheckoutItem(
-        {
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          price: item.price || undefined,
-          price_label: item.price_label,
-          note: item.note,
-          bookable: item.bookable,
-        },
-        { quantity: 1, bookingDate: selectedWahanaDate },
-      )))
     }
   }
 
@@ -832,19 +806,19 @@ export default function JadwalPage() {
                   value={selectedWahanaDate}
                   onChange={(event) => {
                     setSelectedWahanaDate(event.target.value)
-                    setSelectedWahanaIds([])
+                    setWahanaQuantities({})
                   }}
                 />
-                <p className="mt-2 text-xs leading-5 text-gray-500">Pilih satu atau beberapa wahana/aktivitas, lalu tentukan jumlah peserta saat booking.</p>
+                <p className="mt-2 text-xs leading-5 text-gray-500">Atur jumlah peserta per wahana, lalu tambahkan langsung ke keranjang booking.</p>
               </div>
               {wahanaItems.length === 0 ? (
                 <p className="rounded-2xl bg-gray-50 p-8 text-center text-gray-500">Belum ada wahana & aktivitas.</p>
               ) : (
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {wahanaItems.map((item) => {
-                    const isSelected = selectedWahanaIds.includes(item.id)
+                    const qty = wahanaQuantities[item.id] || 1
                     return (
-                      <article key={item.id} className={`flex h-full flex-col rounded-2xl border bg-white p-5 shadow-sm transition ${isSelected ? 'border-orange-300 ring-2 ring-orange-100' : 'border-emerald-950/5'}`}>
+                      <article key={item.id} className="flex h-full flex-col rounded-2xl border bg-white p-5 shadow-sm transition border-emerald-950/5">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">Wahana & Aktivitas</p>
@@ -859,42 +833,58 @@ export default function JadwalPage() {
                           <span className="text-gray-500">Pesan per orang / unit</span>
                         </div>
 
-<button
-                          type="button"
-                          aria-label={item.bookable ? 'Pilih wahana' : 'Wahana tidak tersedia'}
-                          aria-pressed={isSelected}
-                          aria-disabled={!item.bookable}
-                          onClick={() => {
-                            if (!item.bookable) return
-                            setSelectedWahanaIds((current) => isSelected
-                              ? current.filter((id) => id !== item.id)
-                              : [...current, item.id])
-                          }}
-                          className={`mt-auto pt-4 block w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${isSelected ? 'bg-orange-500 text-white hover:bg-orange-400' : item.bookable ? 'border border-emerald-200 bg-emerald-50/60 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
-                        >
-                          {isSelected ? 'Terpilih' : item.bookable ? 'Pilih wahana' : 'Belum dapat dipesan'}
-                        </button>
+                        <div className="mt-4 flex flex-col gap-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-semibold text-emerald-950">Jumlah</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                aria-label={`Kurangi ${item.name}`}
+                                disabled={qty <= 1 || !item.bookable}
+                                onClick={() => setWahanaQuantities((current) => ({ ...current, [item.id]: Math.max(1, qty - 1) }))}
+                                className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-bold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-300"
+                              >
+                                −
+                              </button>
+                              <span className="min-w-8 text-center text-sm font-bold text-emerald-950" aria-live="polite">{qty}</span>
+                              <button
+                                type="button"
+                                aria-label={`Tambah ${item.name}`}
+                                disabled={!item.bookable}
+                                onClick={() => setWahanaQuantities((current) => ({ ...current, [item.id]: qty + 1 }))}
+                                className="flex h-9 w-9 items-center justify-center rounded-lg text-lg font-bold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:text-gray-300"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={!item.bookable}
+                            onClick={() => {
+                              if (!item.bookable) return
+                              const entry = buildCheckoutItem(
+                                {
+                                  id: item.id,
+                                  name: item.name,
+                                  category: item.category,
+                                  price: item.price || undefined,
+                                  price_label: item.price_label,
+                                  note: item.note,
+                                  bookable: item.bookable,
+                                },
+                                { quantity: qty, bookingDate: selectedWahanaDate },
+                              )
+                              addToBookingCart([entry])
+                            }}
+                            className={`mt-auto w-full rounded-full px-5 py-3 text-center text-sm font-bold transition ${item.bookable ? 'bg-orange-500 text-white hover:bg-orange-400' : 'pointer-events-none bg-gray-100 text-gray-400'}`}
+                          >
+                            Tambah ke Keranjang
+                          </button>
+                        </div>
                       </article>
                     )
                   })}
-                </div>
-              )}
-
-              {selectedWahanaIds.length > 0 && (
-                <div className="mt-6 flex flex-col gap-3 rounded-2xl bg-emerald-950 p-4 text-white sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs text-white/60">{selectedWahanaIds.length} wahana dipilih</p>
-                    <p className="font-semibold">{selectedWahanaDate ? shortDateLabel(selectedWahanaDate) : 'Tanggal belum dipilih'}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addCurrentSelection()
-                    }}
-                    className="rounded-full bg-orange-500 px-5 py-3 text-center text-sm font-bold text-white hover:bg-orange-400"
-                  >
-                    Tambahkan ke Keranjang Booking
-                  </button>
                 </div>
               )}
             </div>
@@ -902,33 +892,12 @@ export default function JadwalPage() {
         </div>
       </Section>
 
-      {cartNotice && cartNoticeVisible && (
-        <div
-          className="fixed bottom-4 right-4 z-[80] max-w-xl rounded-2xl border border-emerald-100 bg-white p-4 shadow-2xl animate-[toast-slide-in_300ms_cubic-bezier(0.16,1,0.3,1)_both] sm:w-[min(28rem,calc(100%-2rem))]"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-semibold text-emerald-950">Berhasil ditambahkan ke Keranjang Booking.</p>
-              <p className="mt-1 text-xs text-gray-600">{cartNotice.count} layanan tersimpan. Anda dapat memilih layanan lain atau melanjutkan checkout.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCartNoticeVisible(false)}
-              className="shrink-0 rounded-full p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-              aria-label="Tutup notifikasi"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <button type="button" onClick={() => setCartNoticeVisible(false)} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lanjut Pilih Layanan</button>
-            <button type="button" onClick={() => { openCheckoutDrawer('cart'); setCartNoticeVisible(false); }} className="min-h-11 rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Lihat Keranjang</button>
-            <button type="button" onClick={() => { openCheckoutDrawer('details'); setCartNoticeVisible(false); }} className="min-h-11 rounded-full bg-orange-500 px-3 py-2 text-xs font-bold text-white hover:bg-orange-600">Lanjut ke Checkout</button>
-          </div>
-        </div>
-      )}
+      <BookingCartToast
+        notice={cartNotice}
+        onClose={() => setCartNotice(null)}
+        onViewCart={() => { openCheckoutDrawer('cart'); setCartNotice(null) }}
+        onCheckout={() => { openCheckoutDrawer('details'); setCartNotice(null) }}
+      />
 
       <CheckoutDrawer
         open={cartOpen}

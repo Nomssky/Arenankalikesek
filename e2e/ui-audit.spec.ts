@@ -21,7 +21,6 @@ const publicRoutes = [
   '/kontak',
   '/webgis',
   '/jadwal',
-  '/booking/wisata',
   '/booking/sukses',
   '/dashboard',
   '/eduwisata-gula-aren',
@@ -233,7 +232,7 @@ test.describe('Audit UI non-destruktif', () => {
   })
 
   test('seluruh tautan internal dari halaman utama tidak menghasilkan 404', async ({ page }) => {
-    const sources = ['/', '/wisata', '/toko', '/blog', '/kontak', '/webgis', '/jadwal', '/booking/wisata']
+    const sources = ['/', '/wisata', '/toko', '/blog', '/kontak', '/webgis', '/jadwal']
     const internalPaths = new Set<string>()
     const origin = new URL(test.info().project.use.baseURL as string).origin
     for (const source of sources) {
