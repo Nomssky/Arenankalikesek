@@ -31,6 +31,31 @@ fix(frontend): batasi produk toko sesuai daftar yang diizinkan - Kresna
 
 Ini berlaku untuk semua commit, dikerjakan oleh manusia maupun agent.
 
+### Remote & Hak Akses Push
+
+- **`origin` (repo nomssky/Arenankalikesek)** adalah tempat bekerja semua dev — semua commit/push harian dilakukan di sini.
+- **`official` (repo arenankalikesek/Arenankalikesek)** adalah repo produksi. HAKIKATNYA: **tidak boleh di-push langsung oleh dev**.
+- **Force-push ke `official` hanya boleh dilakukan oleh pemilik akun `arenankalikesek@gmail.com`** (dan hanya atas instruksi eksplisit pemilik gmail tersebut). Dev lain (termasuk agent) dilarang push ke `official` tanpa instruksi ini.
+- Alur rilis: semua dev push ke `origin` → saat pekerjaan selesai, pemilik `arenankalikesek@gmail.com` memberi instruksi rilis → hasil akhir di-squash menjadi **satu commit** (author: `arenankalikesek@gmail.com`) lalu di-force-push ke `official`.
+
+### Rilis ke Repo Resmi (hanya oleh pemilik arenankalikesek@gmail.com)
+
+Saat instruksi rilis diberikan, ikuti alur ini:
+
+1. Pastikan `main` lokal sinkron dengan `origin/main` (commit terbaru semua dev sudah masuk).
+2. Potong snapshot single-commit dari `origin/main`:
+   ```bash
+   GIT_AUTHOR_NAME="Kresna" GIT_AUTHOR_EMAIL="arenankalikesek@gmail.com" \
+   GIT_COMMITTER_NAME="Kresna" GIT_COMMITTER_EMAIL="arenankalikesek@gmail.com" \
+   git commit-tree "$(git rev-parse origin/main)"^{tree} -m "Deploy produksi Arenan Kalikesek (snapshot origin/main)" 
+   ```
+3. Simpan SHA hasil `commit-tree`, verifikasi riwayat tidak berantakan di repo lokal/pribadi (tidak perlu membuat branch), lalu force-push SHA tersebut ke `official`:
+   ```bash
+   git push official SHA:main --force-with-lease
+   ```
+4. Struktur di `official` menjadi: `root-commit (satu snapshot) → main`.
+5. Jangan pernah force-push ke `official` dengan riwayat penuh/personal email — hanya snapshot single-commit resmi di atas.
+
 
 ## Arsitektur Frontend-Backend
 
