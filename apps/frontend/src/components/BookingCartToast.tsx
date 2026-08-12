@@ -15,7 +15,7 @@ export default function BookingCartToast({ notice, onClose, onViewCart, onChecko
     if (!notice) return
     const timer = window.setTimeout(() => {
       onClose()
-    }, 4000)
+    }, 2000)
     return () => window.clearTimeout(timer)
   }, [notice, onClose])
 
