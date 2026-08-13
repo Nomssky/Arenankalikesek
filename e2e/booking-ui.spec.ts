@@ -97,3 +97,99 @@ test.describe('Alur booking UI tanpa membuat transaksi', () => {
     await expect(pastSchedule.json()).resolves.toMatchObject({ error: /masa lalu/ })
   })
 })
+
+test.describe('Keranjang Edu Trip & aturan gabung layanan', () => {
+  async function addFirstEduTrip(page: import('@playwright/test').Page) {
+    await page.goto('/jadwal', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
+    await page.getByRole('button', { name: 'Eduwisata & Kegiatan' }).click()
+    const eduCard = page.locator('article').filter({ has: page.getByRole('button', { name: /, tersedia/ }) }).first()
+    await expect(eduCard).toBeVisible({ timeout: 20_000 })
+    await eduCard.getByRole('button', { name: /, tersedia/ }).first().click()
+    await eduCard.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' }).click()
+    return eduCard
+  }
+
+  test('rincian peserta Edu Trip tampil realtime di keranjang (25 peserta x harga)', async ({ page }) => {
+    await addFirstEduTrip(page)
+
+    const toast = page.getByRole('status').filter({ hasText: 'Berhasil ditambahkan ke Keranjang Booking.' })
+    await expect(toast).toBeVisible()
+    await toast.getByRole('button', { name: 'Lihat Keranjang' }).click()
+
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText('25 peserta')
+    const breakdown = dialog.getByText(/25 peserta × /)
+    await expect(breakdown).toBeVisible()
+    const match = (await breakdown.innerText()).match(/Rp([\d.,]+)/)
+    expect(match).not.toBeNull()
+    const unitPrice = Number((match![1] || '').replace(/\./g, ''))
+    await expect(dialog).toContainText(`Rp${(unitPrice * 25).toLocaleString('id-ID')}`)
+  })
+
+  test('gabungan sewa tempat dengan penginapan diblokir dengan pesan jelas', async ({ page }) => {
+    await page.goto('/jadwal', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
+    await page.getByRole('button', { name: 'Sewa Tempat' }).click()
+
+    const tomorrowDate = new Date()
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+    const tomorrow = `${tomorrowDate.getFullYear()}-${String(tomorrowDate.getMonth() + 1).padStart(2, '0')}-${String(tomorrowDate.getDate()).padStart(2, '0')}`
+    await page.getByLabel('Tanggal sewa').fill(tomorrow)
+
+    const venueCard = page.locator('article').first()
+    await expect(venueCard).toBeVisible({ timeout: 20_000 })
+    const freeSlot = venueCard.locator('button[aria-pressed]:not([disabled])').first()
+    await expect(freeSlot).toBeVisible({ timeout: 20_000 })
+    await freeSlot.click()
+    await venueCard.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' }).click()
+
+    const toast = page.getByRole('status').filter({ hasText: 'Berhasil ditambahkan ke Keranjang Booking.' })
+    await expect(toast).toBeVisible()
+    await toast.getByRole('button', { name: 'Lanjut Pilih Layanan' }).click()
+
+    await page.getByRole('button', { name: 'Penginapan & Camping' }).click()
+    const availableDays = page.locator('button[aria-label*=", tersedia"]:not([disabled])')
+    await expect(availableDays.first()).toBeVisible({ timeout: 20_000 })
+    if ((await availableDays.count()) < 2) {
+      test.skip(true, 'dibutuhkan minimal 2 tanggal penginapan tersedia')
+      return
+    }
+    await availableDays.nth(0).click()
+    await availableDays.nth(1).click()
+
+    await page.getByRole('button', { name: 'Tambahkan ke Keranjang Booking' }).click()
+
+    await expect(page.getByText(/hanya bisa digabung/)).toBeVisible()
+  })
+
+  test('jumlah peserta turun otomatis ke 1 saat item Edu Trip terakhir dihapus', async ({ page }) => {
+    const eduCard = await addFirstEduTrip(page)
+    const eduName = (await eduCard.locator('h2').innerText()).trim()
+
+    let toast = page.getByRole('status').filter({ hasText: 'Berhasil ditambahkan ke Keranjang Booking.' })
+    await expect(toast).toBeVisible()
+    await toast.getByRole('button', { name: 'Lanjut Pilih Layanan' }).click()
+
+    await page.getByRole('button', { name: 'Wahana & Aktivitas' }).click()
+    const wahanaCard = page.locator('article').filter({ has: page.getByRole('button', { name: 'Tambah ke Keranjang' }) }).first()
+    await expect(wahanaCard).toBeVisible({ timeout: 20_000 })
+    const wahanaName = (await wahanaCard.locator('h2').innerText()).trim()
+    await wahanaCard.getByRole('button', { name: `Tambah ${wahanaName}` }).click()
+    await wahanaCard.getByRole('button', { name: 'Tambah ke Keranjang' }).click()
+
+    toast = page.getByRole('status').filter({ hasText: 'Berhasil ditambahkan ke Keranjang Booking.' })
+    await expect(toast).toBeVisible()
+    await toast.getByRole('button', { name: 'Lanjut ke Checkout' }).click()
+
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    const participantInput = dialog.getByLabel('Jumlah peserta')
+    await expect(participantInput).toHaveValue('25')
+    await dialog.getByRole('button', { name: 'Kembali ke pilihan' }).click()
+    await dialog.getByRole('button', { name: `Hapus ${eduName}` }).click()
+    await dialog.getByRole('button', { name: 'Isi keterangan booking' }).click()
+    await expect(participantInput).toHaveValue('1')
+  })
+})

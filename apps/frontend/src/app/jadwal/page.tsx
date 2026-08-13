@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
-import { isAccommodationItem } from '@repo/shared-utils'
+import { cartMixingError, isAccommodationItem } from '@repo/shared-utils'
 import { formatPrice } from '@/lib/utils'
 import CheckoutDrawer, { bookingCartKey, type AccommodationSelection, type CheckoutItem, type CheckoutStep } from '@/components/CheckoutDrawer'
 import BookingCartToast from '@/components/BookingCartToast'
@@ -15,8 +15,11 @@ interface InventoryItem {
   id: string
   name: string
   category: string
+  description: string | null
+  capacity: string | null
   available: boolean
   price_per_unit?: number
+  price_type?: string
 }
 
 interface RentalBooking {
@@ -41,6 +44,8 @@ interface EduTripPackage {
   name: string
   category: string
   price_label: string
+  note: string | null
+  facilities: string[]
   bookable: boolean
   price?: number
 }
@@ -258,6 +263,11 @@ export default function JadwalPage() {
   const addToBookingCart = (entries: CheckoutItem[]) => {
     try {
       const current = readCart()
+      const mixingError = cartMixingError(current, entries)
+      if (mixingError) {
+        setError(mixingError)
+        return
+      }
       const next = [...current]
       entries.forEach((entry) => {
         if (isAccommodationItem(entry.id)) {
@@ -540,6 +550,21 @@ export default function JadwalPage() {
                           <span className="text-gray-500">Pilih per jam</span>
                         </div>
 
+                        {(item.capacity || item.description) && (
+                          <div className="mt-3 space-y-1 text-xs leading-5 text-gray-600">
+                            {item.capacity && <p><strong>Kapasitas:</strong> {item.capacity}</p>}
+                            {item.description && <p>{item.description}</p>}
+                          </div>
+                        )}
+
+                        <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                          <span className="font-semibold text-emerald-700">
+                            {item.price_per_unit
+                              ? `${formatPrice(item.price_per_unit)}${item.price_type === 'per_malam' ? '/malam' : item.price_type === 'per_hari' ? '/hari' : item.price_type === 'per_jam' ? '/jam' : ''}`
+                              : 'Harga belum tersedia'}
+                          </span>
+                        </div>
+
                         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                           {rentalHourlySlots.map((slot, slotIndex) => {
                             const isBooked = bookedSlots[slotIndex]
@@ -668,6 +693,15 @@ export default function JadwalPage() {
                       </div>
                       {availableDateCount > 0 ? <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-500" /> : <XCircleIcon className="h-6 w-6 shrink-0 text-red-500" />}
                     </div>
+
+                    {item.note && item.note !== item.price_label && (
+                      <p className="mt-2 text-xs leading-5 text-gray-600">{item.note}</p>
+                    )}
+                    {item.facilities.length > 0 && (
+                      <p className="mt-2 text-xs leading-5 text-gray-600">
+                        <strong>Fasilitas:</strong> {item.facilities.join(', ')}
+                      </p>
+                    )}
 
                     <div className="mt-4 flex items-center justify-between gap-3 text-xs">
                       <span className="font-semibold text-emerald-700">{availableDateCount} tanggal tersedia</span>
@@ -826,7 +860,7 @@ export default function JadwalPage() {
                           </div>
                           {item.bookable ? <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-500" /> : <XCircleIcon className="h-6 w-6 shrink-0 text-red-500" />}
                         </div>
-                        {item.note && <p className="mt-1 text-xs text-gray-500">{item.note}</p>}
+                        {item.note && item.note !== item.price_label && <p className="mt-1 text-xs text-gray-500">{item.note}</p>}
 
                         <div className="mt-4 flex items-center justify-between gap-3 text-xs">
                           <span className="font-semibold text-emerald-700">{item.price_label}</span>

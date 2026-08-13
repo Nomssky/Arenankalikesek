@@ -285,11 +285,26 @@ export default function CheckoutDrawer({
   const rentalSoundPrice = bookingSettings['rental.sound_system_price']
   const rentalMatPrice = bookingSettings['rental.mat_price']
   const hasEduTrip = cart.some((item) => isEduTripItem(item))
-  // Peserta minimum Edu Trip: naikkan otomatis saat drawer dibuka dengan item edu di keranjang.
+  // Peserta minimum Edu Trip: naikkan otomatis ke 25 saat item edu ada, dan
+  // kembali ke 1 saat item edu terakhir dihapus (hanya pada transisi edu→hilang,
+  // agar input peserta venue yang diketik manual tidak di-reset).
+  const prevHasEduTripRef = useRef(hasEduTrip)
   useEffect(() => {
-    if (!open || !hasEduTrip || participantCount >= EDU_TRIP_MIN_PARTICIPANTS) return
-    const frame = window.requestAnimationFrame(() => setParticipantCount(EDU_TRIP_MIN_PARTICIPANTS))
-    return () => window.cancelAnimationFrame(frame)
+    if (!open) return
+    const prev = prevHasEduTripRef.current
+    prevHasEduTripRef.current = hasEduTrip
+    if (hasEduTrip === prev) {
+      if (hasEduTrip && participantCount < EDU_TRIP_MIN_PARTICIPANTS) {
+        const frame = window.requestAnimationFrame(() => setParticipantCount(EDU_TRIP_MIN_PARTICIPANTS))
+        return () => window.cancelAnimationFrame(frame)
+      }
+      return
+    }
+    const target = hasEduTrip ? EDU_TRIP_MIN_PARTICIPANTS : 1
+    if (participantCount !== target) {
+      const frame = window.requestAnimationFrame(() => setParticipantCount(target))
+      return () => window.cancelAnimationFrame(frame)
+    }
   }, [open, hasEduTrip, participantCount])
   const blockedDates = Object.values(blockedDatesByMonth).flat()
   const holidayDates = Object.values(holidayDatesByMonth).flat()
@@ -929,9 +944,14 @@ export default function CheckoutDrawer({
     rentalSoundSystem && (rentalSoundPrice === null || rentalSoundPrice === undefined) ? 'sound system' : null,
     rentalMatQuantity > 0 && (rentalMatPrice === null || rentalMatPrice === undefined) ? 'tikar' : null,
   ].filter(Boolean)
+  // Estimasi per orang/unit: item edu trip dihitung per peserta (sama dengan
+  // resolveBookingQuantity di backend), sisanya ikut kuantitas keranjang.
   const nonAccommodationBasePrice = cart
     .filter((item) => !isAccommodationItem(item.id))
-    .reduce((sum, item) => sum + item.price * item.quantity, 0)
+    .reduce(
+      (sum, item) => sum + item.price * (isEduTripItem(item) ? Math.max(1, participantCount) : item.quantity),
+      0,
+    )
   const totalPrice = accommodationTotal + nonAccommodationBasePrice + rentalVenueAddOnTotal
   const displayedAccommodationGuestTotal = accommodationGuestTotal || bookingGuestCount
   const accommodationPayload: AccommodationSelection[] = selectedAccommodations.map((accommodation) => ({
@@ -1058,6 +1078,11 @@ export default function CheckoutDrawer({
                       {item.price_label}
                       {item.unit ? ` per ${item.unit}` : ''}
                     </p>
+                    {isEduTripItem(item) && (
+                      <p className="mt-1 text-xs font-semibold text-orange-600">
+                        {participantCount} peserta × {formatPrice(item.price)}
+                      </p>
+                    )}
                     {(item.checkInDate || item.bookingDate) && (
                       <p className="mt-2 text-xs font-semibold text-emerald-700">
                         {item.checkInDate
@@ -1069,6 +1094,10 @@ export default function CheckoutDrawer({
                   <div className="flex items-center justify-between gap-4 sm:justify-end">
                     {isAccommodationItem(item.id) ? (
                       <span className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">1 unit</span>
+                    ) : isEduTripItem(item) ? (
+                      <span className="rounded-full bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700">
+                        {participantCount} peserta
+                      </span>
                     ) : (
                     <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1">
                       <button
@@ -1091,7 +1120,11 @@ export default function CheckoutDrawer({
                     </div>
                     )}
                     <p className="min-w-24 text-right text-sm font-semibold text-emerald-700">
-                      {formatPrice(isAccommodationItem(item.id) ? (accommodationEstimatedTotals[item.id] || item.price) : item.price * item.quantity)}
+                      {formatPrice(
+                        isAccommodationItem(item.id)
+                          ? (accommodationEstimatedTotals[item.id] || item.price)
+                          : item.price * (isEduTripItem(item) ? Math.max(1, participantCount) : item.quantity),
+                      )}
                     </p>
                     <button
                       type="button"
