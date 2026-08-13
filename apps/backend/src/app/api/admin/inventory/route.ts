@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
         name: body.name,
         category: body.category,
         description: body.description || null,
+        capacity: body.capacity || null,
         price_per_unit: body.price_per_unit || 0,
         price_type: body.price_type || 'per_jam',
         stock: body.stock ?? 1,

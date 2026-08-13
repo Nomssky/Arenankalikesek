@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '../../../../../lib/supabase-server'
 import { requireAdmin } from '../../../../../lib/admin-guard'
 
-const ALLOWED_FIELDS = ['name', 'category', 'description', 'price_per_unit', 'price_type', 'stock', 'image', 'available']
+const ALLOWED_FIELDS = ['name', 'category', 'description', 'capacity', 'price_per_unit', 'price_type', 'stock', 'image', 'available']
 
 export async function PATCH(
   request: NextRequest,

@@ -1158,3 +1158,28 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+-- ---------- 033: kapasitas venue sewa tempat (display /jadwal) ----------
+-- Nilai dari fallback pricing.ts agar konsisten dengan tampilan /wisata;
+-- bisa diubah admin melalui form inventory.
+
+ALTER TABLE inventory_rentals ADD COLUMN capacity text;
+
+UPDATE inventory_rentals SET capacity = CASE name
+  WHEN 'Aula Dalam' THEN '35–40 orang'
+  WHEN 'Aula Teras' THEN '35–40 orang'
+  WHEN 'Aula Full' THEN '60–80 orang'
+  WHEN 'Aula Sungai' THEN '70–90 orang'
+  WHEN 'Joglo' THEN '40–50 orang'
+  WHEN 'Pawon' THEN '30–40 orang'
+  WHEN 'Gazebo Atas' THEN '20–25 orang'
+  WHEN 'Gazebo Bawah' THEN '20–25 orang'
+  WHEN 'Panggung' THEN '40–50 orang'
+  ELSE capacity
+END;
+
+-- ---------- 034: bersihkan artifact /pax dari note tour_packages ----------
+
+UPDATE tour_packages
+SET note = NULLIF(regexp_replace(note, '^/pax\s*-?\s*', ''), '')
+WHERE note LIKE '/pax%';

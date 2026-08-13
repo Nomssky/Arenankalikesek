@@ -10,6 +10,7 @@ interface InventoryItem {
   category: string
   price_per_unit: number
   description: string | null
+  capacity: string | null
   available: boolean
   created_at: string
 }
@@ -19,6 +20,7 @@ const emptyItem = {
   category: 'tempat-pertemuan',
   price_per_unit: 0,
   description: '',
+  capacity: '',
   available: true,
 }
 
@@ -83,6 +85,7 @@ export default function AdminInventoryPage() {
       category: item.category,
       price_per_unit: item.price_per_unit,
       description: item.description || '',
+      capacity: item.capacity || '',
       available: item.available,
     })
     setEditingId(item.id)
@@ -246,7 +249,17 @@ export default function AdminInventoryPage() {
                   className="form-input"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Kapasitas 2-5 orang"
+                  placeholder="Aula dengan pemandangan sungai"
+                />
+              </div>
+              <div>
+                <label className="form-label">Kapasitas</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={form.capacity}
+                  onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                  placeholder="35–40 orang"
                 />
               </div>
               <div className="flex items-center gap-2">

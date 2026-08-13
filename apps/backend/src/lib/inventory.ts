@@ -5,6 +5,8 @@ export interface InventoryRecord {
   id: string
   name: string
   category: string
+  description: string | null
+  capacity: string | null
   price: number
   price_type: 'per_jam' | 'per_hari' | 'per_malam' | 'flat'
   image: string | null
@@ -29,7 +31,7 @@ export async function loadInventory(): Promise<InventoryRecord[]> {
   if (!isSupabaseConfigured()) return []
   const { data, error } = await getSupabaseAdmin()
     .from('inventory_rentals')
-    .select('id,name,category,price_per_unit,price_type,image,available')
+    .select('id,name,category,description,capacity,price_per_unit,price_type,image,available')
   if (error) {
     throw new Error(`Gagal memuat harga sewa tempat dari database: ${error.message}`)
   }
@@ -37,6 +39,8 @@ export async function loadInventory(): Promise<InventoryRecord[]> {
     id: row.id,
     name: row.name,
     category: row.category,
+    description: row.description ?? null,
+    capacity: row.capacity ?? null,
     price: row.price_per_unit ?? 0,
     price_type: row.price_type,
     image: row.image,
