@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   description:
     'Desa Wisata Arenan Kalikesek Sriwulan, Kecamatan Limbangan, Kabupaten Kendal, Jawa Tengah. Nikmati keindahan alam dan berbagai aktivitas wisata menarik.',
   keywords: ['wisata', 'kalikesek', 'sriwulan', 'kendal', 'desa wisata', 'arenan'],
+  icons: {
+    icon: '/images/logo-arenan-kalikesek.png',
+    shortcut: '/images/logo-arenan-kalikesek.png',
+    apple: '/images/logo-arenan-kalikesek.png',
+  },
   openGraph: {
     title: 'Arenan Kalikesek | Desa Wisata Sriwulan',
     description:

@@ -27,7 +27,7 @@ Program ini dilaksanakan di Tempat Pembuangan Sampah (TPS)-3R Desa Sriwulan, Kec
 
 Program ini bertujuan meningkatkan efektivitas pengelolaan sampah melalui penyempurnaan desain, mekanisme kerja, tata letak fasilitas, serta sistem operasional kedua alat agar lebih aman, efisien, dan mudah digunakan oleh pengelola TPS. Kegiatan ini juga mendukung pencapaian Tujuan Pembangunan Berkelanjutan (*Sustainable Development Goals*/SDGs). 
 
-Pada SDGs poin 11 (*Sustainable Cities and Communities*) berkontribusi pada peningkatan kualitas lingkungan melalui sistem pengelolaan sampah yang lebih baik sehingga menciptakan kawasan permukiman yang bersih dan berkelanjutan dan poin ke 12 (*Responsible Consumption and Production*) dengan mendorong pengelolaan limbah secara bertanggung jawab melalui pengurangan volume sampah dan pengolahan sampah organik menggunakan mesin pencacah.
+SDGs poin 11 (*Sustainable Cities and Communities*) berkontribusi pada peningkatan kualitas lingkungan melalui sistem pengelolaan sampah yang lebih baik sehingga menciptakan kawasan permukiman yang bersih dan berkelanjutan, dan poin ke-12 (*Responsible Consumption and Production*) dengan mendorong pengelolaan limbah secara bertanggung jawab melalui pengurangan volume sampah dan pengolahan sampah organik menggunakan mesin pencacah.
 
 Program ini dilaksanakan di bawah bimbingan Reny Wiyatasari, S.S., M.Hum., Dr. Ir. Baginda Iskandar, M.T., M.Si., dan Irfan Murthado Yusuf, S.A.P., MPM., selaku Dosen Pembimbing Lapangan (DPL) KKN-T IDBU 10 Universitas Diponegoro. Program ini juga melibatkan sepuluh mahasiswa dari berbagai disiplin ilmu agar optimalisasi fasilitas pengelolaan sampah dapat dilakukan secara menyeluruh.
 

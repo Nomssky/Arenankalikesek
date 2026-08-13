@@ -23,9 +23,7 @@ Sriwulan, 8 Agustus 2026 – Mochamad Rizqul Akbar, mahasiswa Program Studi S1 A
 
 Perancangan ini menjadi salah satu upaya untuk mendukung pengembangan potensi pariwisata lokal melalui penyediaan alternatif fasilitas akomodasi yang dapat meningkatkan daya tarik dan pengalaman wisatawan. Program ini merupakan bagian dari program kerja sosial kemasyarakatan yang dilaksanakan pada 13 Juli 2026\. 
 
-Kebutuhan infrastruktur pendukung pariwisata di kawasan Wisata Kalikesek tersebut muncul karena kawasan wisata memerlukan fasilitas akomodasi yang dapat mendukung wisatawan untuk menikmati lingkungan alam lebih nyaman dan menarik. Program ini juga mendukung pencapaian Tujuan Pembangunan Berkelanjutan (*Sustainable Development Goals*/SDGs). 
-
-Tujuan 8 (*Decent Work and Economic Growth*) karena pengembangan fasilitas wisata mendorong aktivitas ekonomi peluang usaha masyarakat setempat, Tujuan 11 (*Sustainable Cities and Communities*) berkaitan dengan pengembangan kawasan wisata yang aman dan berkelanjutan, serta Tujuan 12 (*Responsible Consumption and Production*) diterapkan melalui pendekatan desain yang mempertimbangkan efisiensi penggunaan sumber daya lokal.
+Kebutuhan infrastruktur pendukung pariwisata di kawasan Wisata Kalikesek tersebut muncul karena kawasan wisata memerlukan fasilitas akomodasi yang dapat mendukung wisatawan untuk menikmati lingkungan alam lebih nyaman dan menarik. Program ini selaras dengan pencapaian Tujuan Pembangunan Berkelanjutan (*Sustainable Development Goals*/SDGs), khususnya Tujuan 8 (*Decent Work and Economic Growth*) karena pengembangan fasilitas wisata mendorong aktivitas ekonomi dan peluang usaha masyarakat setempat, Tujuan 11 (*Sustainable Cities and Communities*) karena berkaitan dengan pengembangan kawasan wisata yang aman dan berkelanjutan, serta Tujuan 12 (*Responsible Consumption and Production*) yang diterapkan melalui pendekatan desain dengan mempertimbangkan efisiensi penggunaan sumber daya lokal.
 
 ![](/images/desain-glamping.jpeg)
 
