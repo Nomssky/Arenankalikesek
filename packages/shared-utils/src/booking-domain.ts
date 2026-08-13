@@ -72,11 +72,41 @@ export function accommodationTypeForItem(itemId: string): 'homestay' | 'camping'
 }
 
 export function isEduTripItem(item: { id?: string; category?: string }): boolean {
-  return item.category === 'paket-edukasi' || Boolean(item.id?.startsWith('edu-trip-'))
+  return item.category === 'paket-edukasi' || item.category === 'paket-kegiatan' || Boolean(item.id?.startsWith('edu-trip-'))
 }
 
 // Ketentuan harga katalog untuk Edu Trip: minimum rombongan peserta.
 export const EDU_TRIP_MIN_PARTICIPANTS = 25
+
+export type CartItemGroup = 'accommodation' | 'edu' | 'rental' | 'wahana'
+
+// Kelompok item untuk aturan campur keranjang:
+// - accommodation: penginapan/camping (hanya boleh digabung wahana/aktivitas)
+// - edu: paket edukasi & kegiatan (rombongan, satu sistem dengan sewa/wahana)
+// - rental: sewa tempat per jam
+// - wahana: aktivitas per orang/unit
+export function cartItemGroup(item: { id?: string; category?: string }): CartItemGroup {
+  if (item.id && isAccommodationItem(item.id)) return 'accommodation'
+  if (isEduTripItem(item)) return 'edu'
+  if (item.category === 'area-kegiatan' || item.category === 'tempat-pertemuan') return 'rental'
+  return 'wahana'
+}
+
+// Pesan larangan campur keranjang, null bila kombinasi diperbolehkan.
+// Penginapan/camping hanya boleh digabung dengan wahana/aktivitas — tidak
+// dengan sewa tempat atau edu trip (rombongan harian sistem terpisah).
+export function cartMixingError(
+  existing: { id?: string; category?: string }[],
+  incoming: { id?: string; category?: string }[],
+): string | null {
+  const groups = new Set(
+    [...existing, ...incoming].map((item) => cartItemGroup(item)),
+  )
+  if (groups.has('accommodation') && (groups.has('edu') || groups.has('rental'))) {
+    return 'Keranjang menginap/camping hanya bisa digabung dengan wahana/aktivitas, tidak dengan sewa tempat atau edu trip. Selesaikan salah satu booking terlebih dahulu.'
+  }
+  return null
+}
 
 export interface BookingQuantityParams {
   isEdu: boolean

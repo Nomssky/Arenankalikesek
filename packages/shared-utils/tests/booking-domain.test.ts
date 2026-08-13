@@ -4,6 +4,7 @@ import {
   calculateCampingTotal,
   calculateExtraGuestTotal,
   calculateHomestayBase,
+  cartMixingError,
   dateRangeContainsBlockedDate,
   differenceInNights,
 } from '../src/index.ts'
@@ -68,4 +69,24 @@ test('rentang tanggal mendeteksi tanggal yang sudah terisi', () => {
     dateRangeContainsBlockedDate('2026-08-01', '2026-08-04', ['2026-08-04']),
     false,
   )
+})
+
+test('campur keranjang: menginap hanya boleh digabung wahana/aktivitas', () => {
+  const aren = { id: 'aren-1', category: 'homestay' }
+  const wahana = { id: 'atv-anak', category: 'aktivitas' }
+  const edu = { id: 'edu-trip-kesek-1', category: 'paket-edukasi' }
+  const kegiatan = { id: 'kegiatan-x', category: 'paket-kegiatan' }
+  const venue = { id: 'aula-full', category: 'tempat-pertemuan' }
+  const area = { id: 'gazebo-atas', category: 'area-kegiatan' }
+
+  assert.equal(cartMixingError([], [wahana]), null)
+  assert.equal(cartMixingError([aren], [wahana]), null)
+  assert.equal(cartMixingError([wahana], [aren]), null)
+  assert.equal(cartMixingError([edu], [venue]), null)
+  assert.equal(cartMixingError([wahana], [edu]), null)
+  assert.match(cartMixingError([aren], [edu]) || '', /hanya bisa digabung/)
+  assert.match(cartMixingError([edu], [aren]) || '', /hanya bisa digabung/)
+  assert.match(cartMixingError([aren], [venue]) || '', /hanya bisa digabung/)
+  assert.match(cartMixingError([area], [aren]) || '', /hanya bisa digabung/)
+  assert.match(cartMixingError([aren, wahana], [kegiatan]) || '', /hanya bisa digabung/)
 })

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { resolveBookingQuantity } from '@repo/shared-utils'
+import { isEduTripItem, resolveBookingQuantity } from '@repo/shared-utils'
 
 test('resolveBookingQuantity: paket edu-trip ditagih per peserta (bukan 1×)', () => {
   const qty = resolveBookingQuantity({
@@ -59,4 +59,15 @@ test('item gratis: total 0 → langsung confirmed+paid tanpa payment URL (E6)', 
   // branch createSnapTransaction (parsedTotal > 0 && isMidtransConfigured()).
   assert.match(bookingsRoute, /if \(parsedTotal > 0 && isMidtransConfigured\(\)\)/)
   assert.match(bookingsRoute, /if \(parsedTotal > 0\) \{[\s\S]*?status: 'pending'/)
+})
+
+test('campur penginapan + sewa/edu ditolak backend, bukan hanya UI (aturan campur keranjang)', () => {
+  assert.match(bookingsRoute, /cartMixingError\(items, \[\]\)/)
+})
+
+test('isEduTripItem mencakup paket-kegiatan (kuota & min 25 peserta berlaku)', () => {
+  assert.equal(isEduTripItem({ id: 'package-1', category: 'paket-kegiatan' }), true)
+  assert.equal(isEduTripItem({ id: 'edu-trip-kesek-1', category: 'paket-edukasi' }), true)
+  assert.equal(isEduTripItem({ id: 'keceh-kali', category: 'aktivitas' }), false)
+  assert.equal(isEduTripItem({ id: 'aula-dalam', category: 'tempat-pertemuan' }), false)
 })

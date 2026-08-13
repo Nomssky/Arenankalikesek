@@ -12,6 +12,7 @@ import {
   calculateCampingTotal,
   calculateExtraGuestTotal,
   calculateHomestayBase,
+  cartMixingError,
   differenceInNights,
   EDU_TRIP_MIN_PARTICIPANTS,
   isAccommodationItem,
@@ -353,6 +354,12 @@ export async function POST(request: NextRequest) {
     }
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Pilih minimal satu layanan' }, { status: 400 })
+    }
+    // Aturan campur keranjang juga ditegakkan server-side (jangan lewatkan
+    // pemanggil API langsung); frontend hanya menampilkan pesan yang sama.
+    const mixingError = cartMixingError(items, [])
+    if (mixingError) {
+      return NextResponse.json({ error: mixingError }, { status: 400 })
     }
 
     const validTypes: BookingType[] = ['wisata', 'toko', 'parkir', 'sewa']
