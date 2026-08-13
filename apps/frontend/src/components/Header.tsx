@@ -24,7 +24,6 @@ const mobileNavItems = [
 const transparentHeroRoutes = new Set([
   '/',
   '/wisata',
-  '/booking',
   '/jadwal',
   '/toko',
   '/blog',
@@ -139,7 +138,7 @@ useEffect(() => {
                         : 'site-nav-link--active nav-choice-active bg-orange-400/20 text-orange-100 ring-1 ring-inset ring-orange-300/25 backdrop-blur-md'
                       : elevated
                         ? 'text-emerald-800 hover:bg-orange-500/10 hover:text-orange-700'
-                        : 'text-orange-200 hover:bg-orange-400/15 hover:text-white'
+                        : 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.28)] hover:bg-orange-400/15 hover:text-white'
                   }`}
                 >
                   {item.label}
