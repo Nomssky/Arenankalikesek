@@ -128,39 +128,56 @@ export async function sendBookingPaidEmail(booking: BookingEmailRow): Promise<bo
   })
 }
 
-// Kirim email konfirmasi booking dibuat (best-effort). Anti-duplikat via flag.
+// Kirim email konfirmasi booking dibuat (best-effort). Anti-duplikat via klaim
+// flag atomik: hanya pemanggil yang berhasil meng-SET flag (update WHERE flag
+// IS NULL) yang mengirim; duplikasi webhook + GET payment tidak mengirim ganda.
 export async function sendBookingCreated(bookingId: string): Promise<void> {
   if (!(await isEmailNotificationsActive())) return
   try {
     const supabase = getSupabaseAdmin()
-    const { data: booking } = await supabase
+    const claimedAt = new Date().toISOString()
+    const { data: booking, error: claimError } = await supabase
       .from('bookings')
-      .select('id, booking_code, customer_name, customer_email, customer_phone, total_amount, email_sent_created_at')
+      .update({ email_sent_created_at: claimedAt })
       .eq('id', bookingId)
-      .single()
-    if (!booking || !booking.customer_email || booking.email_sent_created_at) return
-    if (await sendBookingCreatedEmail(booking as BookingEmailRow)) {
-      await supabase.from('bookings').update({ email_sent_created_at: new Date().toISOString() }).eq('id', bookingId)
-    }
+      .is('email_sent_created_at', null)
+      .select('id, booking_code, customer_name, customer_email, customer_phone, total_amount')
+      .maybeSingle()
+    if (claimError || !booking || !booking.customer_email) return
+    if (await sendBookingCreatedEmail(booking as BookingEmailRow)) return
+    // Gagal kirim → lepaskan klaim agar percobaan berikutnya mengirim ulang.
+    await supabase
+      .from('bookings')
+      .update({ email_sent_created_at: null })
+      .eq('id', bookingId)
+      .eq('email_sent_created_at', claimedAt)
   } catch (error) {
     console.error('Booking email error:', error)
   }
 }
 
-// Kirim email pembayaran lunas (best-effort). Anti-duplikat via flag.
+// Kirim email pembayaran lunas (best-effort). Anti-duplikat via klaim flag
+// atomik — sama dengan sendBookingCreated.
 export async function sendBookingPaid(bookingId: string): Promise<void> {
   if (!(await isEmailNotificationsActive())) return
   try {
     const supabase = getSupabaseAdmin()
-    const { data: booking } = await supabase
+    const claimedAt = new Date().toISOString()
+    const { data: booking, error: claimError } = await supabase
       .from('bookings')
-      .select('id, booking_code, customer_name, customer_email, customer_phone, total_amount, email_sent_paid_at')
+      .update({ email_sent_paid_at: claimedAt })
       .eq('id', bookingId)
-      .single()
-    if (!booking || !booking.customer_email || booking.email_sent_paid_at) return
-    if (await sendBookingPaidEmail(booking as BookingEmailRow)) {
-      await supabase.from('bookings').update({ email_sent_paid_at: new Date().toISOString() }).eq('id', bookingId)
-    }
+      .is('email_sent_paid_at', null)
+      .select('id, booking_code, customer_name, customer_email, customer_phone, total_amount')
+      .maybeSingle()
+    if (claimError || !booking || !booking.customer_email) return
+    if (await sendBookingPaidEmail(booking as BookingEmailRow)) return
+    // Gagal kirim → lepaskan klaim agar percobaan berikutnya mengirim ulang.
+    await supabase
+      .from('bookings')
+      .update({ email_sent_paid_at: null })
+      .eq('id', bookingId)
+      .eq('email_sent_paid_at', claimedAt)
   } catch (error) {
     console.error('Paid email error:', error)
   }

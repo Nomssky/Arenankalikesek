@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../lib/supabase-server'
 import { generateId } from '../../../../lib/utils'
 import { requireAdmin } from '../../../../lib/admin-guard'
+import { loadResolvedTourCatalog } from '../../../../lib/catalog'
+import { EDU_TRIP_MIN_PARTICIPANTS, isEduTripItem } from '@repo/shared-utils'
 
 function generateBookingCode(): string {
   const now = new Date()
@@ -10,60 +12,31 @@ function generateBookingCode(): string {
   return `BKK-${yymm}-${rand}`
 }
 
-async function createRentalBookings(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-  bookingId: string,
+// p_rentals untuk reserve_booking — satu tanggal layanan untuk semua item,
+// sama seperti perilaku lama createRentalBookings. Slot dibuat 'hold' oleh RPC;
+// activation/konfirmasi diatur via update di bawah (trigger sync).
+function rentalEntries(
   items: { id?: string; name: string; quantity?: number; price: number }[],
-  resourceStatus: 'hold' | 'active',
+  bookingId: string,
   bookingDate?: string,
   timeStart?: string,
   timeEnd?: string,
-): Promise<{ error: unknown } | null> {
-  if (!bookingDate || !items.length) return null
-
+) {
+  if (!bookingDate || !items.length) return []
   const startAt = timeStart ? `${bookingDate}T${timeStart}:00+07:00` : `${bookingDate}T00:00:00+07:00`
   const endAt = timeEnd ? `${bookingDate}T${timeEnd}:00+07:00` : `${bookingDate}T23:59:00+07:00`
-
-  const entries: {
-    id: string
-    booking_id: string
-    item_id: string
-    item_name: string | null
-    quantity: number
-    booking_date: string
-    time_start: string | null
-    time_end: string | null
-    start_at: string | null
-    end_at: string | null
-    total_price: number
-    status: string
-    updated_at: string
-  }[] = []
-
-  for (const item of items) {
-    entries.push({
-      id: generateId(),
-      booking_id: bookingId,
-      item_id: item.id || `item-${Math.random().toString(36).substring(2, 8)}`,
-      item_name: item.name || null,
-      quantity: item.quantity || 1,
-      booking_date: bookingDate,
-      time_start: timeStart || null,
-      time_end: timeEnd || null,
-      start_at: startAt,
-      end_at: endAt,
-      total_price: (item.price || 0) * (item.quantity || 1),
-      status: resourceStatus,
-      updated_at: new Date().toISOString(),
-    })
-  }
-
-  const { error } = await supabase.from('rental_bookings').insert(entries)
-  if (error) {
-    console.error('Admin rental insert error:', error)
-    return { error }
-  }
-  return null
+  return items.map((item) => ({
+    id: generateId(),
+    item_id: item.id || `item-${Math.random().toString(36).substring(2, 8)}`,
+    item_name: item.name || null,
+    quantity: item.quantity || 1,
+    booking_date: bookingDate,
+    time_start: timeStart || null,
+    time_end: timeEnd || null,
+    start_at: startAt,
+    end_at: endAt,
+    total_price: (item.price || 0) * (item.quantity || 1),
+  }))
 }
 
 export async function POST(request: NextRequest) {
@@ -87,6 +60,7 @@ export async function POST(request: NextRequest) {
       timeEnd,
       items,
       totalAmount,
+      participantCount,
     } = body
 
     if (!customerName || !customerPhone) {
@@ -99,49 +73,73 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Status pembayaran tidak valid' }, { status: 400 })
     }
 
+    // Deteksi item Edu Trip: selain id/kategori item, cocokkan nama baris form
+    // admin (itemsText) dengan katalog — form admin mengirim nama sebagai id.
+    const { data: tourCatalog } = await loadResolvedTourCatalog()
+    const adminItems: { id?: string; name: string; quantity?: number; price: number }[] = items || []
+    const hasEduTrip = adminItems.some(
+      (item) => isEduTripItem(item) || (tourCatalog || []).some(
+        (entry) => (entry.name === item.name || entry.id === item.id) && isEduTripItem(entry),
+      ),
+    )
+    const peserta = Math.max(1, Number(participantCount) || 1)
+    if (hasEduTrip && peserta < EDU_TRIP_MIN_PARTICIPANTS) {
+      return NextResponse.json(
+        { error: `Paket Edu Trip membutuhkan minimal ${EDU_TRIP_MIN_PARTICIPANTS} peserta` },
+        { status: 400 },
+      )
+    }
+
     const bookingId = generateId()
     const supabase = getSupabaseAdmin()
 
-    const { error } = await supabase.from('bookings').insert({
-      id: bookingId,
-      type: type || 'wisata',
-      booking_code: generateBookingCode(),
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      customer_email: customerEmail || null,
-      customer_address: customerAddress || null,
-      booking_date: bookingDate || null,
-      time_start: timeStart || null,
-      time_end: timeEnd || null,
-      items: items || [],
-      total_amount: Math.max(0, Number(totalAmount) || 0),
-      status: validPaymentStatus === 'paid' ? 'confirmed' : 'pending',
-      payment_status: validPaymentStatus,
-      payment_method: 'offline',
-      notes: 'Booking offline (via admin)',
-      expires_at: null,
+    // reserve_booking (020/031): satu transaksi untuk booking + resource —
+    // tidak meninggalkan booking yatim bila insert resource gagal, dan ikut
+    // cek kuota Edu Trip + lock slot hold/active + overlap rental.
+    const { error: reservationError } = await supabase.rpc('reserve_booking', {
+      p_booking: {
+        id: bookingId,
+        type: type || 'wisata',
+        booking_code: generateBookingCode(),
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_email: customerEmail || null,
+        customer_address: customerAddress || null,
+        booking_date: bookingDate || null,
+        time_start: timeStart || null,
+        time_end: timeEnd || null,
+        items: items || [],
+        total_amount: Math.max(0, Number(totalAmount) || 0),
+        status: validPaymentStatus === 'paid' ? 'confirmed' : 'pending',
+        payment_status: validPaymentStatus,
+        notes: ['Booking offline (via admin)', peserta > 1 || hasEduTrip ? `Jumlah peserta: ${peserta} orang` : '']
+          .filter(Boolean)
+          .join('\n'),
+        expires_at: null,
+      },
+      p_rentals: rentalEntries(items || [], bookingId, bookingDate || undefined, timeStart, timeEnd),
+      p_is_edu_trip: (items || []).some(isEduTripItem),
     })
-
-    if (error) {
-      console.error('Admin booking error:', error)
+    if (reservationError) {
+      console.error('Admin reserve booking error:', reservationError)
+      const message = String(reservationError?.message || '')
+      if (/sudah dibooking|sudah penuh/i.test(message)) {
+        return NextResponse.json({ error: 'Tanggal atau jadwal yang dipilih sudah dibooking' }, { status: 409 })
+      }
       return NextResponse.json({ error: 'Gagal menyimpan booking' }, { status: 500 })
     }
 
-    const rentalResult = await createRentalBookings(
-      supabase,
-      bookingId,
-      items || [],
-      validPaymentStatus === 'paid' ? 'active' : 'hold',
-      bookingDate,
-      timeStart,
-      timeEnd,
-    )
-    if (rentalResult) {
-      await supabase.from('bookings').delete().eq('id', bookingId)
-      return NextResponse.json(
-        { error: 'Tanggal atau jadwal yang dipilih sudah dibooking' },
-        { status: 409 },
-      )
+    // payment_method tidak ada di kolom INSERT reserve_booking → di-set lewat
+    // update. Untuk booking lunas, status/payment_status ikut di-SET (nilai sama)
+    // agar trigger sync_booking_resource_status berjalan dan slot langsung aktif.
+    if (validPaymentStatus === 'paid') {
+      const { error: activateError } = await supabase
+        .from('bookings')
+        .update({ payment_method: 'offline', status: 'confirmed', payment_status: 'paid' })
+        .eq('id', bookingId)
+      if (activateError) console.error('Admin booking activate error:', activateError)
+    } else {
+      await supabase.from('bookings').update({ payment_method: 'offline' }).eq('id', bookingId)
     }
 
     return NextResponse.json({ bookingId, success: true })

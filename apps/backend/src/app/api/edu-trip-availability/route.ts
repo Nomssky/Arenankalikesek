@@ -8,7 +8,10 @@ const MONTH_FORMAT = /^\d{4}-(0[1-9]|1[0-2])$/
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const date = searchParams.get('date') || ''
-  const month = searchParams.get('month') || date.slice(0, 7) || new Date().toISOString().slice(0, 7)
+  // Default bulan mengikuti zona WIB (bukan UTC server) agar tanggal berganti
+  // tepat tengah malam bagi pengguna. sv-SE memberi format YYYY-MM-DD.
+  const month = searchParams.get('month') || date.slice(0, 7) ||
+    new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 7)
   if ((date && !DATE_FORMAT.test(date)) || !MONTH_FORMAT.test(month)) {
     return NextResponse.json({ error: 'Tanggal tidak valid' }, { status: 400 })
   }

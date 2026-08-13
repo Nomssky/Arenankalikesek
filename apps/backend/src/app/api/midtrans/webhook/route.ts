@@ -46,11 +46,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 })
     }
 
-    if (existing.status === 'cancelled') {
-      // Booking sudah kedaluwarsa/dibatalkan — jangan pernah mengaktifkannya
-      // kembali (trigger sync_booking_resource_status akan merebut slot
-      // penginapan/edu-trip yang sudah lepas dan bisa bentrok dengan booking baru).
-      // Uang yang sempat masuk di-refund otomatis agar admin tidak perlu manual.
+    // Booking dibatalkan/kedaluwarsa — jangan pernah mengaktifkannya kembali
+    // (trigger sync_booking_resource_status akan merebut slot penginapan/edu-trip
+    // yang sudah lepas dan bisa bentrok dengan booking baru). Uang yang sempat
+    // masuk di-refund otomatis agar admin tidak perlu manual. Dipanggil juga dari
+    // CAS update yang gagal mencocokkan status (race dengan sweep hold-expiry).
+    async function cancelledBookingResponse() {
       const cancelledPatch: Record<string, unknown> = {
         transaction_id: transactionId || null,
         payment_method: paymentType || null,
@@ -61,7 +62,12 @@ export async function POST(request: NextRequest) {
         // yang akan mengeksekusi refund.
         cancelledPatch.payment_status = 'paid'
       } else if (transactionStatus === 'settlement') {
-        if (existing.payment_status !== 'refunded') {
+        const { data: cancelledBooking } = await supabase
+          .from('bookings')
+          .select('payment_status')
+          .eq('id', orderId)
+          .maybeSingle()
+        if (cancelledBooking && cancelledBooking.payment_status !== 'refunded') {
           try {
             await refundTransaction(orderId, webhookAmount, `refund-${orderId}`)
             cancelledPatch.payment_status = 'refunded'
@@ -78,17 +84,17 @@ export async function POST(request: NextRequest) {
         .from('bookings')
         .update(cancelledPatch)
         .eq('id', orderId)
-        .eq('status', existing.status)
+        .eq('status', 'cancelled')
+        .select('id')
       if (cancelledError) {
-        // Status booking sudah berubah bersamaan dengan webhook (mis. re-activate
-        // vs cancel race) — anggap sudah diproses, jangan 500 biar Midtrans berhenti retry.
-        if (cancelledError instanceof Error && /No rows found|update returned no rows/i.test(cancelledError.message)) {
-          return NextResponse.json({ status: 'already_processed' })
-        }
         console.error('Supabase update error:', cancelledError)
         return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
       }
       return NextResponse.json({ status: 'ok' })
+    }
+
+    if (existing.status === 'cancelled') {
+      return cancelledBookingResponse()
     }
 
     if (existing.payment_status === 'paid' && transactionStatus !== 'refund') {
@@ -110,20 +116,31 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     }
 
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from('bookings')
       .update(updateData)
       .eq('id', orderId)
       .eq('status', existing.status)
+      .select('id')
 
     if (error) {
-      // Compare-and-set: status sudah berubah sejak SELECT (mis. dibatalkan)
-      // — abaikan webhook lama, jangan menimpa status terbaru.
-      if (error instanceof Error && /No rows found|update returned no rows/i.test(error.message)) {
-        return NextResponse.json({ status: 'already_processed' })
-      }
       console.error('Supabase update error:', error)
       return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      // Compare-and-set: status sudah berubah sejak SELECT (biasanya di-cancel
+      // expire_stale_booking_holds atau admin) — jangan menimpa status terbaru.
+      // Kalau sudah cancelled dan uang masuk: refund otomatis seperti branch di atas.
+      const { data: latest } = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', orderId)
+        .maybeSingle()
+      if (latest?.status === 'cancelled') {
+        return cancelledBookingResponse()
+      }
+      return NextResponse.json({ status: 'already_processed' })
     }
 
     // Email konfirmasi lunas (best-effort, anti-duplikat via flag di DB).

@@ -75,6 +75,9 @@ export function isEduTripItem(item: { id?: string; category?: string }): boolean
   return item.category === 'paket-edukasi' || Boolean(item.id?.startsWith('edu-trip-'))
 }
 
+// Ketentuan harga katalog untuk Edu Trip: minimum rombongan peserta.
+export const EDU_TRIP_MIN_PARTICIPANTS = 25
+
 export interface BookingQuantityParams {
   isEdu: boolean
   isRentalVenue: boolean

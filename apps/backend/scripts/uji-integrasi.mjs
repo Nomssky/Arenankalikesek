@@ -127,7 +127,21 @@ async function cancelBooking(id, hp) {
 
 console.log('\n== C. Sewa tempat per jam (venue) ==')
 {
-  const D = daysFromNow(2)
+  // Pilih hari pertama (min 2 hari dari sekarang) yang aula-full-nya bebas,
+  // agar uji tidak patah oleh booking nyata/import jadwal di tanggal tetap.
+  const D = await (async () => {
+    for (let i = 2; i <= 30; i++) {
+      const day = daysFromNow(i)
+      const { data: rows } = await sb
+        .from('rental_bookings')
+        .select('id')
+        .eq('item_id', 'aula-full')
+        .eq('booking_date', day)
+        .in('status', ['hold', 'active'])
+      if (!rows || rows.length === 0) return day
+    }
+    return daysFromNow(2)
+  })()
   const { data: aula } = await sb.from('inventory_rentals').select('price_per_unit').eq('id', 'aula-full').single()
   const hargaAula = aula.price_per_unit
   const expected = hargaAula * 3 + 2 * 3000 + 300000 + 10000
@@ -244,6 +258,49 @@ console.log('\n== D. Wisata (non-stay) ==')
   }
 }
 
+console.log('\n== D2. Edu Trip (minimal 25 peserta) ==')
+{
+  const { data: eduPkg } = await sb
+    .from('tour_packages')
+    .select('id,name,price')
+    .eq('category', 'paket-edukasi')
+    .gt('price', 0)
+    .limit(1)
+    .maybeSingle()
+  if (!eduPkg) {
+    console.log('  (skipped) tidak ada paket edukasi berharga')
+  } else {
+    const hpLow = phone()
+    const rLow = await post('/api/bookings', {
+      type: 'wisata', customerName: 'Uji Edu Low', customerPhone: hpLow,
+      bookingDate: daysFromNow(4), timeStart: '08:00', timeEnd: '12:00', participantCount: 5,
+      items: [{ id: eduPkg.id, name: eduPkg.name, category: 'paket-edukasi', quantity: 1, price: eduPkg.price }],
+    })
+    check('edu trip peserta < 25 → 400 (minimal peserta)', rLow.status === 400 && /minimal 25/.test(rLow.body?.error || ''), `${rLow.status} ${rLow.body?.error || ''}`)
+
+    const eduDate = await (async () => {
+      for (let i = 2; i <= 30; i++) {
+        const day = daysFromNow(i)
+        const { data: rows } = await sb.from('edu_trip_reservations').select('id').eq('booking_date', day).in('status', ['hold', 'active'])
+        if (!rows || rows.length === 0) return day
+      }
+      return daysFromNow(4)
+    })()
+    const hpOk = phone()
+    const rOk = await post('/api/bookings', {
+      type: 'wisata', customerName: 'Uji Edu Ok', customerPhone: hpOk,
+      bookingDate: eduDate, timeStart: '08:00', timeEnd: '12:00', participantCount: 25,
+      items: [{ id: eduPkg.id, name: eduPkg.name, category: 'paket-edukasi', quantity: 1, price: eduPkg.price }],
+    })
+    check('edu trip peserta 25 → 200', rOk.status === 200, `${rOk.status} ${rOk.body?.error || ''}`)
+    if (rOk.status === 200) {
+      created.push({ id: rOk.body.bookingId, phone: hpOk })
+      const { data: eduRes } = await sb.from('edu_trip_reservations').select('status').eq('booking_id', rOk.body.bookingId)
+      check('edu_trip_reservations dibuat (hold)', (eduRes || []).length > 0 && eduRes[0].status === 'hold', JSON.stringify((eduRes || []).map((x) => x.status)))
+    }
+  }
+}
+
 console.log('\n== E. Homestay (penginapan) ==')
 {
   const inD = daysFromNow(3)
@@ -263,6 +320,7 @@ console.log('\n== E. Homestay (penginapan) ==')
   form.set('customerPhone', hpE)
   form.set('customerAddress', 'Jl Uji 1')
   form.set('items', JSON.stringify([{ id: 'aren-1', name: 'Aren 1', category: 'homestay', quantity: 1, price: aren.price }]))
+  form.set('accommodations', JSON.stringify([{ itemId: 'aren-1', guestCount: 7, extraBedQuantity: 1, checkInDate: inD, checkOutDate: outD }]))
   form.set('checkInDate', inD)
   form.set('checkOutDate', outD)
   form.set('guestCount', '7')
@@ -298,6 +356,7 @@ console.log('\n== F. Camping (sewa tenda sendiri + add-on) ==')
   form.set('customerPhone', hpF)
   form.set('customerAddress', 'Jl Uji 2')
   form.set('items', JSON.stringify([{ id: 'camping-ground', name: 'Camping Ground', category: 'camping', quantity: 1, price: 0 }]))
+  form.set('accommodations', JSON.stringify([{ itemId: 'camping-ground', guestCount: 4, extraBedQuantity: 0, checkInDate: inD, checkOutDate: outD, tentSize: 'small', tentCount: 1, tentOption: 'own', firewoodPackages: 1, nestingQuantity: 0, chairQuantity: 2 }]))
   form.set('checkInDate', inD)
   form.set('checkOutDate', outD)
   form.set('guestCount', '4')
@@ -328,6 +387,7 @@ console.log('\n== G. Glamping (harga belum ditetapkan) ==')
   form.set('customerPhone', hpG)
   form.set('customerAddress', 'Jl Uji 3')
   form.set('items', JSON.stringify([{ id: 'glamping', name: 'Glamping', category: 'glamping', quantity: 1, price: null }]))
+  form.set('accommodations', JSON.stringify([{ itemId: 'glamping', guestCount: 2, extraBedQuantity: 0, checkInDate: daysFromNow(5), checkOutDate: daysFromNow(6) }]))
   form.set('checkInDate', daysFromNow(5))
   form.set('checkOutDate', daysFromNow(6))
   form.set('guestCount', '2')

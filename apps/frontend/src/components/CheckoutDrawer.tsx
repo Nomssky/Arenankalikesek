@@ -24,6 +24,7 @@ import {
   calculateHomestayBase,
   dateRangeContainsBlockedDate,
   differenceInNights,
+  EDU_TRIP_MIN_PARTICIPANTS,
   isAccommodationItem,
   isEduTripItem,
   type BookingSettingMap,
@@ -284,6 +285,12 @@ export default function CheckoutDrawer({
   const rentalSoundPrice = bookingSettings['rental.sound_system_price']
   const rentalMatPrice = bookingSettings['rental.mat_price']
   const hasEduTrip = cart.some((item) => isEduTripItem(item))
+  // Peserta minimum Edu Trip: naikkan otomatis saat drawer dibuka dengan item edu di keranjang.
+  useEffect(() => {
+    if (!open || !hasEduTrip || participantCount >= EDU_TRIP_MIN_PARTICIPANTS) return
+    const frame = window.requestAnimationFrame(() => setParticipantCount(EDU_TRIP_MIN_PARTICIPANTS))
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, hasEduTrip, participantCount])
   const blockedDates = Object.values(blockedDatesByMonth).flat()
   const holidayDates = Object.values(holidayDatesByMonth).flat()
   const canResumePendingBooking = Boolean(
@@ -678,6 +685,10 @@ export default function CheckoutDrawer({
       }
       if (hasEduTrip && eduTripQuota?.date === bookingDate && eduTripQuota.remaining === 0) {
         setSubmitError('Kuota Edu Trip pada tanggal tersebut sudah penuh.')
+        return
+      }
+      if (hasEduTrip && participantCount < EDU_TRIP_MIN_PARTICIPANTS) {
+        setSubmitError(`Paket Edu Trip membutuhkan minimal ${EDU_TRIP_MIN_PARTICIPANTS} peserta.`)
         return
       }
     }
@@ -1502,8 +1513,25 @@ export default function CheckoutDrawer({
                     <label className="form-label">Jumlah peserta *</label>
                     <div className="relative">
                       <UserGroupIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                      <input type="number" min={1} max={500} aria-label="Jumlah peserta" className="form-input !pl-10" value={participantCount} onChange={(event) => setParticipantCount(Math.max(1, Number(event.target.value) || 1))} required />
+                      <input
+                        type="number"
+                        min={hasEduTrip ? EDU_TRIP_MIN_PARTICIPANTS : 1}
+                        max={500}
+                        aria-label="Jumlah peserta"
+                        className="form-input !pl-10"
+                        value={participantCount}
+                        onChange={(event) => {
+                          const nextCount = Math.max(hasEduTrip ? EDU_TRIP_MIN_PARTICIPANTS : 1, Number(event.target.value) || 1)
+                          setParticipantCount(nextCount)
+                        }}
+                        required
+                      />
                     </div>
+                    {hasEduTrip && (
+                      <p className="mt-2 text-xs leading-5 text-gray-500">
+                        Minimal {EDU_TRIP_MIN_PARTICIPANTS} peserta per rombongan Edu Trip.
+                      </p>
+                    )}
                   </div>
                 </div>
                 {isRentalVenueBooking && (

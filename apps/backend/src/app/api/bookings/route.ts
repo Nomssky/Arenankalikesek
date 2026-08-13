@@ -13,6 +13,7 @@ import {
   calculateExtraGuestTotal,
   calculateHomestayBase,
   differenceInNights,
+  EDU_TRIP_MIN_PARTICIPANTS,
   isAccommodationItem,
   isEduTripItem,
   resolveBookingQuantity,
@@ -377,6 +378,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Detail akomodasi tidak valid' }, { status: 400 })
     }
     const participantCount = positiveInteger(payload.participantCount || payload.guestCount, 1)
+    if (items.some(isEduTripItem) && participantCount < EDU_TRIP_MIN_PARTICIPANTS) {
+      return NextResponse.json(
+        { error: `Paket Edu Trip membutuhkan minimal ${EDU_TRIP_MIN_PARTICIPANTS} peserta` },
+        { status: 400 },
+      )
+    }
     let rentalDurationHours = 1
     const effectiveBookingDate = payload.bookingDate || payload.checkInDate || null
 
@@ -717,7 +724,8 @@ export async function POST(request: NextRequest) {
         validated.push(...rentalAddOns)
         pricingDetails = {
           ...pricingDetails,
-          kind: 'rental',
+          // Booking campuran (menginap + sewa venue): pertahankan kind akomodasi.
+          kind: pricingDetails.kind || 'rental',
           durationHours: rentalDurationHours,
           addOnTotal: rentalAddOnTotal,
           addOns: rentalAddOns,
@@ -786,6 +794,16 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Snapshot booking yang sama dengan branch localhost, agar invoice dapat
+    // dirender offline dari localStorage saat jaringan bermasalah.
+    const bookingResponse = (status: string, paymentStatus: string) => ({
+      ...bookingData,
+      status,
+      payment_status: paymentStatus,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+
     const supabase = getSupabaseAdmin()
     const ipKey = clientIp(request)
     const { data: creationCount } = await supabase.rpc('record_booking_create_attempt', {
@@ -837,6 +855,14 @@ export async function POST(request: NextRequest) {
       sendBookingCreated(bookingId).catch(() => undefined)
     }
 
+    // Booking sukses tidak dihitung sebagai percobaan mencurigakan — reset
+    // counter IP agar user sah yang membuat banyak booking tidak terblokir.
+    // Anti-spam tetap bekerja: kegagalan (kuota penuh / 409) terus terakumulasi
+    // per window 15 menit.
+    try {
+      await supabase.from('booking_create_attempts').delete().eq('id_key', ipKey)
+    } catch { /* reset counter best-effort */ }
+
     if (parsedTotal > 0 && isMidtransConfigured()) {
       try {
         const snap = await createSnapTransaction({
@@ -869,6 +895,7 @@ export async function POST(request: NextRequest) {
           paymentStatus: 'unpaid',
           snapToken: snap.token,
           paymentUrl: snap.redirect_url,
+          booking: bookingResponse('pending', 'unpaid'),
         })
       } catch (paymentError) {
         console.error('Payment error:', paymentError)
@@ -881,6 +908,7 @@ export async function POST(request: NextRequest) {
           paymentStatus: 'unpaid',
           snapToken: null,
           paymentUrl: null,
+          booking: bookingResponse('pending', 'unpaid'),
           info: 'Booking berhasil tetapi pembayaran bermasalah. Silakan buka kembali keranjang untuk melanjutkan pembayaran.',
         })
       }
@@ -895,6 +923,7 @@ export async function POST(request: NextRequest) {
         status: 'pending',
         paymentStatus: 'unpaid',
         paymentUrl: null,
+        booking: bookingResponse('pending', 'unpaid'),
         info: 'Booking menunggu pembayaran dan belum masuk jadwal aktif.',
       })
     }
@@ -911,6 +940,7 @@ export async function POST(request: NextRequest) {
       status: 'confirmed',
       paymentStatus: 'paid',
       paymentUrl: null,
+      booking: bookingResponse('confirmed', 'paid'),
     })
   } catch (error) {
     if (uploadedDocumentPath && isSupabaseConfigured()) {

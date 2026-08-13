@@ -22,7 +22,10 @@ function datesFromRange(start: string, end: string, monthStart: string, monthNex
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const itemId = searchParams.get('item_id')?.trim()
-  const month = searchParams.get('month')?.trim() || new Date().toISOString().slice(0, 7)
+  // Default bulan mengikuti zona WIB (bukan UTC server) agar tanggal berganti
+  // tepat tengah malam bagi pengguna. sv-SE memberi format YYYY-MM-DD.
+  const month = searchParams.get('month')?.trim() ||
+    new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 7)
   if (!itemId || !MONTH_FORMAT.test(month)) {
     return NextResponse.json({ error: 'Item dan bulan wajib valid' }, { status: 400 })
   }

@@ -166,7 +166,10 @@ export async function GET(
         const amountMatches = Math.round(Number(transaction.gross_amount)) === Math.round(Number(booking.total_amount))
         if (transaction.order_id === id && amountMatches) {
           const mapped = mapMidtransStatus(transaction.transaction_status, transaction.fraud_status)
-          await supabase
+          // CAS: hanya timpa status bila status belum berubah sejak SELECT
+          // (mis. di-cancel expire_stale_booking_holds / admin di tengah jalan) —
+          // mencegah booking yang sudah dibatalkan "hidup lagi" karena webhook terlambat.
+          const { data: updatedRows } = await supabase
             .from('bookings')
             .update({
               status: mapped.bookingStatus,
@@ -177,14 +180,18 @@ export async function GET(
               payment_last_checked_at: new Date().toISOString(),
             })
             .eq('id', id)
+            .eq('status', booking.status)
+            .select('id')
 
-          // Fallback email lunas bila webhook belum sempat memproses (anti-duplikat).
-          if (mapped.bookingStatus === 'paid') {
-            await sendBookingPaid(id)
+          if (updatedRows && updatedRows.length > 0) {
+            // Fallback email lunas bila webhook belum sempat memproses (anti-duplikat).
+            if (mapped.bookingStatus === 'paid') {
+              await sendBookingPaid(id)
+            }
+
+            const refreshed = await supabase.from('bookings').select(selectFields).eq('id', id).single()
+            if (refreshed.data) booking = refreshed.data
           }
-
-          const refreshed = await supabase.from('bookings').select(selectFields).eq('id', id).single()
-          if (refreshed.data) booking = refreshed.data
         }
       } catch (statusError) {
         console.error('Midtrans status refresh error:', statusError)
