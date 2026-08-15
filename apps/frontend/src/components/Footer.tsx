@@ -108,7 +108,7 @@ export default function Footer() {
             reserved.
           </p>
           <p className="text-xs text-white/40">
-            Creator: Bagus Kresna ALS dan Ardi Salim
+            Creator: Bagus Kresna ALS, Ardi Salim, dan Tegar Desta A
           </p>
           <div className="flex gap-4">
             <a
