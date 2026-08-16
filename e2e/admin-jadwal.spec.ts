@@ -36,8 +36,10 @@ test.describe('Admin Jadwal Page', () => {
 
   test('Login and access jadwal page', async ({ page }) => {
     await openJadwal(page, true)
-    await expect(page.getByLabel('Bulan')).toBeVisible()
-    await expect(page.getByLabel('Tahun')).toBeVisible()
+    // MonthFilter = tombol + listbox bulan (bukan <select>/<input> ketik).
+    const bulan = page.locator('.admin-filterbar button').first()
+    await expect(bulan).toBeVisible({ timeout: 10000 })
+    expect(await bulan.evaluate((el: HTMLElement) => el.tagName)).toBe('BUTTON')
     await expect(page.locator('button').filter({ hasText: 'Penginapan & Camping' })).toBeVisible()
   })
 
@@ -51,9 +53,12 @@ test.describe('Admin Jadwal Page', () => {
 
     const currentMonth = new Date().toISOString().slice(5, 7)
     const target = currentMonth === '01' ? '02' : '01'
-    await page.getByLabel('Bulan').selectOption(target)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+    await page.locator('.admin-filterbar button').first().click()
+    const listbox = page.getByRole('listbox', { name: 'Pilih bulan' })
+    await expect(listbox).toBeVisible()
+    await listbox.getByRole('option', { name: monthNames[Number(target) - 1] }).click()
     await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 15000 })
-    await expect(page.getByLabel('Bulan')).toHaveValue(target)
     await expectTableOrEmpty(page)
   })
 })

@@ -31,6 +31,7 @@ test.describe('Availability publik mengikuti hold (migration 020)', () => {
         customerPhone: hp,
         customerAddress: 'Jl Uji',
         items: JSON.stringify([{ id: 'aren-1', name: 'Aren 1', category: 'homestay', quantity: 1, price: 75000 }]),
+        accommodations: JSON.stringify([{ itemId: 'aren-1', guestCount: 2 }]),
         checkInDate: checkIn,
         checkOutDate: checkOut,
         guestCount: '2',

@@ -6,7 +6,7 @@ test.describe('Jadwal Eduwisata & Kegiatan', () => {
   async function openEduTab(page: Page) {
     await page.goto('/jadwal', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('.animate-spin')).toHaveCount(0, { timeout: 20_000 })
-    await page.getByRole('button', { name: 'Eduwisata dan Kegiatan' }).click()
+    await page.getByRole('button', { name: 'Eduwisata & Kegiatan' }).click()
     await expect(page.getByRole('button', { name: 'Pilih tanggal terlebih dahulu' }).first()).toBeVisible()
   }
 
