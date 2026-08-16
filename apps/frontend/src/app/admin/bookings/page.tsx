@@ -62,6 +62,7 @@ export default function AdminBookingsPage() {
     itemsText: '',
     totalAmount: '',
     paymentStatus: 'paid' as string,
+    participantCount: 1,
   })
   const [saveError, setSaveError] = useState('')
 
@@ -487,11 +488,12 @@ export default function AdminBookingsPage() {
                     items,
                     totalAmount: form.totalAmount ? parseInt(form.totalAmount) : items.reduce((s, i) => s + i.price * i.quantity, 0),
                     paymentStatus: form.paymentStatus,
+                    participantCount: form.participantCount,
                   }),
                 })
                 if (res.ok) {
                   setShowForm(false)
-                  setForm({ customerName: '', customerPhone: '', customerEmail: '', customerAddress: '', type: 'wisata', bookingDate: '', timeStart: '', timeEnd: '', itemsText: '', totalAmount: '', paymentStatus: 'paid' })
+                  setForm({ customerName: '', customerPhone: '', customerEmail: '', customerAddress: '', type: 'wisata', bookingDate: '', timeStart: '', timeEnd: '', itemsText: '', totalAmount: '', paymentStatus: 'paid', participantCount: 1 })
                   fetchBookings()
                 } else {
                   const data = await res.json()
@@ -613,6 +615,18 @@ export default function AdminBookingsPage() {
                   placeholder={`Area Outbound x 2 = 50000\nSewa Homestay x 1 = 200000`}
                   value={form.itemsText}
                   onChange={(e) => setForm({ ...form, itemsText: e.target.value })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="form-label">
+                  Jumlah Peserta <span className="text-xs text-gray-400">(Edu Trip wajib minimal 25)</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  className="form-input"
+                  value={form.participantCount}
+                  onChange={(e) => setForm({ ...form, participantCount: Math.max(1, Number(e.target.value) || 1) })}
                 />
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '../../../../lib/supabase-server'
 import { requireAdmin } from '../../../../lib/admin-guard'
+import { slugify } from '../../../../lib/utils'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request)
@@ -60,7 +61,10 @@ export async function POST(request: NextRequest) {
     if (body.price === undefined || body.price === null || isNaN(Number(body.price))) {
       return NextResponse.json({ error: 'Harga harus diisi dengan angka' }, { status: 400 })
     }
-    if (!body.slug) {
+    // Form admin tidak punya field slug — generate dari nama bila tidak dikirim.
+    // ponytail: nama duplikat bisa kena unique index slug → 500; upgrade: counter/suffix.
+    const slug = body.slug || slugify(body.name)
+    if (!slug) {
       return NextResponse.json({ error: 'Slug harus diisi' }, { status: 400 })
     }
 
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
         unit: body.unit || '',
         available: body.available ?? true,
         sort_order: body.sort_order || 0,
-        slug: body.slug,
+        slug,
         price_type: body.price_type || 'fixed',
         store_visible: body.store_visible ?? false,
       })

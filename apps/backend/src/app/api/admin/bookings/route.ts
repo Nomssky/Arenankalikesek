@@ -110,15 +110,19 @@ export async function POST(request: NextRequest) {
         time_end: timeEnd || null,
         items: items || [],
         total_amount: Math.max(0, Number(totalAmount) || 0),
-        status: validPaymentStatus === 'paid' ? 'confirmed' : 'pending',
-        payment_status: validPaymentStatus,
+        // Selalu insert pending/unpaid dulu: trigger sync_booking_resource_status
+        // (AFTER UPDATE OF status, payment_status + guard IS DISTINCT FROM) hanya
+        // aktif saat nilai BERUBAH. Insert langsung confirmed/paid membuat rental
+        // selamanya 'hold' karena UPDATE lanjutan di bawah tidak mengubah nilai.
+        status: 'pending',
+        payment_status: 'unpaid',
         notes: ['Booking offline (via admin)', peserta > 1 || hasEduTrip ? `Jumlah peserta: ${peserta} orang` : '']
           .filter(Boolean)
           .join('\n'),
         expires_at: null,
       },
       p_rentals: rentalEntries(items || [], bookingId, bookingDate || undefined, timeStart, timeEnd),
-      p_is_edu_trip: (items || []).some(isEduTripItem),
+      p_is_edu_trip: hasEduTrip,
     })
     if (reservationError) {
       console.error('Admin reserve booking error:', reservationError)
@@ -130,8 +134,9 @@ export async function POST(request: NextRequest) {
     }
 
     // payment_method tidak ada di kolom INSERT reserve_booking → di-set lewat
-    // update. Untuk booking lunas, status/payment_status ikut di-SET (nilai sama)
-    // agar trigger sync_booking_resource_status berjalan dan slot langsung aktif.
+    // update. Untuk booking lunas, status/payment_status berubah pending→confirmed
+    // dan unpaid→paid → trigger sync_booking_resource_status berjalan dan
+    // resource (rental/akomodasi/edu) langsung aktif + guard kuota edu ikut.
     if (validPaymentStatus === 'paid') {
       const { error: activateError } = await supabase
         .from('bookings')

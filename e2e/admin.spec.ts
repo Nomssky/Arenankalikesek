@@ -67,39 +67,49 @@ test.describe('Admin: read + offline booking (perlu E2E_ADMIN_PASSWORD)', () => 
     expect(await loginAdmin(request)).toBe(true)
 
     const tag = `E2E-Admin-${Date.now()}`
-    const date = new Date(Date.now() + 86400000 * 15).toISOString().slice(0, 10)
-    const create = await request.post('/api/admin/bookings', {
-      headers: { Cookie: adminCookie },
-      data: {
-        customerName: tag,
-        customerPhone: '081299990001',
-        customerAddress: 'Jl Uji',
-        type: 'sewa',
-        bookingDate: date,
-        timeStart: '07:00',
-        timeEnd: '08:00',
-        paymentStatus: 'paid',
-        totalAmount: 30000,
-        items: [{ id: 'gazebo-atas', name: 'Gazebo Atas', category: 'area-kegiatan', quantity: 1, price: 30000 }],
-      },
-    })
-    expect(create.status(), `create: ${await create.text()}`).toBe(200)
-    const created = await create.json()
-    expect(created.bookingId).toBeTruthy()
+    const dateIn = (n: number) => new Date(Date.now() + 86400000 * n).toISOString().slice(0, 10)
+    // Jangan hardcode satu tanggal: slot venue bisa terisi hold/active dari data
+    // nyata (impor jadwal, tes lain). Coba rentang tanggal; 409 = slot penuh,
+    // lanjut ke tanggal berikutnya (percobaan 409 tidak menyisakan data).
+    let created: { bookingId: string } | null = null
+    let date = ''
+    for (let offset = 2; offset <= 15 && !created; offset += 1) {
+      date = dateIn(offset)
+      const res = await request.post('/api/admin/bookings', {
+        headers: { Cookie: adminCookie },
+        data: {
+          customerName: tag,
+          customerPhone: '081299990001',
+          customerAddress: 'Jl Uji',
+          type: 'sewa',
+          bookingDate: date,
+          timeStart: '07:00',
+          timeEnd: '08:00',
+          paymentStatus: 'paid',
+          totalAmount: 30000,
+          items: [{ id: 'gazebo-atas', name: 'Gazebo Atas', category: 'area-kegiatan', quantity: 1, price: 30000 }],
+        },
+      })
+      if (res.status() === 409) continue
+      expect(res.status(), `create: ${await res.text()}`).toBe(200)
+      created = await res.json()
+    }
+    test.skip(!created, 'tidak ada tanggal dengan slot gazebo-atas kosong untuk diuji')
+    const bookingId = created!.bookingId
+    expect(bookingId).toBeTruthy()
 
-    const detail = await adminGet(request, `/api/bookings/${created.bookingId}`)
-    expect(detail.status()).toBe(200)
-    const booking = await detail.json()
-    expect(booking.status).toBe('confirmed')
-    expect(booking.payment_status).toBe('paid')
-
+    // GET /api/bookings/[id] sudah dihapus (405) — status booking & bayar
+    // terbaca dari nested bookings di response rentals.
     const rentalsRes = await adminGet(request, `/api/admin/rentals?start_date=${date}&end_date=${date}`)
     const rentals = await rentalsRes.json()
-    const target = (rentals || []).filter((r: Record<string, unknown>) => r.booking_id === created.bookingId)
+    const target = (rentals || []).filter((r: Record<string, unknown>) => r.booking_id === bookingId)
     expect(target.length, 'rental tidak muncul di daftar admin saat confirmed').toBeGreaterThan(0)
     expect(target[0].status).toBe('active')
+    const bookingInfo = target[0].bookings as { status: string; payment_status: string }
+    expect(bookingInfo.status).toBe('confirmed')
+    expect(bookingInfo.payment_status).toBe('paid')
 
-    const cancelPatch = await request.patch(`/api/bookings/${created.bookingId}`, {
+    const cancelPatch = await request.patch(`/api/bookings/${bookingId}`, {
       headers: { Cookie: adminCookie },
       data: { status: 'cancelled' },
     })
@@ -107,9 +117,70 @@ test.describe('Admin: read + offline booking (perlu E2E_ADMIN_PASSWORD)', () => 
     const cancelled = await cancelPatch.json()
     expect(cancelled.status).toBe('cancelled')
 
-    const postCancel = await adminGet(request, `/api/bookings/${created.bookingId}`)
-    expect(postCancel.status()).toBe(200)
-    expect((await postCancel.json()).status).toBe('cancelled')
+    const postCancelRentals = await adminGet(request, `/api/admin/rentals?start_date=${date}&end_date=${date}`)
+    const gone = ((await postCancelRentals.json()) || []).filter(
+      (r: Record<string, unknown>) => r.booking_id === bookingId,
+    )
+    expect(gone.length, 'rental masih muncul setelah cancel').toBe(0)
+  })
+
+  test('offline booking edu trip: slug otomatis + peserta 25 diterima, <25 ditolak, cancel', async ({ request }) => {
+    test.skip(!mutationsEnabled, 'perlu E2E_ENABLE_MUTATIONS=true')
+    expect(await loginAdmin(request)).toBe(true)
+
+    const dateIn = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10)
+    let date = ''
+    for (let offset = 2; offset <= 15; offset += 1) {
+      const candidate = dateIn(offset)
+      const avail = await adminGet(request, `/api/edu-trip-availability?date=${candidate}`)
+      if (avail.status() === 200 && (await avail.json()).remaining >= 1) { date = candidate; break }
+    }
+    test.skip(!date, 'tidak ada tanggal dengan sisa kuota edu trip untuk diuji')
+
+    const tag = `E2E Edu Offline ${Date.now()}`
+    const createPackage = await request.post('/api/admin/tour-packages', {
+      headers: { Cookie: adminCookie },
+      data: { name: tag, category: 'paket-edukasi', price: 100000 },
+    })
+    expect(createPackage.status(), `create paket: ${await createPackage.text()}`).toBe(200)
+    const pkg = await createPackage.json()
+    expect(pkg.slug, 'slug tidak digenerate otomatis dari nama').toMatch(/^e2e-edu-offline-/)
+
+    const item = { id: pkg.name, name: pkg.name, quantity: 1, price: 100000 }
+    const base = {
+      customerName: tag,
+      customerPhone: '081299990002',
+      type: 'wisata',
+      bookingDate: date,
+      items: [item],
+      totalAmount: 100000,
+      paymentStatus: 'paid',
+    }
+
+    const tooFew = await request.post('/api/admin/bookings', {
+      headers: { Cookie: adminCookie },
+      data: { ...base, participantCount: 1 },
+    })
+    expect(tooFew.status(), `peserta 1 harus ditolak: ${await tooFew.text()}`).toBe(400)
+    expect((await tooFew.json()).error).toMatch(/minimal 25 peserta/)
+
+    const create = await request.post('/api/admin/bookings', {
+      headers: { Cookie: adminCookie },
+      data: { ...base, participantCount: 25 },
+    })
+    expect(create.status(), `create edu: ${await create.text()}`).toBe(200)
+    const created = await create.json()
+
+    const cancel = await request.patch(`/api/bookings/${created.bookingId}`, {
+      headers: { Cookie: adminCookie },
+      data: { status: 'cancelled' },
+    })
+    expect(cancel.status(), `cancel: ${await cancel.text()}`).toBe(200)
+
+    const remove = await request.delete(`/api/admin/tour-packages/${pkg.id}`, {
+      headers: { Cookie: adminCookie },
+    })
+    expect(remove.status(), `delete paket: ${await remove.text()}`).toBe(200)
   })
 
   test('halaman dashboard: filter bulan berupa dropdown (bukan input ketik)', async ({ page }) => {
@@ -119,15 +190,20 @@ test.describe('Admin: read + offline booking (perlu E2E_ADMIN_PASSWORD)', () => 
     await expect(page).not.toHaveURL(/\/admin\/login/, { timeout: 10000 })
 
     await page.goto('/admin')
-    const bulan = page.getByLabel('Bulan')
-    const tahun = page.getByLabel('Tahun')
+    // MonthFilter = tombol + listbox bulan (bukan <select>/<input> ketik).
+    const bulan = page.locator('.admin-filterbar button').first()
     await expect(bulan).toBeVisible({ timeout: 10000 })
-    await expect(tahun).toBeVisible()
-    expect(await bulan.evaluate((el: HTMLSelectElement) => el.tagName)).toBe('SELECT')
+    expect(await bulan.evaluate((el: HTMLElement) => el.tagName)).toBe('BUTTON')
 
+    await bulan.click()
+    const listbox = page.getByRole('listbox', { name: 'Pilih bulan' })
+    await expect(listbox).toBeVisible()
+    expect(await listbox.locator('[role="option"]').count()).toBe(12)
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
     const currentMonth = new Date().toISOString().slice(5, 7)
     const target = currentMonth === '01' ? '02' : '01'
-    await bulan.selectOption(target)
+    await listbox.getByRole('option', { name: monthNames[Number(target) - 1] }).click()
     await expect(page.getByText(/Menampilkan jadwal untuk/)).toBeVisible({ timeout: 10000 })
   })
 

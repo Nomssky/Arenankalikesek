@@ -16,6 +16,13 @@ export default function AdminModal({
 }: AdminModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
+  // onClose disimpan di ref: caller mengirim arrow inline yang berubah identitas
+  // tiap render — jika dipakai sebagai dep effect, dialogRef.focus() di bawah
+  // mencuri fokus dari input setiap ketikan (keyboard mobile menutup).
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -23,7 +30,7 @@ export default function AdminModal({
     dialogRef.current?.focus()
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') onCloseRef.current()
     }
 
     window.addEventListener('keydown', closeOnEscape)
@@ -31,7 +38,7 @@ export default function AdminModal({
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', closeOnEscape)
     }
-  }, [onClose])
+  }, [])
 
   return (
     <div

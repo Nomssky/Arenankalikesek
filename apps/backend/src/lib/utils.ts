@@ -21,6 +21,16 @@ export function digits(value: unknown): string {
   return String(value ?? '').replace(/\D/g, '')
 }
 
+// Slug katalog (item id booking) dari nama; algoritma sama dengan
+// scripts/import-jadwal.cjs slug() agar konsisten dengan data seed/import.
+export function slugify(value: unknown): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 export function timeToMinutes(value: string | null | undefined): number | null {
   if (value == null) return null
   const match = /^(\d{2}):(\d{2})/.exec(value)

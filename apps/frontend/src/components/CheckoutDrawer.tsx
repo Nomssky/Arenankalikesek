@@ -293,13 +293,7 @@ export default function CheckoutDrawer({
     if (!open) return
     const prev = prevHasEduTripRef.current
     prevHasEduTripRef.current = hasEduTrip
-    if (hasEduTrip === prev) {
-      if (hasEduTrip && participantCount < EDU_TRIP_MIN_PARTICIPANTS) {
-        const frame = window.requestAnimationFrame(() => setParticipantCount(EDU_TRIP_MIN_PARTICIPANTS))
-        return () => window.cancelAnimationFrame(frame)
-      }
-      return
-    }
+    if (hasEduTrip === prev) return
     const target = hasEduTrip ? EDU_TRIP_MIN_PARTICIPANTS : 1
     if (participantCount !== target) {
       const frame = window.requestAnimationFrame(() => setParticipantCount(target))
@@ -1554,8 +1548,14 @@ export default function CheckoutDrawer({
                         className="form-input !pl-10"
                         value={participantCount}
                         onChange={(event) => {
-                          const nextCount = Math.max(hasEduTrip ? EDU_TRIP_MIN_PARTICIPANTS : 1, Number(event.target.value) || 1)
-                          setParticipantCount(nextCount)
+                          setParticipantCount(Number(event.target.value) || 1)
+                        }}
+                        onBlur={() => {
+                          // Clamp saat selesai mengetik, bukan per ketikan — agar
+                          // angka "25" bisa diketik normal tanpa di-snap ke 25.
+                          if (hasEduTrip) {
+                            setParticipantCount((current) => Math.max(EDU_TRIP_MIN_PARTICIPANTS, Number(current) || 1))
+                          }
                         }}
                         required
                       />
