@@ -1,0 +1,1 @@
+var json_Arenan_Kalikesek_2 = {"type":"FeatureCollection","name":"Arenan_Kalikesek_2","crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:OGC:1.3:CRS84"}},"features":[{"type":"Feature","properties":{"FID_":11.0,"x":110.30643,"y":-7.15275,"Jenis":"Rekreasi","Nama":"Arenan Kalikesek"},"geometry":{"type":"Point","coordinates":[110.306434059123276,-7.152809993509242]}}]}

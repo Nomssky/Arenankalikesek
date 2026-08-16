@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "**/build/**",
     "**/next-env.d.ts",
     "**/node_modules/**",
+    // Aset statis (gambar, video, peta qgis2web) — bukan kode aplikasi:
+    "**/public/**",
     // Script operasional sekali-jalan (node CJS), bukan kode aplikasi:
     "apps/backend/scripts/**",
   ]),

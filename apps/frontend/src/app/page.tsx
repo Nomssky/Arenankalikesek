@@ -163,7 +163,7 @@ export default function HomePage() {
               poster="/images/playlist-poster.jpg"
             >
               <source
-                src="https://arenankalikesek.com/wp-content/uploads/2023/08/lv_0_20230624194513.mp4"
+                src="/videos/drone-kalikesek.mp4"
                 type="video/mp4"
               />
               Browser Anda belum mendukung pemutar video.

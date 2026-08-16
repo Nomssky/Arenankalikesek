@@ -89,12 +89,16 @@ export default function WebGISPage() {
       <Section title="Peta Wisata" subtitle="Jelajahi kawasan Arenan Kalikesek melalui peta interaktif" noReveal>
         <div className="space-y-8">
           <MapFrame
-            src="https://arenankalikesek.com/wp-content/gismaps_maps/webgis_penduduk/qgis2web_2023_fix/index.html"
+            src="/webgis/penduduk/index.html"
             title="Peta Penduduk"
           />
           <MapFrame
-            src="https://arenankalikesek.com/wp-content/gismaps_maps/webgis_umkm/qgis2web_2024/index.html"
+            src="/webgis/umkm/index.html"
             title="Peta UMKM"
+          />
+          <MapFrame
+            src="/webgis/wisata/index.html"
+            title="Peta Wisata Alam Hutan Pinus"
           />
         </div>
       </Section>
