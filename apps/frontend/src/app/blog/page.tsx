@@ -1,11 +1,14 @@
-import { getAllPosts } from '@/lib/content'
+import { getAllPosts, type Post } from '@/lib/blog'
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
+import BlogEditor from '@/components/blog/BlogEditor'
 import { formatDate } from '@/lib/utils'
 import { ArrowRightIcon, NewspaperIcon } from '@heroicons/react/24/outline'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Blog & Berita',
@@ -13,7 +16,7 @@ export const metadata: Metadata = {
     'Baca artikel, reportase, dan berita terbaru dari Desa Wisata Arenan Kalikesek dan Desa Sriwulan.',
 }
 
-function PostCard({ post }: { post: ReturnType<typeof getAllPosts>[number] }) {
+function PostCard({ post }: { post: Post }) {
   return (
     <article className="card flex h-full flex-col overflow-hidden">
       <Link
@@ -76,7 +79,7 @@ function PostCard({ post }: { post: ReturnType<typeof getAllPosts>[number] }) {
   )
 }
 
-function PostGrid({ posts }: { posts: ReturnType<typeof getAllPosts>[number][] }) {
+function PostGrid({ posts }: { posts: Post[] }) {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
       {posts.map((post) => (
@@ -86,8 +89,8 @@ function PostGrid({ posts }: { posts: ReturnType<typeof getAllPosts>[number][] }
   )
 }
 
-export default function BlogPage() {
-  const posts = getAllPosts().filter((post) => post.published !== false)
+export default async function BlogPage() {
+  const posts = (await getAllPosts()).filter((post) => post.published !== false)
   const reportase = posts.filter((post) => post.type === 'Reportase')
   const articles = posts.filter((post) => post.type !== 'Reportase')
 
@@ -101,6 +104,9 @@ export default function BlogPage() {
       />
 
       <Section>
+        <div className="mb-6 flex items-center justify-end">
+          <BlogEditor mode="list" />
+        </div>
         {posts.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-gray-500">Belum ada artikel.</p>

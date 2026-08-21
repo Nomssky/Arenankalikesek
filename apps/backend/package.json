@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "gray-matter": "^4.0.3",
     "typescript": "^5"
   }
 }

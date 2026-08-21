@@ -1,0 +1,462 @@
+'use client'
+
+import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { useRouter } from 'next/navigation'
+import AdminModal from '@/components/admin/AdminModal'
+import type { Post } from '@/lib/blog'
+
+interface BlogEditorProps {
+  mode: 'list' | 'detail'
+  post?: Post
+}
+
+type ManageState = 'closed' | 'checking' | 'ready' | 'login'
+
+interface EditorForm {
+  title: string
+  date: string
+  author: string
+  category: string
+  excerpt: string
+  content: string
+  image: string
+  imageAlt: string
+  published: boolean
+}
+
+const EMPTY_FORM: EditorForm = {
+  title: '',
+  date: new Date().toISOString().slice(0, 10),
+  author: 'Admin Arenan Kalikesek',
+  category: 'Reportase',
+  excerpt: '',
+  content: '',
+  image: '',
+  imageAlt: '',
+  published: true,
+}
+
+export default function BlogEditor({ mode, post }: BlogEditorProps) {
+  const router = useRouter()
+  const [manage, setManage] = useState<ManageState>('closed')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [loginBusy, setLoginBusy] = useState(false)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [preview, setPreview] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState<EditorForm>(EMPTY_FORM)
+
+  async function openManage() {
+    setManage('checking')
+    const res = await fetch('/api/admin/session')
+    setManage(res.ok ? 'ready' : 'login')
+  }
+
+  async function submitLogin(event: React.FormEvent) {
+    event.preventDefault()
+    setLoginBusy(true)
+    setLoginError('')
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: loginPassword }),
+    })
+    setLoginBusy(false)
+    if (res.ok) {
+      setLoginPassword('')
+      setManage('ready')
+    } else {
+      const body = await res.json().catch(() => ({}))
+      setLoginError(body.error ?? 'Password salah')
+    }
+  }
+
+  async function openCreate() {
+    setForm(EMPTY_FORM)
+    setPreview(false)
+    setError('')
+    setEditorOpen(true)
+  }
+
+  function openEdit() {
+    const p = post as Post
+    setForm({
+      title: p.title,
+      date: (p.date ?? '').slice(0, 10),
+      author: p.author ?? '',
+      category: p.category ?? 'Reportase',
+      excerpt: p.excerpt ?? '',
+      content: p.content,
+      image: p.image ?? '',
+      imageAlt: p.imageAlt ?? '',
+      published: p.published ?? true,
+    })
+    setPreview(false)
+    setError('')
+    setEditorOpen(true)
+  }
+
+  async function save(event: React.FormEvent) {
+    event.preventDefault()
+    if (!form.title.trim() || !form.content.trim()) {
+      setError('Judul dan isi artikel wajib diisi')
+      return
+    }
+    setSaving(true)
+    setError('')
+    const payload = {
+      title: form.title.trim(),
+      date: form.date || null,
+      author: form.author.trim(),
+      category: form.category.trim() || 'Reportase',
+      excerpt: form.excerpt.trim(),
+      content: form.content,
+      image: form.image.trim() || null,
+      imageAlt: form.imageAlt.trim() || null,
+      published: form.published,
+    }
+    const res = await fetch(
+      post ? `/api/admin/blog/posts/${post.slug}` : '/api/admin/blog/posts',
+      {
+        method: post ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    )
+    setSaving(false)
+    if (res.ok) {
+      setEditorOpen(false)
+      router.refresh()
+    } else {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error ?? 'Gagal menyimpan artikel')
+    }
+  }
+
+  async function uploadImage(file: File) {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      setError('Hanya gambar JPG, PNG, atau WebP yang diizinkan')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Ukuran gambar maksimal 5 MB')
+      return
+    }
+    setUploading(true)
+    setError('')
+    const fd = new FormData()
+    fd.append('image', file)
+    const res = await fetch('/api/admin/blog/images', { method: 'POST', body: fd })
+    setUploading(false)
+    const body = await res.json().catch(() => ({}))
+    if (res.ok && body.url) {
+      setForm((f) => ({ ...f, image: body.url }))
+    } else {
+      setError(body.error ?? 'Gagal mengunggah gambar')
+    }
+  }
+
+  async function remove() {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    const res = await fetch(`/api/admin/blog/posts/${post!.slug}`, { method: 'DELETE' })
+    if (res.ok) {
+      setManage('closed')
+      router.refresh()
+    } else {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error ?? 'Gagal menghapus artikel')
+    }
+  }
+
+  const field =
+    'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
+  const label = 'mb-1.5 block text-xs font-semibold uppercase tracking-wider text-gray-500'
+
+  return (
+    <>
+      {mode === 'list' ? (
+        <div className="flex items-center gap-2">
+          {manage === 'ready' && (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+            >
+              + Tambah Reportase
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={manage === 'closed' ? openManage : () => setManage('closed')}
+            className="inline-flex items-center rounded-full border border-emerald-950/15 bg-white px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:border-emerald-600 hover:text-emerald-700"
+          >
+            {manage === 'ready' ? 'Selesai' : 'Kelola'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          {manage === 'ready' && (
+            <>
+              <button
+                type="button"
+                onClick={openEdit}
+                className="inline-flex items-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={remove}
+                className={`inline-flex items-center rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  confirmDelete
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'border border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+                }`}
+              >
+                {confirmDelete ? 'Yakin hapus?' : 'Hapus'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmDelete(false)
+                  setManage('closed')
+                }}
+                className="inline-flex items-center rounded-full border border-emerald-950/15 bg-white px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:border-emerald-600 hover:text-emerald-700"
+              >
+                Selesai
+              </button>
+            </>
+          )}
+          {manage !== 'ready' && (
+            <button
+              type="button"
+              onClick={manage === 'closed' ? openManage : () => setManage('closed')}
+              className="inline-flex items-center rounded-full border border-emerald-950/15 bg-white px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:border-emerald-600 hover:text-emerald-700"
+            >
+              Kelola
+            </button>
+          )}
+        </div>
+      )}
+
+      {manage === 'login' && (
+        <AdminModal title="Masuk sebagai admin" onClose={() => setManage('closed')}>
+          <form onSubmit={submitLogin} className="space-y-4">
+            <div>
+              <label htmlFor="blog-admin-password" className={label}>
+                Password admin
+              </label>
+              <input
+                id="blog-admin-password"
+                type="password"
+                autoComplete="current-password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className={field}
+                required
+              />
+            </div>
+            {loginError && <p className="text-sm text-red-600">{loginError}</p>}
+            <button
+              type="submit"
+              disabled={loginBusy || !loginPassword}
+              className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loginBusy ? 'Memeriksa…' : 'Masuk'}
+            </button>
+          </form>
+        </AdminModal>
+      )}
+
+      {manage === 'checking' && (
+        <p className="text-xs text-gray-500">Memeriksa sesi…</p>
+      )}
+
+      {editorOpen && (
+        <AdminModal
+          title={post ? 'Edit Reportase' : 'Tambah Reportase'}
+          onClose={() => setEditorOpen(false)}
+          wide
+        >
+          <form onSubmit={save} className="space-y-4">
+            <div>
+              <label htmlFor="blog-editor-title" className={label}>
+                Judul *
+              </label>
+              <input
+                id="blog-editor-title"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                className={field}
+                required
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label htmlFor="blog-editor-date" className={label}>
+                  Tanggal
+                </label>
+                <input
+                  id="blog-editor-date"
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label htmlFor="blog-editor-author" className={label}>
+                  Penulis
+                </label>
+                <input
+                  id="blog-editor-author"
+                  value={form.author}
+                  onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
+                  className={field}
+                />
+              </div>
+              <div>
+                <label htmlFor="blog-editor-category" className={label}>
+                  Kategori
+                </label>
+                <input
+                  id="blog-editor-category"
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  className={field}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="blog-editor-excerpt" className={label}>
+                Ringkasan (opsional, otomatis bila kosong)
+              </label>
+              <textarea
+                id="blog-editor-excerpt"
+                rows={2}
+                value={form.excerpt}
+                onChange={(e) => setForm((f) => ({ ...f, excerpt: e.target.value }))}
+                className={field}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="blog-editor-image" className={label}>
+                Sampul
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  id="blog-editor-image"
+                  type="url"
+                  placeholder="https://… atau /images/…"
+                  value={form.image}
+                  onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
+                  className={`${field} sm:max-w-[24rem]`}
+                />
+                <label className="inline-flex cursor-pointer items-center rounded-full border border-emerald-950/15 bg-white px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:border-emerald-600 hover:text-emerald-700">
+                  {uploading ? 'Mengunggah…' : 'Unggah gambar'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) void uploadImage(file)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                {form.image && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, image: '' }))}
+                    className="text-xs font-semibold text-red-600 hover:underline"
+                  >
+                    Hapus sampul
+                  </button>
+                )}
+              </div>
+              {form.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={form.image}
+                  alt="Pratinjau sampul"
+                  className="mt-3 h-28 w-full rounded-lg object-cover sm:w-56"
+                />
+              )}
+            </div>
+
+            <div>
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <label htmlFor="blog-editor-content" className={label + ' mb-0'}>
+                  Isi artikel (markdown) *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setPreview((p) => !p)}
+                  className="rounded-full border border-emerald-950/15 bg-white px-3 py-1 text-xs font-semibold text-emerald-900 transition hover:border-emerald-600 hover:text-emerald-700"
+                >
+                  {preview ? 'Tulis' : 'Pratinjau'}
+                </button>
+              </div>
+              {preview ? (
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
+                  <ReactMarkdown>{form.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <textarea
+                  id="blog-editor-content"
+                  rows={12}
+                  value={form.content}
+                  onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                  className={`${field} font-mono text-xs`}
+                  required
+                />
+              )}
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={form.published}
+                onChange={(e) => setForm((f) => ({ ...f, published: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              Terbitkan (tampil di blog)
+            </label>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setEditorOpen(false)}
+                className="rounded-full border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? 'Menyimpan…' : 'Simpan'}
+              </button>
+            </div>
+          </form>
+        </AdminModal>
+      )}
+    </>
+  )
+}

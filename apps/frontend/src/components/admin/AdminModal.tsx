@@ -6,12 +6,14 @@ import { XMarkIcon } from '@heroicons/react/24/outline'
 interface AdminModalProps {
   title: string
   onClose: () => void
+  wide?: boolean
   children: React.ReactNode
 }
 
 export default function AdminModal({
   title,
   onClose,
+  wide = false,
   children,
 }: AdminModalProps) {
   const titleId = useId()
@@ -55,7 +57,7 @@ export default function AdminModal({
         tabIndex={-1}
         data-lenis-prevent
         data-scroll-container
-        className="admin-modal w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl outline-none"
+        className={`admin-modal w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} overflow-y-auto rounded-2xl bg-white shadow-2xl outline-none`}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-gray-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
           <h2 id={titleId} className="text-lg font-bold text-gray-900">
