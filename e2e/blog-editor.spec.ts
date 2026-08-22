@@ -29,5 +29,12 @@ test.describe('Editor blog ramah pengelola', () => {
       await expect(toolbar.getByRole('button', { name: tool, exact: true })).toBeVisible()
     }
     await expect(toolbar.getByText('Sisipkan gambar ke isi')).toBeVisible()
+
+    // Artikel baru otomatis berisi templat format tetap reportase.
+    const content = page.locator('#blog-editor-content')
+    await expect(content).toBeVisible()
+    const value = await content.inputValue()
+    expect(value).toContain('**Author :**')
+    expect(value).toMatch(/^Sriwulan, \d{1,2} \w+ \d{4} –/m)
   })
 })

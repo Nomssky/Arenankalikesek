@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import { useRouter } from 'next/navigation'
 import AdminModal from '@/components/admin/AdminModal'
 import type { Post } from '@/lib/blog'
+import { formatDate } from '@/lib/utils'
 
 interface BlogEditorProps {
   mode: 'list' | 'detail'
@@ -25,16 +26,33 @@ interface EditorForm {
   published: boolean
 }
 
-const EMPTY_FORM: EditorForm = {
-  title: '',
-  date: new Date().toISOString().slice(0, 10),
-  author: 'Admin Arenan Kalikesek',
-  category: 'Reportase',
-  excerpt: '',
-  content: '',
-  image: '',
-  imageAlt: '',
-  published: true,
+// Templat format tetap reportase (pola sama dengan 5 reportase terstandar:
+// judul tebal + Author + dateline Sriwulan). Baris panduan berkurung siku
+// tinggal diganti; baris foto sengaja teks miring biasa agar aman di Pratinjau.
+function emptyForm(): EditorForm {
+  return {
+    title: '',
+    date: new Date().toISOString().slice(0, 10),
+    author: 'Admin Arenan Kalikesek',
+    category: 'Reportase',
+    excerpt: '',
+    content: [
+      '**[Tulis judul lengkap reportase di sini]**',
+      '',
+      '**Author :** [Nama penulis / kelompok]',
+      '',
+      `Sriwulan, ${formatDate(new Date().toISOString())} – [Paragraf pembuka: siapa, apa, di mana, kapan]`,
+      '',
+      '*Baris ini penanda tempat foto: letakkan kursor di sini, klik tombol "Sisipkan gambar ke isi", setelah foto masuk hapus baris ini.*',
+      '',
+      '[Isi lanjutan...]',
+      '',
+      '*[Penutup: kesan-pesan atau kutipan tokoh]*',
+    ].join('\n'),
+    image: '',
+    imageAlt: '',
+    published: true,
+  }
 }
 
 export default function BlogEditor({ mode, post }: BlogEditorProps) {
@@ -49,7 +67,7 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState<EditorForm>(EMPTY_FORM)
+  const [form, setForm] = useState<EditorForm>(emptyForm)
   const contentRef = useRef<HTMLTextAreaElement>(null)
   // Artikel yang sedang disunting: null = membuat baru. Diisi dari prop `post`
   // (mode detail) atau dari strip draf (mode list) supaya draf bisa diedit lagi.
@@ -100,7 +118,8 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
   }
 
   async function openCreate() {
-    setForm(EMPTY_FORM)
+    // Tanggal di dateline selalu hari ini saat form dibuka, bukan saat mount.
+    setForm(emptyForm())
     setActivePost(null)
     setPreview(false)
     setError('')
