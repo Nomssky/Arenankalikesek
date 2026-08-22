@@ -14,6 +14,7 @@ import {
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
   DocumentArrowDownIcon,
+  NewspaperIcon,
   ShoppingBagIcon,
   TicketIcon,
   XMarkIcon,
@@ -48,6 +49,7 @@ const navItems = [
   { href: '/admin/products', label: 'Produk', icon: ShoppingBagIcon },
   { href: '/admin/tour-packages', label: 'Paket Wisata', icon: TicketIcon },
   { href: '/admin/inventory', label: 'Stok Barang', icon: ArchiveBoxIcon },
+  { href: '/admin/blog', label: 'Reportase', icon: NewspaperIcon },
 ]
 
 function isActivePath(pathname: string, href: string) {

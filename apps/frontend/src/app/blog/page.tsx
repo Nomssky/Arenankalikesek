@@ -4,7 +4,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import Hero from '@/components/Hero'
 import Section from '@/components/Section'
-import BlogEditor from '@/components/blog/BlogEditor'
 import { formatDate } from '@/lib/utils'
 import { ArrowRightIcon, NewspaperIcon } from '@heroicons/react/24/outline'
 
@@ -104,9 +103,6 @@ export default async function BlogPage() {
       />
 
       <Section>
-        <div className="mb-6 flex items-center justify-end">
-          <BlogEditor mode="list" />
-        </div>
         {posts.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-gray-500">Belum ada artikel.</p>
