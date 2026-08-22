@@ -25,9 +25,9 @@ interface EditorForm {
   published: boolean
 }
 
-// Templat format tetap reportase (pola sama dengan 5 reportase terstandar:
-// judul tebal + Author + dateline Sriwulan). Baris panduan berkurung siku
-// tinggal diganti; baris foto sengaja teks miring biasa agar aman di Pratinjau.
+// Kerangka reportase TIDAK ditulis di textarea — ia dirakit otomatis dari
+// field Judul/Penulis/Tanggal (assembleContent) sehingga penulis tidak bisa
+// menghapus atau merusaknya. Textarea hanya memuat bagian bebas artikel.
 function emptyForm(): EditorForm {
   return {
     title: '',
@@ -35,23 +35,39 @@ function emptyForm(): EditorForm {
     author: 'Admin Arenan Kalikesek',
     category: 'Reportase',
     excerpt: '',
-    content: [
-      '**[Tulis judul lengkap reportase di sini]**',
-      '',
-      '**Author :** [Nama penulis / kelompok]',
-      '',
-      `Sriwulan, ${formatDate(new Date().toISOString())} – [Paragraf pembuka: siapa, apa, di mana, kapan]`,
-      '',
+    content:
       '*Baris ini penanda tempat foto: letakkan kursor di sini, klik tombol "Sisipkan gambar ke isi", setelah foto masuk hapus baris ini.*',
-      '',
-      '[Isi lanjutan...]',
-      '',
-      '*[Penutup: kesan-pesan atau kutipan tokoh]*',
-    ].join('\n'),
     image: '',
     imageAlt: '',
     published: true,
   }
+}
+
+// Isi yang sudah memuat kerangka (artikel lama/impor) diteruskan apa adanya —
+// jangan dirakit ulang agar tidak dobel. (ponytail: format luar-baku tidak
+// dinormalkan otomatis; upgrade path: script migrasi sekali.)
+const SKELETON_LIKE = /^\*\*[^\n]+\*\*\s*\n+\*\*Author :\*\*/
+
+function assembleContent(title: string, author: string, date: string, body: string): string {
+  const dateline = `Sriwulan, ${formatDate(date || new Date().toISOString())} –`
+  return [
+    `**${title}**`,
+    '',
+    `**Author :** ${author || 'Admin Arenan Kalikesek'}`,
+    '',
+    `${dateline} ${body.replace(/^\s+/, '')}`,
+  ].join('\n')
+}
+
+// Lepas kerangka baku dari awal konten artikel lama supaya tidak dobel saat
+// disimpan ulang. Coba cocokkan dengan judul artikel; bila gagal tapi pola
+// kerangkanya mirip, lepas versi generik.
+function stripSkeleton(content: string, title: string): string {
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const exact = new RegExp(`^\\*\\*${escaped}\\*\\*\\s*\\n+\\*\\*Author :\\*\\*[^\\n]*\\n+Sriwulan,[^\\n]*?–\\s*`)
+  const stripped = content.replace(exact, '')
+  if (stripped !== content) return stripped
+  return content.replace(/^\*\*[^\n]+\*\*\s*\n+\*\*Author :\*\*[^\n]*\n+Sriwulan,[^\n]*?–\s*/, '')
 }
 
 function formFromPost(source: Post): EditorForm {
@@ -61,7 +77,7 @@ function formFromPost(source: Post): EditorForm {
     author: source.author ?? '',
     category: source.category ?? 'Reportase',
     excerpt: source.excerpt ?? '',
-    content: source.content,
+    content: stripSkeleton(source.content, source.title),
     image: source.image ?? '',
     imageAlt: source.imageAlt ?? '',
     published: source.published ?? true,
@@ -75,6 +91,15 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const contentRef = useRef<HTMLTextAreaElement>(null)
+
+  // Konten final yang disimpan & dipratinjau: kerangka dirakit dari field form,
+  // kecuali isi sudah memuat kerangka sendiri (artikel lama) — diteruskan apa adanya.
+  function finalContent(): string {
+    const body = form.content.trim()
+    if (!body) return ''
+    if (SKELETON_LIKE.test(body)) return form.content
+    return assembleContent(form.title.trim(), form.author.trim(), form.date, form.content)
+  }
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
@@ -90,7 +115,7 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
       author: form.author.trim(),
       category: form.category.trim() || 'Reportase',
       excerpt: form.excerpt.trim(),
-      content: form.content,
+      content: finalContent(),
       image: form.image.trim() || null,
       imageAlt: form.imageAlt.trim() || null,
       published: form.published,
@@ -402,7 +427,7 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
           )}
           {preview ? (
             <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
-              <ReactMarkdown>{form.content}</ReactMarkdown>
+              <ReactMarkdown>{finalContent()}</ReactMarkdown>
             </div>
           ) : (
             <textarea
@@ -412,7 +437,7 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
               value={form.content}
               onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
               className={`${field} font-mono text-xs`}
-              placeholder={'Tulis artikel di sini, atau pakai tombol format di atas…'}
+              placeholder={'Tulis paragraf pembuka dan isi di sini — judul, penulis, dan dateline dirakit otomatis…'}
               required
             />
           )}

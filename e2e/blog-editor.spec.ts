@@ -32,12 +32,20 @@ test.describe('Kelola reportase di panel admin', () => {
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
 
-    // Templat format tetap reportase sudah terisi otomatis.
+    // Kerangka (judul tebal + Author + dateline) TIDAK ada di textarea —
+    // ia dirakit otomatis dari field form sehingga tidak bisa dirusak penulis.
     const content = dialog.locator('#blog-editor-content')
     await expect(content).toBeVisible()
     const value = await content.inputValue()
-    expect(value).toContain('**Author :**')
-    expect(value).toMatch(/^Sriwulan, \d{1,2} \w+ \d{4} –/m)
+    expect(value).not.toContain('**Author :**')
+    expect(value).not.toMatch(/^Sriwulan,/m)
+
+    // Pratinjau menampilkan hasil rakitan penuh persis seperti yang disimpan.
+    await dialog.locator('#blog-editor-title').fill('Uji Kerangka Terkunci')
+    await dialog.getByRole('button', { name: 'Pratinjau' }).click()
+    await expect(dialog).toContainText('Author :')
+    await expect(dialog).toContainText('Sriwulan,')
+    await expect(dialog).toContainText('Uji Kerangka Terkunci')
 
     // Toolbar format ramah awam lengkap.
     const toolbar = dialog.getByRole('toolbar', { name: 'Alat format tulisan' })
