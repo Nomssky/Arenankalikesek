@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useRouter } from 'next/navigation'
 import AdminModal from '@/components/admin/AdminModal'
@@ -50,6 +50,29 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState<EditorForm>(EMPTY_FORM)
+  const contentRef = useRef<HTMLTextAreaElement>(null)
+  // Artikel yang sedang disunting: null = membuat baru. Diisi dari prop `post`
+  // (mode detail) atau dari strip draf (mode list) supaya draf bisa diedit lagi.
+  const [activePost, setActivePost] = useState<Post | null>(null)
+
+  // null = belum dimuat. Draf hanya di halaman daftar: ambil SEMUA artikel via
+  // endpoint admin (termasuk published=false) supaya artikel yang tidak sengaja
+  // di-unpublish tetap bisa ditemukan dan diterbitkan kembali dari UI.
+  const [drafts, setDrafts] = useState<Post[] | null>(null)
+
+  useEffect(() => {
+    if (mode !== 'list' || manage !== 'ready') return
+    let cancelled = false
+    fetch('/api/admin/blog/posts')
+      .then(async (res) => (res.ok ? ((await res.json()) as Post[]) : []))
+      .then((all) => {
+        if (!cancelled) setDrafts(Array.isArray(all) ? all.filter((item) => item.published === false) : [])
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [mode, manage])
 
   async function openManage() {
     setManage('checking')
@@ -78,27 +101,33 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
 
   async function openCreate() {
     setForm(EMPTY_FORM)
+    setActivePost(null)
+    setPreview(false)
+    setError('')
+    setEditorOpen(true)
+  }
+
+  // Satu sumber isi form untuk edit dari halaman detail maupun dari strip draf.
+  function fillForm(source: Post) {
+    setForm({
+      title: source.title,
+      date: (source.date ?? '').slice(0, 10),
+      author: source.author ?? '',
+      category: source.category ?? 'Reportase',
+      excerpt: source.excerpt ?? '',
+      content: source.content,
+      image: source.image ?? '',
+      imageAlt: source.imageAlt ?? '',
+      published: source.published ?? true,
+    })
+    setActivePost(source)
     setPreview(false)
     setError('')
     setEditorOpen(true)
   }
 
   function openEdit() {
-    const p = post as Post
-    setForm({
-      title: p.title,
-      date: (p.date ?? '').slice(0, 10),
-      author: p.author ?? '',
-      category: p.category ?? 'Reportase',
-      excerpt: p.excerpt ?? '',
-      content: p.content,
-      image: p.image ?? '',
-      imageAlt: p.imageAlt ?? '',
-      published: p.published ?? true,
-    })
-    setPreview(false)
-    setError('')
-    setEditorOpen(true)
+    fillForm(post as Post)
   }
 
   async function save(event: React.FormEvent) {
@@ -121,9 +150,9 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
       published: form.published,
     }
     const res = await fetch(
-      post ? `/api/admin/blog/posts/${post.slug}` : '/api/admin/blog/posts',
+      activePost ? `/api/admin/blog/posts/${activePost.slug}` : '/api/admin/blog/posts',
       {
-        method: post ? 'PATCH' : 'POST',
+        method: activePost ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
@@ -131,6 +160,10 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
     setSaving(false)
     if (res.ok) {
       setEditorOpen(false)
+      // Draf yang baru diterbitkan harus langsung keluar dari strip draf.
+      if (mode === 'list' && activePost && form.published) {
+        setDrafts((current) => (current ? current.filter((item) => item.slug !== activePost.slug) : current))
+      }
       router.refresh()
     } else {
       const body = await res.json().catch(() => ({}))
@@ -138,7 +171,85 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
     }
   }
 
-  async function uploadImage(file: File) {
+  // Sisipkan teks di posisi kursor textarea isi; kursor diletakkan setelah
+  // sisipan agar pengguna bisa lanjut menulis.
+  function insertIntoContent(snippet: string) {
+    const el = contentRef.current
+    if (!el) {
+      setForm((f) => ({
+        ...f,
+        content: `${f.content}${f.content && !f.content.endsWith('\n') ? '\n\n' : ''}${snippet}`,
+      }))
+      return
+    }
+    const start = el.selectionStart
+    const next = el.value.slice(0, start) + snippet + el.value.slice(el.selectionEnd)
+    setForm((f) => ({ ...f, content: next }))
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + snippet.length, start + snippet.length)
+    })
+  }
+
+  function prefixEachLine(text: string, prefix: string): string {
+    if (!text) return prefix
+    return text
+      .split('\n')
+      .map((line) => (line.startsWith(prefix) ? line : prefix + line))
+      .join('\n')
+  }
+
+  type MarkdownAction = 'h2' | 'h3' | 'bold' | 'italic' | 'list' | 'quote' | 'link'
+
+  // Toolbar ramah awam: tulis markdown di posisi kursor sehingga penyimpanan
+  // tetap markdown murni (tanpa editor WYSIWYG / dependency baru).
+  function applyMarkdown(action: MarkdownAction) {
+    const el = contentRef.current
+    if (!el) return
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const value = el.value
+    const selected = value.slice(start, end)
+    let replaced: string
+    switch (action) {
+      case 'h2':
+        replaced = prefixEachLine(selected, '## ')
+        break
+      case 'h3':
+        replaced = prefixEachLine(selected, '### ')
+        break
+      case 'list':
+        replaced = prefixEachLine(selected, '- ')
+        break
+      case 'quote':
+        replaced = prefixEachLine(selected, '> ')
+        break
+      case 'bold':
+        replaced = `**${selected || 'teks tebal'}**`
+        break
+      case 'italic':
+        replaced = `*${selected || 'teks miring'}*`
+        break
+      case 'link':
+        replaced = `[${selected || 'teks tautan'}](https://…)`
+        break
+      default:
+        replaced = selected
+    }
+    insertIntoContentAt(value, start, end, replaced)
+  }
+
+  function insertIntoContentAt(value: string, start: number, end: number, snippet: string) {
+    setForm((f) => ({ ...f, content: value.slice(0, start) + snippet + value.slice(end) }))
+    requestAnimationFrame(() => {
+      const el = contentRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(start + snippet.length, start + snippet.length)
+    })
+  }
+
+  async function uploadImage(file: File, target: 'cover' | 'content' = 'cover') {
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
       setError('Hanya gambar JPG, PNG, atau WebP yang diizinkan')
       return
@@ -155,7 +266,11 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
     setUploading(false)
     const body = await res.json().catch(() => ({}))
     if (res.ok && body.url) {
-      setForm((f) => ({ ...f, image: body.url }))
+      if (target === 'cover') {
+        setForm((f) => ({ ...f, image: body.url }))
+      } else {
+        insertIntoContent(`![deskripsi gambar](${body.url})`)
+      }
     } else {
       setError(body.error ?? 'Gagal mengunggah gambar')
     }
@@ -183,7 +298,7 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
   return (
     <>
       {mode === 'list' ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {manage === 'ready' && (
             <button
               type="button"
@@ -200,6 +315,35 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
           >
             {manage === 'ready' ? 'Selesai' : 'Kelola'}
           </button>
+          {manage === 'ready' && (
+            <div className="w-full rounded-xl border border-dashed border-gray-300 bg-white/70 p-3 text-left">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Draf (belum terbit)
+              </p>
+              {drafts === null ? (
+                <p className="mt-2 text-xs text-gray-400">Memuat…</p>
+              ) : drafts.length === 0 ? (
+                <p className="mt-2 text-xs text-gray-400">Tidak ada draf.</p>
+              ) : (
+                <ul className="mt-2 space-y-1">
+                  {drafts.map((draft) => (
+                    <li key={draft.slug}>
+                      <button
+                        type="button"
+                        onClick={() => fillForm(draft)}
+                        className="inline-flex max-w-full items-center gap-2 rounded-lg px-2 py-1 text-sm text-gray-800 transition hover:bg-emerald-50 hover:text-emerald-800"
+                      >
+                        <span className="shrink-0 rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-yellow-800">
+                          Draf
+                        </span>
+                        <span className="break-anywhere">{draft.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
@@ -282,7 +426,7 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
 
       {editorOpen && (
         <AdminModal
-          title={post ? 'Edit Reportase' : 'Tambah Reportase'}
+          title={activePost ? 'Edit Reportase' : 'Tambah Reportase'}
           onClose={() => setEditorOpen(false)}
           wide
         >
@@ -330,10 +474,23 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
                 </label>
                 <input
                   id="blog-editor-category"
+                  list="blog-editor-category-options"
                   value={form.category}
                   onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                   className={field}
+                  aria-describedby="blog-editor-category-hint"
                 />
+                {/* Saran kategori tetap agar tidak pecah jadi banyak ejaan;
+                    pengguna tetap boleh menulis kategori sendiri. */}
+                <datalist id="blog-editor-category-options">
+                  <option value="Reportase" />
+                  <option value="Berita" />
+                  <option value="Info Wisata" />
+                  <option value="Kegiatan Desa" />
+                </datalist>
+                <p id="blog-editor-category-hint" className="mt-1 text-xs text-gray-400">
+                  Pilih dari daftar atau tulis kategori sendiri.
+                </p>
               </div>
             </div>
 
@@ -400,7 +557,7 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3">
                 <label htmlFor="blog-editor-content" className={label + ' mb-0'}>
-                  Isi artikel (markdown) *
+                  Isi artikel *
                 </label>
                 <button
                   type="button"
@@ -410,6 +567,48 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
                   {preview ? 'Tulis' : 'Pratinjau'}
                 </button>
               </div>
+              {!preview && (
+                <div
+                  role="toolbar"
+                  aria-label="Alat format tulisan"
+                  className="mb-2 flex flex-wrap gap-1.5"
+                >
+                  {(
+                    [
+                      ['Judul', 'h2'],
+                      ['Subjudul', 'h3'],
+                      ['Tebal', 'bold'],
+                      ['Miring', 'italic'],
+                      ['Daftar', 'list'],
+                      ['Kutipan', 'quote'],
+                      ['Tautan', 'link'],
+                    ] as [string, MarkdownAction][]
+                  ).map(([name, action]) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => applyMarkdown(action)}
+                      className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:border-emerald-500 hover:text-emerald-700"
+                    >
+                      {name}
+                    </button>
+                  ))}
+                  <label className="cursor-pointer rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:border-emerald-500 hover:text-emerald-700">
+                    {uploading ? 'Mengunggah…' : 'Sisipkan gambar ke isi'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) void uploadImage(file, 'content')
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                </div>
+              )}
               {preview ? (
                 <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
                   <ReactMarkdown>{form.content}</ReactMarkdown>
@@ -417,10 +616,12 @@ export default function BlogEditor({ mode, post }: BlogEditorProps) {
               ) : (
                 <textarea
                   id="blog-editor-content"
+                  ref={contentRef}
                   rows={12}
                   value={form.content}
                   onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
                   className={`${field} font-mono text-xs`}
+                  placeholder={'Tulis artikel di sini, atau pakai tombol format di atas…'}
                   required
                 />
               )}

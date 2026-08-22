@@ -244,8 +244,15 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-      <p className="mt-1 text-sm text-gray-500">Ringkasan booking dan pendapatan</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500">Ringkasan booking dan pendapatan</p>
+        </div>
+        <Link href="/blog" className="text-sm font-semibold text-emerald-700 hover:underline">
+          Kelola artikel blog
+        </Link>
+      </div>
 
       {/* Stats */}
       <div className="mt-6 grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 lg:grid-cols-5">

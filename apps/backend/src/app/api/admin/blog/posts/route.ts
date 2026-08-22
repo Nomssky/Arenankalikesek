@@ -13,6 +13,28 @@ function deriveExcerpt(content: string): string {
     .slice(0, 160)
 }
 
+// Daftar admin: SEMUA artikel termasuk draf (published=false). Konten disertakan
+// agar modal edit bisa dibuka langsung dari strip draf di halaman blog.
+export async function GET(request: NextRequest) {
+  const auth = await requireAdmin(request)
+  if (auth) return auth
+  try {
+    const supabase = getSupabaseAdmin()
+    const { data, error } = await supabase
+      .from('blog_posts')
+      .select('slug,title,date,author,category,type,excerpt,content,image,imageAlt:image_alt,published')
+      .order('date', { ascending: false })
+    if (error) {
+      console.error('Admin list blog posts error:', error)
+      return NextResponse.json({ error: 'Gagal memuat artikel' }, { status: 500 })
+    }
+    return NextResponse.json(data || [])
+  } catch (error) {
+    console.error('Admin list blog posts error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request)
   if (auth) return auth
