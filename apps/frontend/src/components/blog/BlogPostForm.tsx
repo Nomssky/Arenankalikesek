@@ -160,42 +160,14 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
       .join('\n')
   }
 
-  type MarkdownAction = 'h2' | 'h3' | 'bold' | 'italic' | 'list' | 'quote' | 'link'
-
-  // Toolbar ramah awam: tulis markdown di posisi kursor sehingga penyimpanan
-  // tetap markdown murni (tanpa editor WYSIWYG / dependency baru).
-  function applyMarkdown(action: MarkdownAction) {
+  // Toolbar sederhana: hanya Judul/Subjudul (heading markdown di posisi kursor)
+  // dan sisip gambar. Penyimpanan tetap markdown murni, tanpa editor WYSIWYG.
+  function applyHeading(prefix: '## ' | '### ') {
     const el = contentRef.current
     if (!el) return
     const start = el.selectionStart
     const end = el.selectionEnd
-    const selected = el.value.slice(start, end)
-    let replaced: string
-    switch (action) {
-      case 'h2':
-        replaced = prefixEachLine(selected, '## ')
-        break
-      case 'h3':
-        replaced = prefixEachLine(selected, '### ')
-        break
-      case 'list':
-        replaced = prefixEachLine(selected, '- ')
-        break
-      case 'quote':
-        replaced = prefixEachLine(selected, '> ')
-        break
-      case 'bold':
-        replaced = `**${selected || 'teks tebal'}**`
-        break
-      case 'italic':
-        replaced = `*${selected || 'teks miring'}*`
-        break
-      case 'link':
-        replaced = `[${selected || 'teks tautan'}](https://…)`
-        break
-      default:
-        replaced = selected
-    }
+    const replaced = prefixEachLine(el.value.slice(start, end), prefix)
     insertIntoContentAt(el.value, start, end, replaced)
   }
 
@@ -391,19 +363,14 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
             >
               {(
                 [
-                  ['Judul', 'h2'],
-                  ['Subjudul', 'h3'],
-                  ['Tebal', 'bold'],
-                  ['Miring', 'italic'],
-                  ['Daftar', 'list'],
-                  ['Kutipan', 'quote'],
-                  ['Tautan', 'link'],
-                ] as [string, MarkdownAction][]
-              ).map(([name, action]) => (
+                  ['Judul', '## '],
+                  ['Subjudul', '### '],
+                ] as [string, '## ' | '### '][]
+              ).map(([name, prefix]) => (
                 <button
                   key={name}
                   type="button"
-                  onClick={() => applyMarkdown(action)}
+                  onClick={() => applyHeading(prefix)}
                   className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:border-emerald-500 hover:text-emerald-700"
                 >
                   {name}

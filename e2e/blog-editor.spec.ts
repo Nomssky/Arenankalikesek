@@ -47,10 +47,12 @@ test.describe('Kelola reportase di panel admin', () => {
     await expect(dialog).toContainText('Sriwulan,')
     await expect(dialog).toContainText('Uji Kerangka Terkunci')
 
-    // Toolbar format ramah awam lengkap.
+    // Toolbar sederhana: hanya Judul & Subjudul + sisip gambar.
     const toolbar = dialog.getByRole('toolbar', { name: 'Alat format tulisan' })
-    for (const tool of ['Judul', 'Subjudul', 'Tebal', 'Miring', 'Daftar', 'Kutipan', 'Tautan']) {
-      await expect(toolbar.getByRole('button', { name: tool, exact: true })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Judul', exact: true })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Subjudul', exact: true })).toBeVisible()
+    for (const removed of ['Tebal', 'Miring', 'Daftar', 'Kutipan', 'Tautan']) {
+      await expect(toolbar.getByRole('button', { name: removed, exact: true })).toHaveCount(0)
     }
     await expect(toolbar.getByText('Sisipkan gambar ke isi')).toBeVisible()
   })
