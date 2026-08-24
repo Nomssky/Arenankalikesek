@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { accommodationTypeForItem, isAccommodationItem, stayDateKeys } from '@repo/shared-utils'
 import MonthFilter from '@/components/admin/MonthFilter'
+import SyncJadwalButton from '@/components/admin/SyncJadwalButton'
 
 interface RentalRow {
   id: string
@@ -561,6 +562,7 @@ export default function AdminJadwalPage() {
             {showBlockForm ? 'Tutup form' : '+ Tutup tanggal'}
           </button>
         )}
+        <SyncJadwalButton onSelesai={() => setRefreshKey((value) => value + 1)} />
       </div>
 
       <div className="mt-5 grid grid-cols-3 rounded-xl bg-white p-1 shadow-sm sm:max-w-2xl">

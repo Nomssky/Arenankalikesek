@@ -675,6 +675,15 @@ pnpm --filter backend test:unit   # tests/*.test.ts (node:test, tanpa framework)
 
 # Import Jadwal Manual (Spreadsheet Pengelola)
 
+> **UPDATE 2026-08:** import kini OTOMATIS. Endpoint `POST /api/cron/sync-jadwal`
+> (auth: sesi admin ATAU header `X-Sync-Secret` = env `JADWAL_SYNC_SECRET`) menarik
+> kedua sheet langsung dari Google (gviz CSV, read-only) dan clean-replace
+> `SPR-*` (sewa tempat) + `SPI-*` (penginapan). Cron eksternal gratis
+> (cron-job.org) memanggil tiap 5 menit; tombol "Sinkronkan dari Spreadsheet"
+> ada di `/admin/jadwal`. Mesin parser + aturan fail-safe:
+> `apps/backend/src/lib/jadwal-sync.ts` (dokumen: `docs/rencana-sync-spreadsheet.md`).
+> Flow export HTML di bawah hanya cadangan manual.
+
 Jadwal sewa tempat dicatat manual oleh pengelola di Google Sheets, diimpor ke database
 untuk jadi sumber halaman jadwal. Script: `apps/backend/scripts/import-jadwal.cjs`.
 

@@ -40,19 +40,43 @@ function gagal(pesan) {
 }
 
 // ---------- kumpulkan target ----------
-const { data: bookingsTarget, error: errBookings } = await sb
-  .from('bookings')
-  .select('id, booking_code, customer_name, type, status, payment_status, created_at')
-  .or(
-    [
-      'customer_name.like.E2E%',
-      'customer_name.like.Uji %',
-      'customer_name.like.CONTOH-%',
-      'booking_code.like.E2E-%',
-    ].join(','),
-  )
-if (errBookings) gagal(`Gagal membaca bookings: ${errBookings.message}`)
-const ids = bookingsTarget.map((b) => b.id)
+// Pola nama/kode yang selalu dianggap data uji (termasuk varian lama:
+// Conflict/e2e-sync/Tes Lock/Dbg).
+const POLA_UJI = [
+  'customer_name.like."E2E%"',
+  'customer_name.like."Uji %"',
+  'customer_name.like."CONTOH-%"',
+  'customer_name.like."Conflict%"',
+  'customer_name.like."e2e-sync-%"',
+  'customer_name.like."Tes Lock%"',
+  'customer_name.like."Dbg%"',
+  'booking_code.like."E2E-%"',
+]
+const HAPUS_SEMUA_CANCELLED = process.argv.includes('--hapus-semua-cancelled')
+
+async function ambilTargetBookings() {
+  const { data, error } = await sb
+    .from('bookings')
+    .select('id, booking_code, customer_name, type, status, payment_status, created_at')
+    .or(POLA_UJI.join(','))
+  if (error) gagal(`Gagal membaca bookings: ${error.message}`)
+  if (!HAPUS_SEMUA_CANCELLED) return data ?? []
+  // Keputusan pemilik: sekali-sekali kosongkan SELURUH riwayat cancelled,
+  // termasuk pembatalan manual orang asli (--hapus-semua-cancelled).
+  const { data: batal, error: errBatal } = await sb
+    .from('bookings')
+    .select('id, booking_code, customer_name, type, status, payment_status, created_at')
+    .eq('status', 'cancelled')
+  if (errBatal) gagal(`Gagal membaca bookings cancelled: ${errBatal.message}`)
+  return [...(data ?? []), ...(batal ?? [])]
+}
+
+const bookingsTarget = await ambilTargetBookings()
+const terlihat = new Set()
+const bookingsUnik = bookingsTarget.filter((b) =>
+  terlihat.has(b.id) ? false : (terlihat.add(b.id), true),
+)
+const ids = bookingsUnik.map((b) => b.id)
 
 async function hitungAnak(tabel) {
   if (ids.length === 0) return []
@@ -133,7 +157,7 @@ const stempel = new Date().toISOString().replace(/[:.]/g, '-')
 const backupPath = `/tmp/opencode/backup-e2e-${stempel}.json`
 writeFileSync(
   backupPath,
-  JSON.stringify({ bookingsTarget, rentalIds: rentalRows.map((r) => r.id), dokumenTarget, dokumenYatim, gambarYatim }, null, 2),
+  JSON.stringify({ bookingsTarget: bookingsUnik, rentalIds: rentalRows.map((r) => r.id), dokumenTarget, dokumenYatim, gambarYatim }, null, 2),
 )
 console.log(`\nBackup: ${backupPath}`)
 
