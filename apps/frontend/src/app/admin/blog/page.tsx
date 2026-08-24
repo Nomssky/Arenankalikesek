@@ -217,6 +217,7 @@ export default function AdminBlogPage() {
       {formOpen && (
         <BlogPostForm
           initialPost={formPost}
+          knownCategories={posts.map((post) => post.category ?? '').filter(Boolean)}
           onClose={() => setFormOpen(false)}
           onSaved={() => fetchPosts()}
         />

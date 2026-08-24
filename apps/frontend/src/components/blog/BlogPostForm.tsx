@@ -9,6 +9,9 @@ import { formatDate } from '@/lib/utils'
 interface BlogPostFormProps {
   // null = membuat artikel baru; terisi = menyunting artikel tersebut.
   initialPost?: Post | null
+  // Kategori yang pernah dipakai artikel lain — ditampilkan sebagai chip agar
+  // ejaan kategori konsisten antar-artikel (pengguna tetap boleh menulis bebas).
+  knownCategories?: string[]
   onClose: () => void
   onSaved?: () => void
 }
@@ -84,13 +87,16 @@ function formFromPost(source: Post): EditorForm {
   }
 }
 
-export default function BlogPostForm({ initialPost = null, onClose, onSaved }: BlogPostFormProps) {
+export default function BlogPostForm({ initialPost = null, knownCategories = [], onClose, onSaved }: BlogPostFormProps) {
   const [form, setForm] = useState<EditorForm>(() => (initialPost ? formFromPost(initialPost) : emptyForm()))
-  const [preview, setPreview] = useState(false)
+  const [mobilePreview, setMobilePreview] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const contentRef = useRef<HTMLTextAreaElement>(null)
+
+  // Chip kategori: default + yang sudah pernah dipakai (tanpa duplikat).
+  const categoryChips = Array.from(new Set(['Reportase', 'Berita', 'Info Wisata', 'Kegiatan Desa', ...knownCategories]))
 
   // Konten final yang disimpan & dipratinjau: kerangka dirakit dari field form,
   // kecuali isi sudah memuat kerangka sendiri (artikel lama) — diteruskan apa adanya.
@@ -107,6 +113,13 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
       setError('Judul dan isi artikel wajib diisi')
       return
     }
+    // Link sampul boleh path relatif (/images/…) atau URL absolut — type="url"
+    // bawaan browser menolak path relatif, jadi divalidasi manual di sini.
+    const cover = form.image.trim()
+    if (cover && !/^(\/|https?:\/\/)/i.test(cover)) {
+      setError('Link sampul harus diawali / (folder publik) atau https://')
+      return
+    }
     setSaving(true)
     setError('')
     const payload = {
@@ -116,7 +129,7 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
       category: form.category.trim() || 'Reportase',
       excerpt: form.excerpt.trim(),
       content: finalContent(),
-      image: form.image.trim() || null,
+      image: cover || null,
       imageAlt: form.imageAlt.trim() || null,
       published: form.published,
     }
@@ -160,8 +173,9 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
       .join('\n')
   }
 
-  // Toolbar sederhana: hanya Judul/Subjudul (heading markdown di posisi kursor)
-  // dan sisip gambar. Penyimpanan tetap markdown murni, tanpa editor WYSIWYG.
+  // Toolbar sederhana: Judul/Subjudul (heading markdown di posisi kursor),
+  // Tebal (bungkus seleksi), dan sisip gambar. Penyimpanan tetap markdown
+  // murni, tanpa editor WYSIWYG.
   function applyHeading(prefix: '## ' | '### ') {
     const el = contentRef.current
     if (!el) return
@@ -169,6 +183,13 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
     const end = el.selectionEnd
     const replaced = prefixEachLine(el.value.slice(start, end), prefix)
     insertIntoContentAt(el.value, start, end, replaced)
+  }
+
+  function applyBold() {
+    const el = contentRef.current
+    if (!el) return
+    const selected = el.value.slice(el.selectionStart, el.selectionEnd) || 'teks tebal'
+    insertIntoContentAt(el.value, el.selectionStart, el.selectionEnd, `**${selected}**`)
   }
 
   function insertIntoContentAt(value: string, start: number, end: number, snippet: string) {
@@ -262,22 +283,31 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
             </label>
             <input
               id="blog-editor-category"
-              list="blog-editor-category-options"
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
               className={field}
-              aria-describedby="blog-editor-category-hint"
             />
-            {/* Saran kategori tetap agar tidak pecah jadi banyak ejaan;
-                pengguna tetap boleh menulis kategori sendiri. */}
-            <datalist id="blog-editor-category-options">
-              <option value="Reportase" />
-              <option value="Berita" />
-              <option value="Info Wisata" />
-              <option value="Kegiatan Desa" />
-            </datalist>
-            <p id="blog-editor-category-hint" className="mt-1 text-xs text-gray-400">
-              Pilih dari daftar atau tulis kategori sendiri.
+            {/* Chip selalu terlihat — <datalist> tidak andal (Safari/sering
+                browser mobile tidak menampilkan daftarnya sama sekali). */}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {categoryChips.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, category }))}
+                  aria-pressed={form.category === category}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    form.category === category
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'border border-gray-300 bg-white text-gray-600 hover:border-emerald-500 hover:text-emerald-700'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              Klik pilihan atau tulis kategori sendiri.
             </p>
           </div>
         </div>
@@ -296,19 +326,9 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
         </div>
 
         <div>
-          <label htmlFor="blog-editor-image" className={label}>
-            Sampul
-          </label>
+          <span className={label}>Sampul</span>
           <div className="flex flex-wrap items-center gap-3">
-            <input
-              id="blog-editor-image"
-              type="url"
-              placeholder="https://… atau /images/…"
-              value={form.image}
-              onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
-              className={`${field} sm:max-w-[24rem]`}
-            />
-            <label className="inline-flex cursor-pointer items-center rounded-full border border-emerald-950/15 bg-white px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:border-emerald-600 hover:text-emerald-700">
+            <label className="inline-flex cursor-pointer items-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
               {uploading ? 'Mengunggah…' : 'Unggah gambar'}
               <input
                 type="file"
@@ -332,6 +352,18 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
               </button>
             )}
           </div>
+          <label htmlFor="blog-editor-image" className="mt-2 mb-1 block text-xs text-gray-400">
+            …atau tempel link gambar (/images/… atau https://…)
+          </label>
+          <input
+            id="blog-editor-image"
+            type="text"
+            inputMode="url"
+            placeholder="/images/foto.jpg"
+            value={form.image}
+            onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
+            className={`${field} sm:max-w-[24rem]`}
+          />
           {form.image && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -343,71 +375,91 @@ export default function BlogPostForm({ initialPost = null, onClose, onSaved }: B
         </div>
 
         <div>
-          <div className="mb-1.5 flex items-center justify-between gap-3">
+          <div className="mb-1 flex items-center justify-between gap-3">
             <label htmlFor="blog-editor-content" className={label + ' mb-0'}>
               Isi artikel *
             </label>
+            {/* Layar sempit: tulis dan pratinjau bergantian. Layar lebar: berdampingan. */}
             <button
               type="button"
-              onClick={() => setPreview((p) => !p)}
-              className="rounded-full border border-emerald-950/15 bg-white px-3 py-1 text-xs font-semibold text-emerald-900 transition hover:border-emerald-600 hover:text-emerald-700"
+              onClick={() => setMobilePreview((p) => !p)}
+              className="rounded-full border border-emerald-950/15 bg-white px-3 py-1 text-xs font-semibold text-emerald-900 transition hover:border-emerald-600 hover:text-emerald-700 lg:hidden"
             >
-              {preview ? 'Tulis' : 'Pratinjau'}
+              {mobilePreview ? 'Tulis' : 'Pratinjau'}
             </button>
           </div>
-          {!preview && (
-            <div
-              role="toolbar"
-              aria-label="Alat format tulisan"
-              className="mb-2 flex flex-wrap gap-1.5"
-            >
-              {(
-                [
-                  ['Judul', '## '],
-                  ['Subjudul', '### '],
-                ] as [string, '## ' | '### '][]
-              ).map(([name, prefix]) => (
+          <p className="mb-2 text-xs text-gray-400">
+            Tekan Enter dua kali untuk membuat paragraf baru. Seleksi teks lalu klik Tebal,
+            atau pakai Judul/Subjudul dan sisip gambar di tempat kursor.
+          </p>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className={mobilePreview ? 'hidden lg:block' : ''}>
+              <div
+                role="toolbar"
+                aria-label="Alat format tulisan"
+                className="mb-2 flex flex-wrap gap-1.5"
+              >
+                {(
+                  [
+                    ['Judul', '## '],
+                    ['Subjudul', '### '],
+                  ] as [string, '## ' | '### '][]
+                ).map(([name, prefix]) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => applyHeading(prefix)}
+                    className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:border-emerald-500 hover:text-emerald-700"
+                  >
+                    {name}
+                  </button>
+                ))}
                 <button
-                  key={name}
                   type="button"
-                  onClick={() => applyHeading(prefix)}
-                  className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:border-emerald-500 hover:text-emerald-700"
+                  onClick={applyBold}
+                  aria-label="Tebal"
+                  title="Tebal"
+                  className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-bold text-gray-700 transition hover:border-emerald-500 hover:text-emerald-700"
                 >
-                  {name}
+                  B
                 </button>
-              ))}
-              <label className="cursor-pointer rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:border-emerald-500 hover:text-emerald-700">
-                {uploading ? 'Mengunggah…' : 'Sisipkan gambar ke isi'}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  disabled={uploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) void uploadImage(file, 'content')
-                    e.target.value = ''
-                  }}
-                />
-              </label>
+                <label className="cursor-pointer rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:border-emerald-500 hover:text-emerald-700">
+                  {uploading ? 'Mengunggah…' : 'Sisipkan gambar ke isi'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) void uploadImage(file, 'content')
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+              </div>
+              <textarea
+                id="blog-editor-content"
+                ref={contentRef}
+                rows={14}
+                value={form.content}
+                onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                className={field}
+                placeholder={'Tulis paragraf pembuka dan isi di sini — judul, penulis, dan dateline dirakit otomatis…'}
+                required
+              />
             </div>
-          )}
-          {preview ? (
-            <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-300 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
-              <ReactMarkdown>{finalContent()}</ReactMarkdown>
+            <div className={mobilePreview ? '' : 'hidden lg:block'}>
+              <span className={label}>Pratinjau langsung</span>
+              <div className="max-h-[24rem] min-h-[12rem] overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
+                {form.content.trim() ? (
+                  <ReactMarkdown>{finalContent()}</ReactMarkdown>
+                ) : (
+                  <p className="text-gray-400">Pratinjau artikel akan tampil di sini…</p>
+                )}
+              </div>
             </div>
-          ) : (
-            <textarea
-              id="blog-editor-content"
-              ref={contentRef}
-              rows={12}
-              value={form.content}
-              onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-              className={`${field} font-mono text-xs`}
-              placeholder={'Tulis paragraf pembuka dan isi di sini — judul, penulis, dan dateline dirakit otomatis…'}
-              required
-            />
-          )}
+          </div>
         </div>
 
         <label className="flex items-center gap-2 text-sm text-gray-700">
